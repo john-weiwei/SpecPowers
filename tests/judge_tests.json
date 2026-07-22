@@ -1,0 +1,141 @@
+"""
+Regression test data for small-feature judgment.
+
+Format:
+{
+    "id": "J001",
+    "requirement": "user requirement text (Chinese or English)",
+    "expected": "small" | "full",
+    "signals": ["expected signal names"],
+    "confidence": "高" | "中" | "低",
+    "note": "explanation"
+}
+
+Target: misjudgment rate < 20%
+"""
+{
+    "version": 1,
+    "description": "判小回归测试集",
+    "cases": [
+        {
+            "id": "J001",
+            "requirement": "修复登录页按钮文字拼写错误",
+            "expected": "small",
+            "signals": ["bugfix", "单文件", "纯文案"],
+            "confidence": "高",
+            "note": "典型文案修复，应走优化模式"
+        },
+        {
+            "id": "J002",
+            "requirement": "新增用户优惠券模块，含数据库表、接口、前端页面",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "新模块涉及多层，必须走完整流程"
+        },
+        {
+            "id": "J003",
+            "requirement": "修改 application.yml 中的数据库连接池大小",
+            "expected": "small",
+            "signals": ["单文件", "纯配置"],
+            "confidence": "高",
+            "note": "纯配置修改"
+        },
+        {
+            "id": "J004",
+            "requirement": "给用户列表页添加导出 Excel 功能",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "新功能需要完整流程"
+        },
+        {
+            "id": "J005",
+            "requirement": "重构订单服务，把一个大类拆成三个小类，不改行为",
+            "expected": "small",
+            "signals": ["纯重构"],
+            "confidence": "中",
+            "note": "纯重构但涉及多文件，置信度中"
+        },
+        {
+            "id": "J006",
+            "requirement": "把首页 banner 图片换成新的",
+            "expected": "small",
+            "signals": ["单文件", "纯配置"],
+            "confidence": "高",
+            "note": "资源替换"
+        },
+        {
+            "id": "J007",
+            "requirement": "修复订单金额计算精度问题，涉及 3 个服务",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "涉及多服务，影响面大"
+        },
+        {
+            "id": "J008",
+            "requirement": "把错误提示从英文翻译成中文",
+            "expected": "small",
+            "signals": ["单文件", "纯文案"],
+            "confidence": "高",
+            "note": "文案国际化"
+        },
+        {
+            "id": "J009",
+            "requirement": "给所有 REST API 统一加响应时间监控埋点",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "全量改造，影响面大"
+        },
+        {
+            "id": "J010",
+            "requirement": "修一个空指针异常：用户没填手机号时下单报 NPE",
+            "expected": "small",
+            "signals": ["bugfix", "单文件"],
+            "confidence": "高",
+            "note": "典型 bugfix"
+        },
+        {
+            "id": "J011",
+            "requirement": "给 pom.xml 升级 spring-boot 版本从 3.1 到 3.2",
+            "expected": "small",
+            "signals": ["单文件", "纯配置"],
+            "confidence": "中",
+            "note": "版本升级可能是配置，但也可能引起兼容问题"
+        },
+        {
+            "id": "J012",
+            "requirement": "新增支付回调接口，对接微信支付 v3",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "新接口涉及外部对接"
+        },
+        {
+            "id": "J013",
+            "requirement": "删除已废弃的 /v1/old-api 接口及其相关代码",
+            "expected": "small",
+            "signals": ["纯重构"],
+            "confidence": "中",
+            "note": "删除废弃代码，但需确认无调用方"
+        },
+        {
+            "id": "J014",
+            "requirement": "调整列表页分页大小默认值从 10 改为 20",
+            "expected": "small",
+            "signals": ["单文件"],
+            "confidence": "高",
+            "note": "参数调整"
+        },
+        {
+            "id": "J015",
+            "requirement": "实现用户注册、登录、找回密码完整流程",
+            "expected": "full",
+            "signals": [],
+            "confidence": "高",
+            "note": "完整功能模块"
+        }
+    ]
+}
