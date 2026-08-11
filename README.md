@@ -15,46 +15,36 @@ SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引�
 
 ## 安装
 
-## 安装
-
 ### 方式一：插件市场（推荐 —— ZCode / Claude Code / Codex）
 
 三家的插件结构同构，本仓库已内置三份清单（`.zcode-plugin/`、`.claude-plugin/`、`.codex-plugin/`）。把本仓库添加为插件市场源后一行安装：
 
 ```bash
-# ZCode
-/plugin marketplace add https://github.com/<owner>/specpowers
-/plugin install specpowers
-
-# Claude Code
-/plugin marketplace add https://github.com/<owner>/specpowers
+# ZCode / Claude Code
+/plugin marketplace add https://github.com/john-weiwei/SpecPowers
 /plugin install specpowers
 
 # Codex CLI
-codex plugin marketplace add https://github.com/<owner>/specpowers
+codex plugin marketplace add https://github.com/john-weiwei/SpecPowers
 codex plugin install specpowers
 ```
 
-插件内嵌 `specpowers_cli` bridge 包（仅依赖 Python ≥ 3.11 标准库）。
+插件内嵌 `specpowers_cli` bridge 包（仅依赖 Python ≥ 3.11 标准库）。安装后无需 `init`，直接用 `/specpowers-constitution` 开始。
 
 ### 方式二：pip（Cursor / Copilot / Windsurf / Cline / Aider 等无插件市场的工具）
 
+这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（自动生成对应 rules 文件）：
+
 ```bash
-# 本地开发安装
-cd specpowers/
-pip install -e .
+# 安装
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v1.0.0
+# 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
 # → SpecPowers CLI v1.0.0
 
-# 推 GitHub 后
-pip install git+https://github.com/<owner>/specpowers.git@v1.0.0
-```
-
-然后在目标项目里初始化（自动检测 agent 类型并生成对应 rules 文件）：
-
-```bash
+# 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
 specpowers init                        # 自动检测 AI agent
 specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/cline/codex/zcode/claude
@@ -71,32 +61,22 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | brainstorm / plan / build | 推荐 | `/plugin install superpowers` |
 
-**检测是否就绪**：
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查。
+
+手动确认（可选）：
 ```bash
-openspec --version          # OpenSpec CLI
+openspec --version          # OpenSpec CLI 可用性
 # superpowers 插件在 agent 的插件管理界面查看
 ```
 
 > - 未装 OpenSpec CLI：仅 archive 阶段会拒绝执行（提示安装），其余阶段正常。
 > - 未装 superpowers：brainstorm/plan/build 会降级为纯提示词引导（无原生 skill 加持），功能可用但体验打折。
-> - 各 plugin.json 的 `requirements` 字段已声明这些依赖（供文档生成与未来插件管理器消费）。
 
 ---
 
 ## 快速开始
 
-### 1. 在项目中初始化
-
-```bash
-cd my-project
-specpowers init                        # 自动检测 AI agent
-specpowers init --integration zcode    # 或指定：ZCode
-specpowers init --integration workbuddy # 或指定：WorkBuddy
-```
-
-`specpowers init` 会创建 skill 文件 + `.specpowers/` runtime 目录。
-
-### 2. 生成项目原则 + 基线（一次性）
+### 1. 生成项目原则 + 基线（每个项目一次性）
 
 ```
 /specpowers-constitution
@@ -104,7 +84,9 @@ specpowers init --integration workbuddy # 或指定：WorkBuddy
 
 agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpowers/constitution.md`（插件自包含，无需外部依赖），并扫描项目结构生成 `.specpowers/baseline.json`。
 
-### 3. 启动特性开发
+> pip 方式用户需先在项目里跑 `specpowers init`（见上方"安装 → 方式二"）；插件市场用户装好插件即可直接用本命令。
+
+### 2. 启动特性开发
 
 | 场景 | 命令 |
 |------|------|
@@ -112,7 +94,7 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 | 直接开写 | `/specpowers-specify "需求"` |
 | 小改动 | `/specpowers-fast "需求"` |
 
-### 4. 收尾
+### 3. 收尾
 
 ```
 /specpowers-archive
@@ -184,19 +166,20 @@ build 是流水线的**执行核心**，组合了两件事：
 
 ## 支持平台
 
-所有 agent 统一以 skill 形式安装，`$skill-name` 方式调用。
+SpecPowers 支持两类安装方式，按你的 agent 选择：
 
-| Agent | skills 路径 | 调用示例 |
-|-------|-----------|---------|
-| WorkBuddy | `.workbuddy/skills/specpowers-*/` | `/specpowers-constitution` |
-| ZCode | `.zcode/skills/specpowers-*/` | `/specpowers-constitution` |
-| Claude Code | `.claude/skills/specpowers-*/` | `/specpowers-constitution` |
-| Cursor | `.cursor/skills/specpowers-*/` | `/specpowers-constitution` |
-| Copilot | `.github/skills/specpowers-*/` | `/specpowers-constitution` |
-| Windsurf | `.windsurf/skills/specpowers-*/` | `/specpowers-constitution` |
-| Codex CLI | `.codex/skills/specpowers-*/` | `/specpowers-constitution` |
+| Agent | 安装方式 | 命令调用 |
+|-------|---------|---------|
+| **ZCode** | 插件市场（推荐） | `/specpowers:constitution` 或 `/specpowers-constitution` |
+| **Claude Code** | 插件市场（推荐） | `/specpowers:constitution` 或 `/specpowers-constitution` |
+| **Codex CLI** | 插件市场（推荐） | skill 自动激活（Codex 无自定义 slash 命令） |
+| Cursor | pip + `specpowers init --integration cursor` | 自然语言触发（rules 引导） |
+| GitHub Copilot | pip + `specpowers init --integration copilot` | 自然语言触发（rules 引导） |
+| Windsurf | pip + `specpowers init --integration windsurf` | 自然语言触发（rules 引导） |
+| Cline | pip + `specpowers init --integration cline` | 自然语言触发（rules 引导） |
+| WorkBuddy | pip + `specpowers init --integration workbuddy` | 自然语言触发（rules 引导） |
 
-> 每个 agent 下创建 10 个 skill 目录：主 `specpowers/` + 9 个 `specpowers-<阶段>/`。主 skill 含完整 prompts + bin 上下文，分项 skill 各含独立 SKILL.md。
+> 插件市场方式享受完整体验（9 个 slash 命令 + SessionStart 依赖检测）；pip 方式生成 rules 文件引导 agent 按流水线执行，功能等价但无原生 slash 命令。
 
 ## 架构
 
@@ -248,7 +231,6 @@ specpowers/
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
 ├── tests/                       ← 测试套件（132 用例）
-└── specs/                       ← 设计文档
 ```
 
 ---
@@ -264,23 +246,6 @@ specpowers/
 | `.specpowers/baseline.json` | ✅ 提交 | 团队共享结构基线 |
 | `.specpowers/state.json` | 🚫 gitignore | 每人流水线独立 |
 | `.specpowers/.lock` | 🚫 gitignore | 仅本机有效 |
-
----
-
-> **无需迁移的情况**：constitution.md 和 baseline.json 路径不变；
-> state.json 是个人本地状态，重置即可（`specpowers reset`）。
-
----
-
-## 优化模式 vs 常规模式
-
-| | 优化 (fast) | 常规 (full) |
-|---|---|---|
-| 入口 | `specpowers-fast` | `specpowers-brainstorm` / `.specify` |
-| 适用 | bugfix、单文件、纯配置、纯文案 | 新特性、多文件、新增结构 |
-| 跳过 | brainstorm / specify / plan | — |
-| 产物 | 验收清单(delta spec) → openspec archive 合并 | proposal → delta spec → tasks |
-| 回退 | 可升级完整流程（仅 1 次） | — |
 
 ---
 
