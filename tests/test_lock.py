@@ -4,9 +4,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# package installed via pip - no sys.path needed
 
-from bridge.core.lock import (
+from specpowers_cli.bridge.core.lock import (
     acquire_lock, release_lock, is_locked, force_unlock,
 )
 

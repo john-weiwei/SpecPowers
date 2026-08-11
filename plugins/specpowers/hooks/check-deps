@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# SpecPowers SessionStart 依赖检测脚本
+# 检测 OpenSpec CLI + superpowers 插件是否就绪，缺失则通过 additionalContext 提示 agent 转告用户。
+# 只警告不阻断：检测脚本永远 exit 0，不影响会话启动。
+#
+# 检测项：
+#   1. OpenSpec CLI —— command -v openspec 或 npx --no-install openspec
+#   2. superpowers 插件 —— 查 ZCode/Claude/Codex 各自插件缓存目录下 superpowers/*/skills/ 是否存在
+#
+# 输出（stdout 一行 JSON，由 agent 会话上下文消费）：
+#   - Cursor  → {"additional_context": "..."}
+#   - Claude  → {"hookSpecificOutput": {"hookEventName":"SessionStart","additionalContext":"..."}}
+#   - 其他    → {"additionalContext": "..."}
+
+set -euo pipefail
+
+# ── 依赖检测 ──────────────────────────────────────────────────
+
+check_openspec() {
+    # 优先 PATH 全局 openspec
+    if command -v openspec >/dev/null 2>&1; then
+        return 0
+    fi
+    # 回退 npx（--no-install 避免远程拉取卡住）
+    if command -v npx >/dev/null 2>&1; then
+        npx --no-install openspec --version >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+
+check_superpowers() {
+    # superpowers 插件安装后，skill 目录会落在各平台的插件缓存里
+    # 任一路径命中即视为已装（用户可能在 ZCode/Claude/Codex 任一平台装了）
+    local candidates=(
+        "${HOME}/.zcode/cli/plugins/cache/zcode-plugins-official/superpowers"
+        "${HOME}/.claude/plugins/cache/superpowers"
+        "${HOME}/.codex/plugins/cache/superpowers"
+    )
+    for base in "${candidates[@]}"; do
+        # glob superpowers/<version>/skills/ —— 任一版本存在即可
+        if ls -d "${base}/"*/skills >/dev/null 2>&1; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# ── 拼装提示文案 ──────────────────────────────────────────────
+
+build_message() {
+    local missing=()
+    local openspec_ok=1
+    local superpowers_ok=1
+
+    if ! check_openspec; then
+        missing+=("⚠️ 缺少 OpenSpec CLI —— /specpowers-archive 归档阶段会失败。安装：npm install -g @funneler/openspec")
+        openspec_ok=0
+    fi
+
+    if ! check_superpowers; then
+        missing+=("⚠️ 缺少 superpowers 插件 —— /specpowers-brainstorm、/specpowers-plan、/specpowers-build 阶段会降级为纯提示词（无原生 skill 加持）。安装：/plugin install superpowers")
+        superpowers_ok=0
+    fi
+
+    local msg="<important-reminder>\nSpecPowers 依赖检测结果：\n"
+
+    if [ ${#missing[@]} -eq 0 ]; then
+        msg+="✅ 依赖就绪：OpenSpec CLI + superpowers 均已安装。\n"
+        msg+="（本提示由 SessionStart hook 自动生成，可忽略。）\n"
+    else
+        msg+="检测到以下依赖缺失，请按提示安装后重新开始：\n\n"
+        for m in "${missing[@]}"; do
+            msg+="${m}\n"
+        done
+        msg+="\n未安装不影响插件加载，但上述阶段会受影响。安装后重启会话即可生效。\n"
+    fi
+
+    msg+="</important-reminder>"
+    printf '%b' "$msg"
+}
+
+# ── JSON 转义（复用 superpowers 范式）────────────────────────
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# ── 主流程 ────────────────────────────────────────────────────
+
+message_raw="$(build_message)"
+message_escaped="$(escape_for_json "$message_raw")"
+
+# 平台分流输出（各平台消费字段不同，避免 Claude 重复消费）
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$message_escaped"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$message_escaped"
+else
+    printf '{\n  "additionalContext": "%s"\n}\n' "$message_escaped"
+fi
+
+exit 0

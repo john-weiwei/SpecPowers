@@ -1,0 +1,32 @@
+{
+  "name": "specpowers-marketplace",
+  "description": "SpecPowers — spec 驱动开发桥接编排插件市场",
+  "plugins": [
+    {
+      "name": "specpowers",
+      "source": "./plugins/specpowers",
+      "description": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件。需预装 OpenSpec CLI（archive 必需）+ superpowers 插件（brainstorm/plan/build 必需）。",
+      "description_i18n": {
+        "en": "A bridging plugin that layers structure-consistency gates and real-time human-handoff on top of OpenSpec and superpowers, with a six-stage pipeline.",
+        "zh-CN": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件。"
+      },
+      "version": "1.0.0",
+      "author": {
+        "name": "SpecPowers Team"
+      },
+      "category": "developer-tools",
+      "keywords": [
+        "spec-driven",
+        "pipeline",
+        "openspec",
+        "structure-gate",
+        "superpowers"
+      ],
+      "tags": [
+        "spec-driven",
+        "pipeline",
+        "openspec"
+      ]
+    }
+  ]
+}

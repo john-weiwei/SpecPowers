@@ -1,0 +1,39 @@
+{
+  "name": "specpowers",
+  "version": "1.0.0",
+  "description": "六阶段 spec 驱动开发流水线编排插件：constitution→brainstorm→specify→plan→build→archive，叠加结构一致性门禁与实时卡转人工。桥接 OpenSpec CLI + superpowers 插件，需预装。",
+  "author": {
+    "name": "SpecPowers Team"
+  },
+  "license": "MIT",
+  "keywords": [
+    "spec-driven",
+    "pipeline",
+    "openspec",
+    "structure-gate",
+    "superpowers"
+  ],
+  "requirements": {
+    "_detect": "SessionStart hook 在会话启动时自动检测依赖，缺失则通过提示告知用户（只警告不阻断）",
+    "commands": [
+      {
+        "name": "openspec",
+        "check": "openspec --version",
+        "requiredFor": ["archive"],
+        "optional": false,
+        "installHint": "npm install -g @funneler/openspec"
+      }
+    ],
+    "plugins": [
+      {
+        "name": "superpowers",
+        "requiredFor": ["brainstorm", "plan", "build"],
+        "optional": true,
+        "installHint": "/plugin install superpowers"
+      }
+    ]
+  },
+  "commands": "commands",
+  "skills": "skills",
+  "hooks": "hooks/hooks.json"
+}

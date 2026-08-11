@@ -1,0 +1,121 @@
+---
+name: specpowers
+description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，六阶段流水线（constitution→brainstorm→specify→plan→build→archive）+ 优化模式
+version: 1.0.0
+---
+
+# SpecPowers 桥接插件
+
+> **定位**：薄桥接层（Facade + Adapter + Dispatcher），不重写任何框架引擎。只复用 OpenSpec + superpowers 原生能力，补上两条它们都没有的硬约束：**结构一致性门禁**、**实时卡转人工**。
+
+## ⚠️ 前置依赖（必装）
+
+本插件是**桥接层**，编排以下外部能力。安装本插件前请先就绪：
+
+| 依赖 | 类型 | 用在哪 | 安装方式 |
+|------|------|--------|---------|
+| **OpenSpec CLI** | 命令行工具 | archive 阶段归档（强依赖，不可用则拒绝归档） | `npm install -g @funneler/openspec` 或见 [openspec 官方](https://github.com/funneler/openspec) |
+| **superpowers 插件** | agent skill 包 | brainstorm(`brainstorming`)/plan(`writing-plans`)/build(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`) | `/plugin install superpowers`（ZCode/Claude 内置市场） |
+
+**自动检测**：本插件内置 SessionStart hook，会话启动时（startup/clear/compact）自动检测上述依赖。若缺失，agent 会在首条回复中提示你安装方法——无需手动检查。
+
+手动确认（可选）：
+```bash
+openspec --version          # OpenSpec CLI 可用性
+```
+superpowers 插件是否启用，在 agent 的插件管理界面查看。
+
+> 若未安装 superpowers，brainstorm/plan/build 阶段的探索、规划、执行能力会降级为提示词引导（无原生 skill 加持）；若未安装 OpenSpec CLI，仅 archive 阶段会拒绝执行，其余阶段正常。
+
+## 三个概念
+
+| 概念 | 说明 |
+|------|------|
+| ① 项目原则 | `/specpowers-constitution` — 生成 constitution.md（质量/测试/UX/性能 四类原则）+ 扫描结构基线 |
+| ② 特性流水线 | `/specpowers-brainstorm` → `/specpowers-specify` → `/specpowers-plan` → `/specpowers-build` → `/specpowers-archive` 六阶段 |
+| ③ 收尾 | `/specpowers-archive` — delta 合并（常规）或 git commit+stub（优化） |
+
+## 两个开关
+
+| 开关 | 说明 |
+|------|------|
+| ① 优化模式 | `/specpowers-fast` — 判小跳 spec/plan，直进 build |
+| ② 基线刷新 | `/specpowers-baseline` — 手动重扫结构基线 |
+
+---
+
+## 流水线总览
+
+```
+constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
+                       ├─(specify)─────▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
+                       └─(fast)──▶(用户编码)──▶ build ─▶ archive ─▶ ready
+```
+
+---
+
+## 命令参考
+
+| 命令 | 参数 | 合法 from_stage | 说明 |
+|------|------|----------------|------|
+| `/specpowers-constitution` | `[--force]` | constitution / 任意(需确认) | 生成原则 + 扫基线 |
+| `/specpowers-brainstorm` | `"<需求>"` | ready | 探索 + 写 proposal.md |
+| `/specpowers-specify` | `"<需求>"` | brainstorm / ready / build(fallback) | 生成 spec.md |
+| `/specpowers-fast` | `"<需求>"` | ready | 声明优化模式 |
+| `/specpowers-plan` | — | specify | 生成 plan.md |
+| `/specpowers-build` | — | plan / ready(fast) | 执行构建 + 门禁 |
+| `/specpowers-archive` | `[--force-merge-check]` | build | 收尾归档 |
+| `/specpowers-baseline` | — | 任意 | 手动刷新基线 |
+| `/specpowers-reset` | — | 任意 | 重置 state+lock |
+
+---
+
+## 执行方式
+
+所有阶段命令先调用确定性层获取状态/校验，再加载对应 `prompts/` 契约执行认知任务：
+
+```bash
+python -m specpowers_cli.bridge.facade <subcommand> [--root <path>] [options]
+```
+
+**插件内 bridge 包定位**：本插件把 `specpowers_cli` 包内嵌在 `${PLUGIN_ROOT}/scripts/` 下。若 `python -m specpowers_cli.bridge.facade` 直接执行失败（包未 pip 安装），改用插件内的包装脚本，它会自动设置 PYTHONPATH：
+
+```bash
+# Linux/macOS
+${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>] [options]
+# Windows
+%PLUGIN_ROOT%\scripts\specpowers_cli\bin\specpowers.bat <subcommand> [--root <path>] [options]
+```
+
+> `PLUGIN_ROOT` 在 ZCode 为 `${ZCODE_PLUGIN_ROOT}`、Claude Code 为 `${CLAUDE_PLUGIN_ROOT}`、Codex 为 `${CODEX_PLUGIN_ROOT}`，按当前运行环境替换。
+
+**自动读取契约强制**：每个阶段开始前，Dispatcher 自动校验本阶段必读上游产物是否存在。缺必读 → 拒绝开工。
+
+---
+
+## 契约文件
+
+| 文件 | 职责 |
+|------|------|
+| `prompts/constitution.md` | 内联生成 constitution.md（4 类原则）；不调外部技能；不承载结构规则 |
+| `templates/constitution-template.md` | constitution 生成模板（四类原则骨架，填入质量/测试/UX/性能 4 类原则） |
+| `prompts/brainstorm.md` | 收口契约：HARD-GATE 强制 brainstorming 探索（防架空）+ 运行时数据流溯源（条件触发）+ 结构化决策摘要 → proposal.md 落盘（含「数据流契约」小节，specify 硬依赖）；判小信号映射 |
+| `prompts/specify.md` | OpenSpec 场景格式；自动读 proposal.md + constitution |
+| `prompts/plan.md` | writing-plans 瘦身：生成单一 tasks.md（conductor/subagent 档字段） |
+| `prompts/build.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
+| `prompts/archive.md` | 三职责收尾；合体后校验 |
+| `prompts/fast_mode.md` | 判小 prompt / 确认交互 / 回退 / 清单 |
+
+---
+
+## 安全底线
+
+- 所有用户输入参数化传递，禁止拼入 shell 命令字符串
+- git 操作使用参数列表调用 subprocess（bridge/core/git_util.py）
+- `.specpowers/state.json` 原子写（临时文件 + rename）
+- `.specpowers/.lock` 防重入，含死锁检测
+
+## 团队协作
+
+- `baseline.json` → 提交 git（团队共享基线）
+- `state.json` / `.lock` → `.gitignore`（个人本地）

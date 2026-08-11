@@ -1,0 +1,34 @@
+# Python 字节码缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SpecPowers 个人运行时（本地状态，不提交）
+.specpowers/state.json
+.specpowers/.lock
+
+# Python 打包产物
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 测试缓存
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db

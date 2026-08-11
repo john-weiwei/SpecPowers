@@ -1,0 +1,52 @@
+[project]
+name = "specpowers"
+version = "1.0.0"
+description = "SpecPowers — a bridging plugin for spec-driven development. Orchestrates OpenSpec and superpowers with structure gates and pipeline automation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "SpecPowers Team"}
+]
+keywords = ["spec-driven-development", "ai-agent", "skill", "open-spec", "pipeline"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Build Tools",
+]
+
+dependencies = [
+    # Pure stdlib — no third-party dependencies required at runtime.
+    # Python 3.11+ stdlib provides everything we need:
+    #   pathlib, subprocess, json, hashlib, tempfile, fcntl, signal, ctypes, os
+]
+
+[project.scripts]
+specpowers = "specpowers_cli.main:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# 插件化后 specpowers_cli 包位于 plugins/specpowers/scripts/ 下。
+# packages 指向包根，会自动包含 bridge/、bin/ 子目录及其中的 .py 和非 .py 文件。
+# commands/ 和 skills/ 不打进 wheel（它们走插件市场分发，pip 安装场景用 specpowers init 生成）。
+packages = ["plugins/specpowers/scripts/specpowers_cli"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = ["-v", "--tb=short"]

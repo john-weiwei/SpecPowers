@@ -1,0 +1,42 @@
+#!/bin/bash
+# SpecPowers facade 包装脚本 —— 由 agent slash 命令调用。
+# agent 执行确定性操作时通过本脚本调用 bridge。
+#
+# 包定位策略（三重兜底）：
+#   1. 优先 python -m specpowers_cli.bridge.facade（pip 全局/用户安装时直接命中）
+#   2. 插件内嵌包：bin/ 的上两级是 specpowers_cli/ 包，其父目录加入 PYTHONPATH
+#   3. 旧版 init 拷贝的本地包（向后兼容）
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 插件布局：scripts/specpowers_cli/bin/specpowers
+#   bin/ 上两级 = scripts/specpowers_cli/（包根）
+#   需要把 包根的父目录（scripts/）加入 PYTHONPATH 才能 import specpowers_cli
+EMBEDDED_PKG_PARENT="$SCRIPT_DIR/../.."
+
+PYTHON="${SPECPOWERS_PYTHON:-python3}"
+command -v "$PYTHON" >/dev/null 2>&1 || PYTHON="python"
+
+# 1. 尝试用已安装的包运行（pip install 场景）
+if "$PYTHON" -c "import specpowers_cli" >/dev/null 2>&1; then
+    exec "$PYTHON" -m specpowers_cli.bridge.facade "$@"
+fi
+
+# 2. 插件内嵌包：把 scripts/ 加入 PYTHONPATH
+if [ -f "$EMBEDDED_PKG_PARENT/specpowers_cli/__init__.py" ]; then
+    exec env PYTHONPATH="$EMBEDDED_PKG_PARENT${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON" -m specpowers_cli.bridge.facade "$@"
+fi
+
+# 3. 旧版兼容：init 拷贝的本地包（skills/specpowers/specpowers_cli/）
+LEGACY_PKG_ROOT="$SCRIPT_DIR/.."
+if [ -d "$LEGACY_PKG_ROOT/specpowers_cli" ]; then
+    exec env PYTHONPATH="$LEGACY_PKG_ROOT" "$PYTHON" -m specpowers_cli.bridge.facade "$@"
+fi
+
+echo "Error: specpowers_cli 包未找到。" >&2
+echo "  已尝试路径：" >&2
+echo "    1. python -m specpowers_cli（pip 安装）" >&2
+echo "    2. $EMBEDDED_PKG_PARENT/specpowers_cli/（插件内嵌包）" >&2
+echo "  修复方法：pip install -e . 或重新安装插件" >&2
+exit 2

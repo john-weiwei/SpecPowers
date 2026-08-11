@@ -3,9 +3,9 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# package installed via pip - no sys.path needed
 
-from bridge.core.platform import (
+from specpowers_cli.bridge.core.platform import (
     is_windows, is_linux, is_macos,
     system_name, check_python_version, ensure_python_version,
     python_command, supports_fcntl_lock, atomic_replace,
