@@ -1,0 +1,19 @@
+README.md
+  s_7be1d5b9b60b0e::t_a3e94508ecb9d7 23-24,28,32,36-37,39-41,47,64-66,68,79,87-89,97,169,171-180,182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "93b0a562343d3301d09bbfa2775a45c81d42f156",
+  "prompts": {},
+  "sessions": {
+    "s_7be1d5b9b60b0e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_2ef82b3b-044b-421b-a175-d2c284e903d0",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.2"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
