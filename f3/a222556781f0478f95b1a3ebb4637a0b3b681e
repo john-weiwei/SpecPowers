@@ -1,0 +1,135 @@
+.gitignore
+  s_7be1d5b9b60b0e::t_25f2da765e61b8 1-34
+README.md
+  s_7be1d5b9b60b0e::t_3e79fdf063b5da 1-289
+marketplace.json
+  s_7be1d5b9b60b0e::t_5a1fd5b476e583 1-32
+plugins/specpowers/.codex-plugin/plugin.json
+  s_7be1d5b9b60b0e::t_9655e32b5c8ce9 1-37
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_7be1d5b9b60b0e::t_bdaa5f3dcac5c2 1-39
+plugins/specpowers/commands/archive.md
+  s_7be1d5b9b60b0e::t_6466cc819b3c26 1-23
+plugins/specpowers/commands/baseline.md
+  s_7be1d5b9b60b0e::t_31766828549d51 1-21
+plugins/specpowers/commands/brainstorm.md
+  s_7be1d5b9b60b0e::t_50ac9b8e0ffb8e 2-6,9,11-12,15,17,19-23
+plugins/specpowers/commands/build.md
+  s_7be1d5b9b60b0e::t_5d1db45481390e 1-30
+plugins/specpowers/commands/constitution.md
+  s_7be1d5b9b60b0e::t_d28ad86a1ca7ca 2-12,15,17-18,21,23,25,27-35,37
+plugins/specpowers/commands/fast.md
+  s_7be1d5b9b60b0e::t_14a36dae55b461 1-25
+plugins/specpowers/commands/plan.md
+  s_7be1d5b9b60b0e::t_4d5d0d19d935fb 1-26
+plugins/specpowers/commands/reset.md
+  s_7be1d5b9b60b0e::t_6e3bc9b02dac68 1-23
+plugins/specpowers/commands/specify.md
+  s_7be1d5b9b60b0e::t_58647758ab64f8 1-24
+plugins/specpowers/hooks/check-deps
+  s_7be1d5b9b60b0e::t_3fc49c2ec3de82 1-108
+plugins/specpowers/hooks/hooks.json
+  s_7be1d5b9b60b0e::t_0e000ee9c321c0 1-16
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_7be1d5b9b60b0e::t_7fc84f8496ccd0 1-3
+plugins/specpowers/scripts/specpowers_cli/bin/specpowers
+  s_7be1d5b9b60b0e::t_0a3ff2982b2682 2-3,5-8,13-19,21-23,26-29,31-34,37-42
+plugins/specpowers/scripts/specpowers_cli/bin/specpowers.bat
+  s_7be1d5b9b60b0e::t_c64579162c3c4a 2-6,11-15,17-18,20-24,27-31,34-40,42-47
+plugins/specpowers/scripts/specpowers_cli/bridge/adapters/__init__.py
+  s_7be1d5b9b60b0e::t_48c6b7915eb74c 1-6
+plugins/specpowers/scripts/specpowers_cli/bridge/adapters/openspec.py
+  s_7be1d5b9b60b0e::t_6dfd9bfad2fa92 1,3-17,20,23-24,27-28,31,33-37,40-43,45-47,49-51,56,58-59,62-63,67,69-77,79-81,83-84,86-107,110-115,118-119,121-129,131-191
+plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py
+  s_7be1d5b9b60b0e::t_dfa2203678ef1e 6-7,11-12,18,20,24-42,50-53,72,101-102
+plugins/specpowers/scripts/specpowers_cli/bridge/core/git_util.py
+  s_7be1d5b9b60b0e::t_4f7d7ec4c003df 41,88,93,97,130-137,207-222
+plugins/specpowers/scripts/specpowers_cli/bridge/core/lock.py
+  s_7be1d5b9b60b0e::t_144c4037c2761f 15-23,57-58,60-61,63-93,97-101,105-107,109-115,119,125,127-136,154-160,163-176,190,240-247
+plugins/specpowers/scripts/specpowers_cli/bridge/core/platform.py
+  s_7be1d5b9b60b0e::t_fafa5bbc386389 85
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_7be1d5b9b60b0e::t_60f70d5eea75f4 12,17,21-24,95-101,103,105,113-118,121,139-193,240,244,270,279-281,293-297,302,318-328,339-345,359,363,376,381,394-398,407,415,417-418,425-451,457,459,464-475,528,530,533,542-576
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_7be1d5b9b60b0e::t_a1b6aa40ea482f 8,26,29,34-35,59-86,98,101,103,110,120,130,140,146,152,159,165,171,179,194-196,211-240,255-256,286
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/archive_auditor.py
+  s_7be1d5b9b60b0e::t_a751ca4242dadf 1-8,12-13,15,23,25-26,55-56,58,60,63-65,67-71,73-74,76-78,80-84,86-90,92-94,96-101,103-104,106-110
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/artifact_registry.py
+  s_7be1d5b9b60b0e::t_ee4fabf0ce8fd8 1-18,32-38,42,49,52-54,59,61,66,88-94,97-99,102,104-108,113,116,118-122,126-160,162,164,171,179,184
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/baseline_scanner.py
+  s_7be1d5b9b60b0e::t_0c4eb834ef3a34 25,27,29,37-38,48,84-88,97-105,160,163-175
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/dep_manifest.py
+  s_7be1d5b9b60b0e::t_3c553b92614f64 1,3,5-10,12-13,16-48
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/mode_controller.py
+  s_7be1d5b9b60b0e::t_8d9e5b9b51224a 1,7-12,14-16,19-20,22-24,26-28,30-31,33-47,50-51,53-54,56-59,62,64-65,67-74,77-81
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/path_resolver.py
+  s_7be1d5b9b60b0e::t_cc4a686cb9aad6 1,3-11,17-18,20-21,23-29,32-33,35-36,39-44,46-51,53,56,58-59,61-72,75-76,78-79,81,84-85,87-98,101-106,108-121,123-126
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/structure_gate.py
+  s_7be1d5b9b60b0e::t_89ace0961df493 7-9,14-15,26,32-33,39,43-47,51,53-56,58,62,64,67-69,71,77,79
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_7be1d5b9b60b0e::t_7661dc2c2e9723 1-353
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_7be1d5b9b60b0e::t_9dc781f1719634 3,9-28,34-36,42-43,61-69,78-87,90-91,100-104,106,121
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_7be1d5b9b60b0e::t_9651d169eca9a2 5-7,12,17,21,23,26,29,31-32,34,37-39,50-52,56-57,59,61-65,67,69-75,77-78,82,87,89-98,110
+plugins/specpowers/skills/specpowers/prompts/brainstorm.md
+  s_7be1d5b9b60b0e::t_ac284af254ed34 5-7,12,23-33,35-69,73,89,91,93-162,165-182,187-188,206
+plugins/specpowers/skills/specpowers/prompts/build.md
+  s_7be1d5b9b60b0e::t_c7e8ff4e0ea4bb 5-7,12,17,20,26-48,50-58,63,71,79,81,83-85,90,92,94-104,106,108-110,113,116,121-123,128
+plugins/specpowers/skills/specpowers/prompts/constitution.md
+  s_7be1d5b9b60b0e::t_972d3aa305e84a 5,10,13-14,17-29,31,33,35-39,41,43-65,68,71-73,78-79,85-89,99,104-106
+plugins/specpowers/skills/specpowers/prompts/fast_mode.md
+  s_7be1d5b9b60b0e::t_223f22db8d9b0e 5,10,19,68,70-76,79-90,92-94,98-99,105,107,111,113,115-119
+plugins/specpowers/skills/specpowers/prompts/plan.md
+  s_7be1d5b9b60b0e::t_4830a29602f8e5 5-7,12,17,21-31,33-36,38-43,47-49,51,53-97,102-116,119,121,123-130,132-137,139-161,165-166,168-178,180,182,187-188,193,195-196,200
+plugins/specpowers/skills/specpowers/prompts/specify.md
+  s_7be1d5b9b60b0e::t_861afd8733c08e 5-7,12,17-18,24-25,28,30-32,34-36,38-39,41-44,46-48,50-56,59-70,72,74,77-78,83-86,98
+plugins/specpowers/skills/specpowers/templates/constitution-template.md
+  s_7be1d5b9b60b0e::t_c20eec867915dc 1-45
+pyproject.toml
+  s_7be1d5b9b60b0e::t_ae13d3d8489e1f 1-52
+tests/test_archive_auditor.py
+  s_7be1d5b9b60b0e::t_374545c3b4393c 1-91
+tests/test_artifact_registry.py
+  s_7be1d5b9b60b0e::t_b9206aa6df7767 1-127
+tests/test_baseline_scanner.py
+  s_7be1d5b9b60b0e::t_bba442e6999d82 1,4,7,9-45,50,54,59,67-83,93,96,98-99,101-102,104
+tests/test_dep_manifest.py
+  s_7be1d5b9b60b0e::t_54afd277f0e01d 1-81
+tests/test_dispatcher.py
+  s_7be1d5b9b60b0e::t_18faa87727fa9e 1-336
+tests/test_execution_mode.py
+  s_7be1d5b9b60b0e::t_8baf7b8c41beaf 1,3-16,19-25,28,30-40,42,45-47,51-55,59-64,67-127,129-133,136-141,144-151,153-154,157,159-160,162,164-219,223-224
+tests/test_facade.py
+  s_7be1d5b9b60b0e::t_c788f51fa37bc0 1-115
+tests/test_fs_state.py
+  s_7be1d5b9b60b0e::t_d68ec99563dbd3 8,10
+tests/test_git_util.py
+  s_7be1d5b9b60b0e::t_0a1b326b91ad09 7,9,11,13,16-22,63,65,77,79,85,87,93-144
+tests/test_lock.py
+  s_7be1d5b9b60b0e::t_a31a1a8eb13aae 7,9
+tests/test_merge_check.py
+  s_7be1d5b9b60b0e::t_99d8d3eff75948 1,3,6,8-9,12-13,15-18,20-58,60-61,64,66-67,71-104,107-116
+tests/test_path_resolver.py
+  s_7be1d5b9b60b0e::t_e508f1c5b17a68 1,3-5,10-12,15-18,21-25,28,30-37,40-43,46-49,52-80
+tests/test_platform.py
+  s_7be1d5b9b60b0e::t_850e02ee196b90 6,8
+tests/test_structure_gate.py
+  s_7be1d5b9b60b0e::t_8bcb014e4d1fb7 1-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "f3a222556781f0478f95b1a3ebb4637a0b3b681e",
+  "prompts": {},
+  "sessions": {
+    "s_7be1d5b9b60b0e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_2ef82b3b-044b-421b-a175-d2c284e903d0",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.2"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
