@@ -1,0 +1,29 @@
+plugins/specpowers/commands/archive.md
+  s_f0d9569342e8cc::t_4b67d3650fecc6 24-25
+plugins/specpowers/commands/plan.md
+  s_f0d9569342e8cc::t_531f15558e1aef 22
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_f0d9569342e8cc::t_5a6224192f1bc1 136-161,205-208
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_f0d9569342e8cc::t_cccd668fc758e0 36
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_f0d9569342e8cc::t_02f4b71e5f7a3b 103
+plugins/specpowers/skills/specpowers/prompts/plan.md
+  s_f0d9569342e8cc::t_613f16d2682ce2 116,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "7967fa61de8afccc05283f141f6d26eacaf08902",
+  "prompts": {},
+  "sessions": {
+    "s_f0d9569342e8cc": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_45f91f14-b17f-4b9c-bf27-9fe855fc3e2b",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
