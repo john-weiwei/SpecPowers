@@ -1,0 +1,32 @@
+plugins/specpowers/.claude-plugin/plugin.json
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 3
+plugins/specpowers/.codex-plugin/plugin.json
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 3
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 4
+marketplace.json
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 13
+README.md
+  s_0d486b5e0d959e::t_8af1e66e424341 206-207
+  s_0d486b5e0d959e::t_42761d85cba890 249-252
+pyproject.toml
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 3
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_0d486b5e0d959e::t_cbd1517f5bd9b1 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "a2cc76d93b18e9af2505d44c4d2fcd67da9a94b5",
+  "prompts": {},
+  "sessions": {
+    "s_0d486b5e0d959e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_c6ea7a57-535e-407d-aecd-4f72a5ea1564",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
