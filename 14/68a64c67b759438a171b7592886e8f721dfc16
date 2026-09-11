@@ -1,0 +1,37 @@
+README.md
+  s_2c2ec4bca4c5e4::t_6071ce21830063 40,45
+  s_2c2ec4bca4c5e4::t_524b9b85912fcc 55-87
+  s_2c2ec4bca4c5e4::t_ec518f86a00ff0 7
+plugins/specpowers/scripts/specpowers_cli/bridge/__init__.py
+  s_2c2ec4bca4c5e4::t_94daace44d6f81 2
+pyproject.toml
+  s_2c2ec4bca4c5e4::t_8954fbd7844b32 3
+marketplace.json
+  s_2c2ec4bca4c5e4::t_b13d7a3e955b6b 13
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_2c2ec4bca4c5e4::t_bcaf1a81a230a1 4
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_2c2ec4bca4c5e4::t_ed642a9a970b0e 3
+plugins/specpowers/.claude-plugin/plugin.json
+  s_2c2ec4bca4c5e4::t_2c862a4797b5a0 3
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_2c2ec4bca4c5e4::t_49b3aa621fb298 3
+plugins/specpowers/.codex-plugin/plugin.json
+  s_2c2ec4bca4c5e4::t_bdf86b693dd893 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "1468a64c67b759438a171b7592886e8f721dfc16",
+  "prompts": {},
+  "sessions": {
+    "s_2c2ec4bca4c5e4": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_9ac4ee6e-b712-4743-94fe-ec31782dd927",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
