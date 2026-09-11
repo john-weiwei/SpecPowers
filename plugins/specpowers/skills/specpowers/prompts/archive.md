@@ -100,6 +100,7 @@ dispatcher 已提示是否触发 merge check，agent 如需额外校验：
 ## 归档原则
 
 - **只转人工、不打回**（archive 是收尾，不打回重做）
+- **不提交代码**：archive 只做归档动作（openspec archive + state 跃迁），不执行 `git add` / `git commit`，代码与产物的提交由用户自行完成
 - 重复归档检测：防止同一 feature 被多人重复归档
 - 完成后 stage 跃迁到 `ready`，feature 清空
 

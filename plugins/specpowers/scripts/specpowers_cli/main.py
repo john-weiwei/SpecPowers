@@ -133,6 +133,32 @@ def _atomic_copytree(src: Path, dst: Path, ignore=None) -> None:
         raise
 
 
+def _with_skill_name(content: str, skill_name: str) -> str:
+    """为生成的 SKILL.md frontmatter 注入 name 属性（已有则覆盖）。
+
+    skill 规范要求 frontmatter 声明 name 且与目录名一致；
+    command 源文件只有 description，复制时在此补齐。
+    """
+    if not content.startswith("---"):
+        # 无 frontmatter：包一层只含 name 的头
+        return f"---\nname: {skill_name}\n---\n{content}"
+    lines = content.splitlines(keepends=True)
+    end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
+    if end is None:
+        # 只有起始 --- 无闭合，视为格式损坏，同样补标准头
+        return f"---\nname: {skill_name}\n---\n{content}"
+    body = lines[1:end]
+    for idx, line in enumerate(body):
+        if line.strip().startswith("name:"):
+            body[idx] = f"name: {skill_name}\n"
+            return "---\n" + "".join(body) + "".join(lines[end:])
+    return lines[0] + f"name: {skill_name}\n" + "".join(body) + "".join(lines[end:])
+
+
 def _copy_agent_files(project_dir: Path, integration: dict):
     """Copy skill files to the agent's skills directory.
 
@@ -176,7 +202,10 @@ def _copy_agent_files(project_dir: Path, integration: dict):
             skill_name = f"specpowers-{cmd_file.stem}"
             skill_dir = skills_root / skill_name
             skill_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(cmd_file, skill_dir / "SKILL.md")
+            # skill 规范要求 frontmatter 带 name 属性，command 源文件不带，复制时注入
+            content = cmd_file.read_text(encoding="utf-8")
+            with open(skill_dir / "SKILL.md", "w", encoding="utf-8", newline="") as f:
+                f.write(_with_skill_name(content, skill_name))
 
 
 def _copy_runtime_files(project_dir: Path, integration: dict):

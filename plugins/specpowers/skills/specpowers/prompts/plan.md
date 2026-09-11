@@ -81,7 +81,6 @@ TDD：[推荐 / 可选 / 不推荐]
 - 依赖：<前置任务，无则写 无>
 - 并行：<是/否；若可与其他任务并行，列出可并行的兄弟任务号，如「是，可与 Task 3/5 并行」；否则写 否>
 - 检查点：<本任务完成后是否需独立验证；如「完成验证：本地编译通过+单元测试绿色」或「无」；关键集成点建议设检查点>
-- 测试先行：<是/否>
 
 ### Task 2: [任务描述]
 
@@ -91,7 +90,6 @@ TDD：[推荐 / 可选 / 不推荐]
 - 依赖：Task 1
 - 并行：<是/否 + 可并行的兄弟任务号；否则写 否>
 - 检查点：<本任务完成后是否需独立验证，或写 无>
-- 测试先行：<是/否>
 ```
 
 **subagent 档**（推荐=subagent）——subagent 是零上下文执行单元，只看 brief、看不到 brainstorm/proposal/spec/代码库/前置任务实现，必须把以下硬数据显式写入每个 Task：
@@ -113,10 +111,9 @@ TDD：[推荐 / 可选 / 不推荐]
 - 异常策略：<try-catch 范围 + 日志级别 + 是否阻断主流程；对齐项目规范「打印整个异常而非只打印 msg」>
 - 验证命令：<编译命令如 mvn -pl xxx test-compile -am -o -q（无 ERROR 即过）；或测试运行 mvn test -Dtest=类#方法>
 - 卡住升级：<连续编译失败 2 次 / 找不到 API 签名 / 数据来源不明 → 返回主 session 问用户，禁止瞎猜>
-- 测试先行：<是/否；若是，附测试基类用法 + 注解组合 + 已有测试文件路径作模板 + mock 框架>
 ```
 
-> subagent 档字段覆盖了 8 类缺口：第4类场景原文、第1类代码锚点、第2类 API 契约、第3类数据来源、第5类测试模板、第7类前置产出、第8类验证+升级路径。第6类项目编码规范及其余项目原则（质量/测试/UX/性能）走 constitution.md 统一管道——build 阶段 controller 从 `.specpowers/constitution.md` 摘录全部原则注入每个 task 的 Context（subagent 隔离上下文，看不到 AGENTS.md/CLAUDE.md/constitution.md，必须显式注入），不重复进 task。
+> subagent 档字段覆盖了 7 类缺口：第4类场景原文、第1类代码锚点、第2类 API 契约、第3类数据来源、第7类前置产出、第8类验证+升级路径。第5类测试模板与第6类项目编码规范及其余项目原则（质量/测试/UX/性能）走 constitution.md 统一管道——build 阶段 controller 从 `.specpowers/constitution.md` 摘录全部原则注入每个 task 的 Context（subagent 隔离上下文，看不到 AGENTS.md/CLAUDE.md/constitution.md，必须显式注入），不重复进 task。
 
 #### 字段填充指引（各字段数据来源，避免凭空填写）
 
@@ -125,7 +122,6 @@ TDD：[推荐 / 可选 / 不推荐]
 - **前置产出契约**：从已完成的前置 Task 小节的「实现内容」提取产出的符号（常量全名/方法签名/DTO 字段）。若前置 Task 尚未实现，契约即本 feature 对该产出的约定，后续前置 Task 实现时必须遵守。
 - **场景原文**：从 `openspec/changes/<feature>/specs/<capability>/spec.md` 摘录 WHEN-THEN 原文，不要只写 Scenario 名。
 - **验证命令**：查项目 build 工具（有 `pom.xml` → mvn；有 `package.json` → npm/yarn；有 `pyproject.toml` → pytest）。
-- **测试模板**：查项目既有测试文件（如 `src/test/` 下同类测试），摘录其测试基类、注解组合、mock 用法作为模板引用。
 - **并行**：判断本任务是否与兄弟任务无文件冲突、无数据依赖。可并行的典型场景：不同模块的同级任务、同模块内只读不同文件的任务。注意：并行任务不得修改同一文件。
 - **检查点**：在关键集成点（如 foundational 任务完成、某 user story 闭环、跨模块对接前）设检查点。检查点内容须可独立验证（编译通过/测试绿色/接口对接成功）。
 
@@ -179,7 +175,7 @@ tasks.md 顶部「## 推荐执行方式」注释块（模板见第二步 conduct
 
 此小节不参与 task-brief 切分（awk 只切 `### Task N` 段落，末尾的 `##` 小节不会被误切），供 build 阶段 controller 规划执行顺序与并行派发。
 
-**禁止自动 git commit**：只生成文件，不执行 `git add` / `git commit`。提交由用户在 archive 阶段手动完成。
+**禁止自动 git commit**：只生成文件，不执行 `git add` / `git commit`。后续各阶段（含 archive 归档）同样不提交代码，提交由用户自行完成。
 
 ### 第六步：通知用户
 

@@ -21,3 +21,5 @@ Load the specpowers skill context, then follow `prompts/archive.md`.
 **Full 与 Fast 模式统一**：dispatcher 调用 `openspec archive <feature> --yes --json` 归档（合并主规格 `openspec/specs/<feature>/spec.md` + change 快照 `openspec/changes/archive/YYYY-MM-DD-<feature>/`）。强依赖 openspec CLI，CLI 不可用时拒绝归档（不降级）。full 与 fast 的唯一区别：fast 无 proposal.md（OpenSpec archive 对 proposal 内容是 informative only，不阻塞）。
 
 After archive: stage resets to `ready`, feature name cleared. Ready for next feature.
+
+**Do NOT commit code**: archive only finalizes (openspec archive + state transition), never runs `git add` / `git commit` — committing is left to the user.

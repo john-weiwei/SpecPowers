@@ -33,7 +33,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 |------|------|
 | ① 项目原则 | `/specpowers-constitution` — 生成 constitution.md（质量/测试/UX/性能 四类原则）+ 扫描结构基线 |
 | ② 特性流水线 | `/specpowers-brainstorm` → `/specpowers-specify` → `/specpowers-plan` → `/specpowers-build` → `/specpowers-archive` 六阶段 |
-| ③ 收尾 | `/specpowers-archive` — delta 合并（常规）或 git commit+stub（优化） |
+| ③ 收尾 | `/specpowers-archive` — 常规/优化统一调 openspec archive 做 delta 合并；只归档，不提交代码 |
 
 ## 两个开关
 
