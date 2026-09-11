@@ -203,8 +203,8 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 
 | Agent | 安装方式 | 命令调用 |
 |-------|---------|---------|
-| **ZCode** | 插件市场（推荐） | `/specpowers:constitution` 或 `/specpowers-constitution` |
-| **Claude Code** | 插件市场（推荐） | `/specpowers:constitution` 或 `/specpowers-constitution` |
+| **ZCode** | 插件市场（推荐） | `/specpowers:specpowers-constitution` 或 `/specpowers-constitution` |
+| **Claude Code** | 插件市场（推荐） | `/specpowers:specpowers-constitution` 或 `/specpowers-constitution` |
 | **Codex CLI** | 插件市场（推荐） | skill 自动激活（Codex 无自定义 slash 命令） |
 | Cursor | pip + `specpowers init --integration cursor` | 自然语言触发（rules 引导） |
 | GitHub Copilot | pip + `specpowers init --integration copilot` | 自然语言触发（rules 引导） |
@@ -246,10 +246,10 @@ specpowers/
 │       ├── .zcode-plugin/plugin.json     ← ZCode 清单
 │       ├── .claude-plugin/plugin.json    ← Claude Code 清单
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
-│       ├── commands/            ← 9 个 slash 命令
-│       │   ├── constitution.md
-│       │   ├── brainstorm.md
-│       │   └── … (specify/plan/build/archive/fast/baseline/reset)
+│       ├── commands/            ← 9 个 slash 命令（带 specpowers- 前缀防撞名）
+│       │   ├── specpowers-constitution.md
+│       │   ├── specpowers-brainstorm.md
+│       │   └── … (specpowers-specify/plan/build/archive/fast/baseline/reset)
 │       ├── skills/specpowers/   ← 主编排 skill
 │       │   ├── SKILL.md
 │       │   ├── prompts/         ← 7 个阶段契约
