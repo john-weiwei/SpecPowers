@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![Version](https://img.shields.io/badge/version-1.0.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -37,12 +37,12 @@ codex plugin install specpowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v1.0.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v1.0.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v1.0.0
+# → SpecPowers CLI v1.0.1
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -51,6 +51,39 @@ specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/cli
 ```
 
 **运行依赖**：Python ≥ 3.11（仅 stdlib，零 pip 依赖）、Git ≥ 2.30。
+
+## 升级
+
+已安装旧版本的用户，按安装方式选择升级命令：
+
+### 插件市场方式（ZCode / Claude Code）
+
+```bash
+# 1. 刷新市场源（重新拉取 GitHub 上的最新插件内容）
+/plugin marketplace update specpowers-marketplace
+
+# 2. 重装插件
+/plugin install specpowers
+```
+
+> 若 install 提示"已安装"而未更新，先卸载再装：`/plugin uninstall specpowers` → `/plugin install specpowers`。
+
+Codex CLI 对应：
+
+```bash
+codex plugin marketplace update specpowers-marketplace
+codex plugin install specpowers
+```
+
+### pip 方式（Cursor / Copilot / Windsurf / Cline 等）
+
+```bash
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v1.0.1
+
+# 验证
+specpowers --version
+# → SpecPowers CLI v1.0.1
+```
 
 ## 前置编排依赖（重要）
 
