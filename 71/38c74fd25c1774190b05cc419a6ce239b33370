@@ -1,0 +1,36 @@
+README.md
+  s_e3f8b7491a5962::t_6f825fc2b11212 163,165-172
+  s_e3f8b7491a5962::t_f82407f6e7deb6 144
+  s_e3f8b7491a5962::t_b40e05be338ff6 129
+  s_e3f8b7491a5962::t_10826e267fb8f9 159
+marketplace.json
+  s_e3f8b7491a5962::t_699a6698de727d 8,10-11
+plugins/specpowers/.claude-plugin/plugin.json
+  s_e3f8b7491a5962::t_5745028f474d2a 4,33-38
+plugins/specpowers/.codex-plugin/plugin.json
+  s_e3f8b7491a5962::t_862acf1e403bac 4,33-38
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_e3f8b7491a5962::t_06dd4cb60428ff 4,33-38
+plugins/specpowers/commands/specpowers-auto.md
+  s_e3f8b7491a5962::t_86760b928fc00d 1-21
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_e3f8b7491a5962::t_99835494b95d0b 1-159
+plugins/specpowers/skills/specpowers/templates/auto-summary-template.md
+  s_e3f8b7491a5962::t_58d8c7c7fae809 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "7138c74fd25c1774190b05cc419a6ce239b33370",
+  "prompts": {},
+  "sessions": {
+    "s_e3f8b7491a5962": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_816a88c7-711f-4287-b397-7c2d6e68f4b8",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
