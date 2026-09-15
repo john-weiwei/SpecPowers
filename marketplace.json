@@ -5,10 +5,10 @@
     {
       "name": "specpowers",
       "source": "./plugins/specpowers",
-      "description": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件。需预装 OpenSpec CLI（archive 必需）+ superpowers 插件（brainstorm/plan/build 必需）。",
+      "description": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件，新增无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通）。需预装 OpenSpec CLI（archive 必需）+ superpowers 插件（brainstorm/plan/build 必需）。",
       "description_i18n": {
-        "en": "A bridging plugin that layers structure-consistency gates and real-time human-handoff on top of OpenSpec and superpowers, with a six-stage pipeline.",
-        "zh-CN": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件。"
+        "en": "A bridging plugin that layers structure-consistency gates and real-time human-handoff on top of OpenSpec and superpowers, with a six-stage pipeline and an unattended auto mode.",
+        "zh-CN": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的六阶段流水线编排插件，新增无人值守 auto 模式。"
       },
       "version": "1.1.0",
       "author": {

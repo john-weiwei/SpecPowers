@@ -1,6 +1,6 @@
 ---
 name: specpowers
-description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，六阶段流水线（constitution→brainstorm→specify→plan→build→archive）+ 优化模式
+description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，六阶段流水线（constitution→brainstorm→specify→plan→build→archive）+ 无人值守模式 + 优化模式
 version: 1.1.0
 ---
 
@@ -35,12 +35,13 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 | ② 特性流水线 | `/specpowers-brainstorm` → `/specpowers-specify` → `/specpowers-plan` → `/specpowers-build` → `/specpowers-archive` 六阶段 |
 | ③ 收尾 | `/specpowers-archive` — 常规/优化统一调 openspec archive 做 delta 合并；只归档，不提交代码 |
 
-## 两个开关
+## 三个开关
 
 | 开关 | 说明 |
 |------|------|
-| ① 优化模式 | `/specpowers-fast` — 判小跳 spec/plan，直进 build |
-| ② 基线刷新 | `/specpowers-baseline` — 手动重扫结构基线 |
+| ① 无人值守模式 | `/specpowers-auto "<设计文档路径>"` — 以设计文档为唯一权威输入，六阶段全走直通 archive，中途含 codex-review；所有确认/门禁节点自动裁决，仅硬阻断才停；支持断点续跑 |
+| ② 优化模式 | `/specpowers-fast` — 判小跳 spec/plan，直进 build |
+| ③ 基线刷新 | `/specpowers-baseline` — 手动重扫结构基线 |
 
 ---
 
@@ -49,6 +50,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 ```
 constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
                        ├─(specify)─────▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
+                       ├─(auto)───无人值守依次驱动上述全部阶段（含 codex-review）──▶ ready
                        └─(fast)──▶(用户编码)──▶ build ─▶ archive ─▶ ready
 ```
 
@@ -61,6 +63,7 @@ constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ speci
 | `/specpowers-constitution` | `[--force]` | constitution / 任意(需确认) | 生成原则 + 扫基线 |
 | `/specpowers-brainstorm` | `"<需求>"` | ready | 探索 + 写 proposal.md |
 | `/specpowers-specify` | `"<需求>"` | brainstorm / ready / build(fallback) | 生成 spec.md |
+| `/specpowers-auto` | `"<设计文档路径>"` | ready | 全流程无人值守直通：六阶段 + codex-review，确认/门禁节点自动裁决，仅硬阻断才停，重入续跑 |
 | `/specpowers-fast` | `"<需求>"` | ready | 声明优化模式 |
 | `/specpowers-plan` | — | specify | 生成 plan.md |
 | `/specpowers-build` | — | plan / ready(fast) | 执行构建 + 门禁 |
@@ -105,6 +108,8 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 | `prompts/build.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
 | `prompts/archive.md` | 三职责收尾；合体后校验 |
 | `prompts/fast_mode.md` | 判小 prompt / 确认交互 / 回退 / 清单 |
+| `prompts/auto.md` | 无人值守契约：八要素文档解析 + 阶段编排 0–7 + 裁决规则表 + codex-review 编排（传基点/滤范围/控 2 轮迭代）+ 硬阻断定义 + 断点续跑 |
+| `templates/auto-summary-template.md` | auto 模式汇总报告模板（产物/文件清单/审查结论/编译测试/裁决日志/遗留风险） |
 
 ---
 
