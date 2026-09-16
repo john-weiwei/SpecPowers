@@ -78,3 +78,15 @@ def test_resolve_change_spec_chinese_capability(tmp_path):
     """中文 capability 作为目录名（迭代场景）。"""
     p = resolve_change_spec(tmp_path, "登录-oauth", "登录")
     assert p == tmp_path / "openspec" / "changes" / "登录-oauth" / "specs" / "登录" / "spec.md"
+
+
+# ---- 保留字纵深防御（安全修复回归）----
+
+def test_resolve_change_dir_sanitizes_reserved_slug(tmp_path):
+    """直接传入保留字（未经 normalize）也被 sanitize：不得落到 archive 目录。"""
+    from specpowers_cli.bridge.modules.path_resolver import resolve_change_dir, sanitize_feature_slug
+
+    resolved = resolve_change_dir(tmp_path, "archive")
+    assert resolved.name == "archive-feature"
+    # sanitize 幂等：已消歧的值不会被二次修改
+    assert sanitize_feature_slug("archive-feature") == "archive-feature"

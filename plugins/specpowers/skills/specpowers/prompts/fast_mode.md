@@ -67,7 +67,7 @@ python -m specpowers_cli.bridge.facade fast "<需求>" --root .
 
 ### 第三步：生成验收清单（落盘为 delta spec）
 
-Dispatcher 基于需求+对话生成 **3-5 条验收清单**，并落盘为 OpenSpec delta spec：
+Agent（认知层）基于需求+对话生成 **3-5 条验收清单**，并落盘为 OpenSpec delta spec：
 
 **文件路径**：`openspec/changes/<feature>/specs/<feature>/spec.md`
 

@@ -58,6 +58,7 @@ def normalize_feature(raw: str) -> str:
     - Replace spaces with hyphens
     - Empty input → 'unnamed'
     - Pure Chinese → truncate without replacing
+    - 保留字（archive / Windows 设备名）追加后缀消歧（见 path_resolver.sanitize_feature_slug）
     """
     if not raw or not raw.strip():
         return "unnamed"
@@ -73,13 +74,29 @@ def normalize_feature(raw: str) -> str:
         result = re.sub(r'[^\w\u4e00-\u9fff\s-]', '', raw)
         result = re.sub(r'\s+', '-', result)
         result = result.strip('-')
-        return result or "unnamed"
+        return _finalize_feature_slug(result)
 
     # Non-Chinese: normalize
     result = re.sub(r'[^\w\s-]', '', raw)
     result = re.sub(r'\s+', '-', result)
     result = result.strip('-').lower()
-    return result or "unnamed"
+    return _finalize_feature_slug(result)
+
+
+def _finalize_feature_slug(slug: str) -> str:
+    """slug 出口统一处理：空值兜底 + 保留字消歧。
+
+    Args:
+        slug: normalize_feature 各分支产出的候选 slug。
+
+    Returns:
+        可安全用作 change 目录名的最终 slug。
+    """
+    from specpowers_cli.bridge.modules.path_resolver import sanitize_feature_slug
+
+    if not slug:
+        return "unnamed"
+    return sanitize_feature_slug(slug)
 
 
 def _check_prerequisites(root: Path):
@@ -121,15 +138,16 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
         from specpowers_cli.bridge.core.git_util import diff_stat, run_git
         diff = diff_stat(root)  # working tree vs HEAD
         if not diff.strip():
-            # Check if there's a recent commit
+            # 工作区无变更：检查最近一次提交
             try:
                 diff2 = run_git(["diff", "--stat", "HEAD~1..HEAD"], cwd=root)
-                if not diff2.strip():
-                    raise FatalError(
-                        "No code changes detected. "
-                        "Complete your coding before running /specpowers.build"
-                    )
             except Exception:
+                # HEAD~1 不存在（仓库仅有单个提交）：回退对比首个提交与空树（--root）
+                try:
+                    diff2 = run_git(["diff", "--stat", "--root", "HEAD"], cwd=root)
+                except Exception:
+                    diff2 = ""
+            if not diff2.strip():
                 raise FatalError(
                     "No code changes detected. "
                     "Complete your coding before running /specpowers.build"
@@ -289,6 +307,20 @@ def _handle_specify(root: Path, extra: dict) -> int:
     from_stage = state["stage"]
 
     _validate_transition(from_stage, "specify")
+
+    # 回退上限（fast_mode.md/specify.md 承诺「fallback_count += 1、整个 state
+    # 生命周期最多 1 次 build→specify 回退」）：原实现不计数也不拦截，
+    # 流程可无限次往返抖动。此处把承诺落地为确定性层硬校验
+    # 作者：005819 | 协作：GLM-5.3
+    if from_stage == "build":
+        fallback_count = state.get("fallback_count", 0)
+        if fallback_count >= 1:
+            raise StateError(
+                "回退次数已达上限：整个 state 生命周期最多 1 次 build→specify 回退。"
+                "请先完成当前流程（archive）或重置（reset 不清除计次），"
+                "再开启新的 feature。"
+            )
+        state["fallback_count"] = fallback_count + 1
 
     # Feature 锁定：优先复用 state 中已有 feature（保证同一流程文件名前缀一致），
     # 仅当 feature 为空时才 normalize 当前 requirement
@@ -475,6 +507,8 @@ def _handle_reset(root: Path, extra: dict) -> int:
     reset_state(root)
 
     print("State reset to ready. (fallback_count preserved)")
+    # reset 强制清锁：若此刻有并发实例在运行，其锁已被清除，需提示避免双写
+    print("Note: reset force-clears the lock; avoid running it while another specpowers instance is active.")
     return 0
 
 
@@ -529,16 +563,15 @@ def route(stage: str, mode: str, root: Path, extra: dict | None = None) -> int:
     if stage != "reset":
         acquire_lock(root, timeout=0)
 
+    # try/finally 覆盖 BaseException：Ctrl+C（KeyboardInterrupt/SystemExit）
+    # 不属于 Exception，原 except Exception 捕获不到会导致锁残留
     try:
         _register_signal_handlers(root)
 
-        result = handler(root, extra)
-        release_lock(root)
-        return result
-
-    except Exception:
-        release_lock(root)
-        raise
+        return handler(root, extra)
+    finally:
+        if stage != "reset":
+            release_lock(root)
 
 
 # 信号处理：进程级只注册一次，避免每次 route() 覆盖宿主程序的信号处理

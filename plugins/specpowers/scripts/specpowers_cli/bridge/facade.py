@@ -69,7 +69,12 @@ def _extract_global_options(rest: list[str]) -> tuple[str | None, list[str]]:
     i = 0
     while i < len(rest):
         a = rest[i]
-        if a == "--root" and i + 1 < len(rest):
+        if a == "--root":
+            # --root 缺值（位于末尾或下一项是另一选项）直接报错退出，
+            # 避免 "--root" 字符串被拼进 requirement 变成 feature 名
+            if i + 1 >= len(rest) or rest[i + 1].startswith("--"):
+                print("Error: --root requires a path value.", file=sys.stderr)
+                sys.exit(2)
             # --root <path> 形式：下一项作为值，跳过两项
             root_arg = rest[i + 1]
             i += 2
@@ -185,11 +190,22 @@ def _cmd_scan(args: list[str], root: Path) -> int:
 def _cmd_gate(args: list[str], root: Path) -> int:
     """Handle internal gate command."""
     import json
+    import re
 
     base = "HEAD~1"
     for i, a in enumerate(args):
         if a == "--base" and i + 1 < len(args):
-            base = args[i + 1]
+            candidate = args[i + 1]
+            # 校验 ref 合法性：必须以字母/数字开头，仅含 ref 合法字符。
+            # 防止以 "-" 开头的值（如 --output=xxx）被 git 当作选项执行（参数注入）
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/@^~-]*", candidate):
+                print(
+                    f"Error: invalid --base value '{candidate}' "
+                    "(must be a git ref, cannot start with '-').",
+                    file=sys.stderr,
+                )
+                return 2
+            base = candidate
 
     from specpowers_cli.bridge.core.git_util import diff_stat
     from specpowers_cli.bridge.modules.baseline_scanner import load_baseline

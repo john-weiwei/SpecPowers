@@ -44,13 +44,21 @@ def extract_signals(tree_diff: str, baseline: dict) -> list[str]:
     # git diff --stat 输出格式：
     #   " path/to/file | N +++---"   ← 文件行（含 | 分隔）
     #   " N files changed, ..."      ← 汇总行（无 | 分隔）
-    # 用 "|" 是否存在区分，避免把汇总行误当文件路径解析（否则会污染 new_top_dir 信号）
+    # 解析规则（按序处理三类边缘格式）：
+    #   1. rsplit 取最后一个 "|" 之前的部分 → 兼容文件名本身含 "|"
+    #   2. rename 行 " src/{old => new}/f.py" → 取 => 之后的新路径并去掉 "}" 残留
+    #   3. git 对特殊字符路径自动加引号 → strip 掉两侧引号
     new_files = set()
     for line in diff_lines:
         line = line.strip()
         if not line or "|" not in line:
             continue
-        filepath = line.split("|")[0].strip()
+        filepath = line.rsplit("|", 1)[0].strip()
+        if not filepath:
+            continue
+        if "=>" in filepath:
+            filepath = filepath.split("=>", 1)[1].replace("}", "").strip()
+        filepath = filepath.strip('"')
         if not filepath:
             continue
         new_files.add(filepath)

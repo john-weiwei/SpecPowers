@@ -110,3 +110,18 @@ if __name__ == "__main__":
     test_delete_state()
     test_atomic_write_corruption_resistance()
     print("All fs_state tests passed!")
+
+
+# ---- 非 dict 顶层类型拒绝（损坏 state 防御回归）----
+
+def test_load_state_rejects_non_dict_json():
+    """顶层为合法 JSON 但非对象（数组）时显式拒绝，不得静默混入。"""
+    import pytest
+    from specpowers_cli.bridge.core.errors import FatalError
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".specpowers").mkdir(exist_ok=True)
+        (root / ".specpowers" / "state.json").write_text('["stage", "ready"]', encoding="utf-8")
+        with pytest.raises(FatalError):
+            load_state(root)

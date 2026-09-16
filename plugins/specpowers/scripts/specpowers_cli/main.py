@@ -123,7 +123,12 @@ def _atomic_copytree(src: Path, dst: Path, ignore=None) -> None:
             if old_backup.exists():
                 shutil.rmtree(old_backup)
             os.replace(dst, old_backup)
-            os.replace(tmp_dst, dst)
+            try:
+                os.replace(tmp_dst, dst)
+            except Exception:
+                # 第二步失败：把旧数据移回原位，避免目标缺失、旧数据滞留 .bak
+                os.replace(old_backup, dst)
+                raise
             shutil.rmtree(old_backup, ignore_errors=True)
         else:
             os.replace(tmp_dst, dst)

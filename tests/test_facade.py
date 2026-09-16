@@ -76,11 +76,24 @@ def test_extract_no_root_returns_none_and_unchanged():
     assert remaining == ["需求", "更多", "描述"]
 
 
-def test_extract_root_without_value_is_left_untouched():
-    """--root 出现在末尾无值时：不算 --root 选项，原样保留（避免静默吞参）。"""
-    root_arg, remaining = _extract_global_options(["需求", "--root"])
-    assert root_arg is None
-    assert remaining == ["需求", "--root"]
+def test_extract_root_without_value_rejected(capsys):
+    """--root 出现在末尾无值时：直接报错退出，不得把 "--root" 拼进 requirement。"""
+    import pytest
+
+    with pytest.raises(SystemExit) as exc_info:
+        _extract_global_options(["需求", "--root"])
+    assert exc_info.value.code == 2
+    assert "--root requires a path value" in capsys.readouterr().err
+
+
+def test_extract_root_value_cannot_be_next_option(capsys):
+    """--root 后紧跟另一选项时视为缺值：报错退出而非吞参。"""
+    import pytest
+
+    with pytest.raises(SystemExit) as exc_info:
+        _extract_global_options(["--root", "--force", "需求"])
+    assert exc_info.value.code == 2
+    assert "--root requires a path value" in capsys.readouterr().err
 
 
 # ---------- 通过 main() 的回归测试 ----------
@@ -113,3 +126,34 @@ def test_brainstorm_root_equals_form_not_merged_into_feature(tmp_path: Path):
     assert feature == "登录模块重构"
     assert "--root" not in feature
     assert "root" not in feature.lower()
+
+
+# ---- gate --base 参数注入拒绝（安全修复回归）----
+
+def test_gate_rejects_option_like_base(tmp_path, capsys):
+    """--base 值以 '-' 开头（git 选项注入，如 --output=）必须被拒绝。"""
+    root = _create_temp_git_repo(tmp_path)
+    rc = main(["gate", "--root", str(root), "--base", "--output=/tmp/evil"])
+    assert rc == 2
+    assert "invalid --base value" in capsys.readouterr().err
+
+
+def test_gate_rejects_metachar_base(tmp_path, capsys):
+    """--base 值含空格等非法字符时被拒绝。"""
+    root = _create_temp_git_repo(tmp_path)
+    rc = main(["gate", "--root", str(root), "--base", "HEAD; rm -rf /"])
+    assert rc == 2
+
+
+def test_gate_accepts_normal_ref_base(tmp_path):
+    """--base 正常 git ref（如 HEAD~1）照常放行。"""
+    root = _create_temp_git_repo(tmp_path)
+    # HEAD~1 需要仓库至少 2 个提交，补一个
+    (root / "CHANGE.md").write_text("# Change", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=str(root), capture_output=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "second"],
+        cwd=str(root), capture_output=True, check=True,
+    )
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0

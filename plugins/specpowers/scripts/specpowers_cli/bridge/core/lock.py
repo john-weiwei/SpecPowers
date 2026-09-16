@@ -12,8 +12,13 @@ import sys
 import time
 from pathlib import Path
 
+from specpowers_cli.bridge.core.errors import LockAcquireError
 from specpowers_cli.bridge.core.platform import supports_fcntl_lock, is_windows
 
+
+# 死锁恢复窗口（秒）：判定持有者已死后，非阻塞抢锁的最长等待时间。
+# 并发多实例同时恢复时，未抢到的实例在此窗口内明确失败而非无限阻塞。
+STALE_RECOVERY_TIMEOUT = 5.0
 
 # 进程内 fcntl 持有锁的 fd 注册表：root 路径 → fd。
 # acquire 成功后登记，release 时取出关闭并解锁。
@@ -26,6 +31,17 @@ _held_lock_fds: dict[str, int] = {}
 def _get_lock_path(root: Path) -> Path:
     """Return path to .lock file."""
     return root / ".specpowers" / ".lock"
+
+
+def _read_lock_pid(lock_path: Path) -> int | None:
+    """读取锁文件中记录的 PID；文件缺失/内容非数字/不可读返回 None。"""
+    try:
+        content = lock_path.read_text(encoding="utf-8").strip()
+        if content.isdigit():
+            return int(content)
+    except OSError:
+        pass
+    return None
 
 
 def acquire_lock(root: Path, timeout: float = 0) -> bool:
@@ -50,10 +66,23 @@ def acquire_lock(root: Path, timeout: float = 0) -> bool:
         return _acquire_windows(lock_path, timeout)
 
 
-def _acquire_fcntl(lock_path: Path, timeout: float) -> bool:
-    """Acquire lock using fcntl.flock (Linux/macOS)."""
+def _flock_write_pid(fd: int) -> None:
+    """非阻塞加锁并向锁文件写入本进程 PID（锁被占用时抛 BlockingIOError）。"""
     import fcntl
 
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.write(fd, str(os.getpid()).encode())
+    os.ftruncate(fd, os.lseek(fd, 0, os.SEEK_CUR))
+
+
+def _register_held_fd(lock_path: Path, fd: int) -> None:
+    """把成功持有的 fd 登记到进程内注册表，供 release_lock 关闭。"""
+    _held_lock_fds[str(lock_path.resolve())] = fd
+
+
+def _acquire_fcntl(lock_path: Path, timeout: float) -> bool:
+    """Acquire lock using fcntl.flock (Linux/macOS)."""
     # 成功获取锁后，fd 由本进程持有直到 release_lock 时关闭；
     # 若抛异常则必须在此处关闭 fd，避免泄漏
     fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
@@ -62,26 +91,14 @@ def _acquire_fcntl(lock_path: Path, timeout: float) -> bool:
 
         while True:
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                # 写入 PID，用于死锁检测
-                os.lseek(fd, 0, os.SEEK_SET)
-                os.write(fd, str(os.getpid()).encode())
-                os.ftruncate(fd, os.lseek(fd, 0, os.SEEK_CUR))
-                # 成功获取：fd 由进程持有，登记到注册表供 release_lock 关闭
-                _held_lock_fds[str(lock_path.resolve())] = fd
+                _flock_write_pid(fd)
+                _register_held_fd(lock_path, fd)
                 return True
             except BlockingIOError:
                 if time.time() >= deadline:
-                    # 检查持有者是否存活
+                    # 检查持有者是否存活：已死才走恢复，活着则明确拒绝
                     if not _check_lock_holder_alive(lock_path):
-                        # 死锁恢复：持有者已死，抢回锁
-                        fcntl.flock(fd, fcntl.LOCK_EX)
-                        os.lseek(fd, 0, os.SEEK_SET)
-                        os.write(fd, str(os.getpid()).encode())
-                        os.ftruncate(fd, os.lseek(fd, 0, os.SEEK_CUR))
-                        _held_lock_fds[str(lock_path.resolve())] = fd
-                        return True
-                    from specpowers_cli.bridge.core.errors import LockAcquireError
+                        return _recover_stale_fcntl(fd, lock_path)
                     raise LockAcquireError(
                         "Another SpecPowers instance is running. "
                         "Wait for it to finish or run /specpowers.reset to force-clear."
@@ -91,6 +108,29 @@ def _acquire_fcntl(lock_path: Path, timeout: float) -> bool:
         # 异常路径：关闭 fd 避免泄漏（成功路径不关闭，由 release_lock 处理）
         os.close(fd)
         raise
+
+
+def _recover_stale_fcntl(fd: int, lock_path: Path) -> bool:
+    """死锁恢复：持有者已死（flock 已随进程退出释放），限时非阻塞抢锁。
+
+    用非阻塞循环代替阻塞式 flock：并发实例同时恢复时，未抢到者在
+    STALE_RECOVERY_TIMEOUT 窗口内明确失败，避免无限期挂起。
+    作者：005819 | 协作：GLM-5.3
+    """
+    deadline = time.time() + STALE_RECOVERY_TIMEOUT
+    while True:
+        try:
+            _flock_write_pid(fd)
+            _register_held_fd(lock_path, fd)
+            return True
+        except BlockingIOError:
+            # 抢锁失败说明并发恢复者已持有：其活着则明确拒绝；窗口耗尽同样拒绝
+            if _check_lock_holder_alive(lock_path) or time.time() >= deadline:
+                raise LockAcquireError(
+                    "Another SpecPowers instance is running. "
+                    "Wait for it to finish or run /specpowers.reset to force-clear."
+                )
+            time.sleep(0.1)
 
 
 def _acquire_windows(lock_path: Path, timeout: float) -> bool:
@@ -116,7 +156,6 @@ def _acquire_windows(lock_path: Path, timeout: float) -> bool:
 
         if _check_lock_holder_alive(lock_path):
             if time.time() >= deadline:
-                from specpowers_cli.bridge.core.errors import LockAcquireError
                 raise LockAcquireError(
                     "Another SpecPowers instance is running (PID in .lock). "
                     "Wait for it to finish or run /specpowers.reset to force-clear."
@@ -153,16 +192,17 @@ def release_lock(root: Path) -> None:
 def _release_fcntl(lock_path: Path) -> None:
     """Release fcntl lock — 关闭 acquire 时真正持有的 fd。
 
-    原实现重新 os.open 一个新 fd 来 LOCK_UN，只解锁了新 fd 自身，acquire 持有的
-    fd 从未关闭（靠进程退出回收）。改为从 _held_lock_fds 取出真实持有的 fd，
-    解锁并关闭，确保锁在 release 时即释放而非延迟到进程退出。
-    作者：005819 | 协作：GLM-5.2
+    锁文件清理带持有者校验：仅当本进程持有 fd（注册表在案）或锁文件
+    PID 标记是本进程时才删除文件，避免竞态窗口内误删并发恢复者
+    或其他持有者的锁（否则互斥彻底失效）。
+    作者：005819 | 协作：GLM-5.3
     """
     import fcntl
 
     key = str(lock_path.resolve())
     fd = _held_lock_fds.pop(key, None)
-    if fd is not None:
+    held = fd is not None
+    if held:
         try:
             fcntl.flock(fd, fcntl.LOCK_UN)
         except OSError:
@@ -172,13 +212,20 @@ def _release_fcntl(lock_path: Path) -> None:
                 os.close(fd)
             except OSError:
                 pass
-    # 兜底：清理锁文件（PID 标记）
-    lock_path.unlink(missing_ok=True)
+    if held or _read_lock_pid(lock_path) == os.getpid():
+        # 仅清理属于本进程的 PID 标记文件
+        lock_path.unlink(missing_ok=True)
 
 
 def _release_windows(lock_path: Path) -> None:
-    """Release Windows lock (remove file)."""
-    lock_path.unlink(missing_ok=True)
+    """Release Windows lock.
+
+    删除前校验锁文件 PID：非本进程的标记（竞态窗口内锁已被死锁恢复
+    机制移交给其他进程）不得删除，避免破坏新持有者的互斥。
+    内容损坏（None）无法判定归属，保守删除以自愈空锁。
+    """
+    if _read_lock_pid(lock_path) in (None, os.getpid()):
+        lock_path.unlink(missing_ok=True)
 
 
 def _check_lock_holder_alive(lock_path: Path) -> bool:
@@ -186,17 +233,17 @@ def _check_lock_holder_alive(lock_path: Path) -> bool:
     if not lock_path.exists():
         return False
 
-    try:
-        with open(lock_path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-        if not content.isdigit():
-            return False
-        pid = int(content)
-    except (OSError, ValueError):
+    pid = _read_lock_pid(lock_path)
+    if pid is None:
         return False
 
     if is_windows():
-        return _check_pid_alive_windows(pid)
+        try:
+            # mtime 供 Windows 分支做 PID 复用判定
+            lock_mtime = lock_path.stat().st_mtime
+        except OSError:
+            return False
+        return _check_pid_alive_windows(pid, lock_mtime)
     else:
         return _check_pid_alive_unix(pid)
 
@@ -210,20 +257,63 @@ def _check_pid_alive_unix(pid: int) -> bool:
         return False
 
 
-def _check_pid_alive_windows(pid: int) -> bool:
-    """Check if a process is alive on Windows."""
+def _process_creation_time_windows(h_process: int) -> float | None:
+    """读取进程创建时间（Unix epoch 秒）；失败返回 None。
+
+    Args:
+        h_process: OpenProcess 返回的有效句柄。
+    """
     import ctypes
     from ctypes import wintypes
 
     kernel32 = ctypes.windll.kernel32
-    PROCESS_QUERY_INFORMATION = 0x0400
-    h_process = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION, False, pid)
-    if h_process:
+    creation = wintypes.FILETIME()
+    exit_ft = wintypes.FILETIME()
+    kernel_ft = wintypes.FILETIME()
+    user_ft = wintypes.FILETIME()
+    if not kernel32.GetProcessTimes(
+        h_process, ctypes.byref(creation), ctypes.byref(exit_ft),
+        ctypes.byref(kernel_ft), ctypes.byref(user_ft),
+    ):
+        return None
+    # FILETIME：自 1601-01-01 起的 100ns 计数 → Unix epoch 秒
+    ft = (creation.dwHighDateTime << 32) | creation.dwLowDateTime
+    return ft / 10_000_000 - 11644473600
+
+
+def _check_pid_alive_windows(pid: int, lock_mtime: float | None = None) -> bool:
+    """Check if a process is alive on Windows.
+
+    用 PROCESS_QUERY_LIMITED_INFORMATION 打开进程：对提权进程也可查询，
+    避免原 PROCESS_QUERY_INFORMATION 因 ACCESS_DENIED 返回 0 被误判为
+    已死、进而误删活进程的锁。另以锁文件 mtime 对比进程创建时间防御
+    PID 复用：进程创建晚于锁文件最后修改时间 → 该 PID 已被无关进程
+    复用，原持有者必已退出。
+    作者：005819 | 协作：GLM-5.3
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.windll.kernel32
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+    h_process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not h_process:
+        return False
+    try:
         exit_code = wintypes.DWORD()
-        kernel32.GetExitCodeProcess(h_process, ctypes.byref(exit_code))
+        if not kernel32.GetExitCodeProcess(h_process, ctypes.byref(exit_code)):
+            return False
+        if exit_code.value != STILL_ACTIVE:
+            return False
+        if lock_mtime is None:
+            return True
+        # PID 复用防御：创建时间晚于锁文件修改时间（容差 2s，覆盖 FAT
+        # 文件系统 mtime 精度与时钟源差异）→ 判定复用，原持有者已死
+        created = _process_creation_time_windows(h_process)
+        return created is None or created <= lock_mtime + 2.0
+    finally:
         kernel32.CloseHandle(h_process)
-        return exit_code.value == 259  # STILL_ACTIVE
-    return False
 
 
 def is_locked(root: Path) -> bool:

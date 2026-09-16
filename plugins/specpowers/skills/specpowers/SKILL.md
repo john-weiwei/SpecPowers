@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，六阶段流水线（constitution→brainstorm→specify→plan→build→archive）+ 无人值守模式 + 优化模式
-version: 1.1.1
+version: 1.1.2
 ---
 
 # SpecPowers 桥接插件
@@ -65,7 +65,7 @@ constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ speci
 | `/specpowers-specify` | `"<需求>"` | brainstorm / ready / build(fallback) | 生成 spec.md |
 | `/specpowers-auto` | `"<设计文档路径>"` | ready | 全流程无人值守直通：六阶段 + codex-review，确认/门禁节点自动裁决，仅硬阻断才停，重入续跑 |
 | `/specpowers-fast` | `"<需求>"` | ready | 声明优化模式 |
-| `/specpowers-plan` | — | specify | 生成 plan.md |
+| `/specpowers-plan` | — | specify | 生成 tasks.md |
 | `/specpowers-build` | — | plan / ready(fast) | 执行构建 + 门禁 |
 | `/specpowers-archive` | `[--force-merge-check]` | build | 收尾归档 |
 | `/specpowers-baseline` | — | 任意 | 手动刷新基线 |

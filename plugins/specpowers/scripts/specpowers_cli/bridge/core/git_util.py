@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from specpowers_cli.bridge.core.platform import _safe_which
+
 
 # Timeout tiers (seconds)
 LIGHT_TIMEOUT = 30   # rev-parse, ls-tree, status
@@ -18,25 +20,25 @@ RANGE_TIMEOUT = 120  # log --since, log --grep
 
 
 def _find_git() -> str:
-    """Locate git executable. Raises GitNotFoundError if missing."""
-    # Check common locations first
-    candidates = ["git"]
+    """Locate git executable. Raises GitNotFoundError if missing.
+
+    返回绝对路径：subprocess 传裸命令名时 Windows 的 CreateProcess 会先搜索
+    当前目录，恶意仓库内的 git.bat 会被执行（PATH 劫持）。显式绝对路径
+    （硬编码候选 + 仅按 PATH 绝对条目解析）可封死该入口。
+    作者：005819 | 协作：GLM-5.3
+    """
+    # Windows 常见安装位置优先（显式绝对路径，不经过任何搜索）
     if sys.platform == "win32":
-        candidates.extend([
+        for candidate in (
             r"C:\Program Files\Git\bin\git.exe",
             r"C:\Program Files (x86)\Git\bin\git.exe",
-        ])
-
-    for candidate in candidates:
-        try:
-            result = subprocess.run(
-                [candidate, "--version"],
-                capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0:
+        ):
+            if os.path.isfile(candidate):
                 return candidate
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
+
+    resolved = _safe_which("git")
+    if resolved:
+        return resolved
 
     from specpowers_cli.bridge.core.errors import GitNotFoundError
     raise GitNotFoundError(
@@ -219,8 +221,23 @@ def log_grep_feature(root: Path, feature: str) -> list[str]:
     safe_feature = re.escape(feature)
     # feature 名边界：后面不能紧跟 [\w 中文 -]，确保精确匹配（PCRE 用 \x{} 表 unicode）
     pattern = f"specpowers.*{safe_feature}(?![\\w\\x{{4e00}}-\\x{{9fff}}-])"
-    args = ["log", "--format=%H", f"--grep={pattern}", "-P"]
-    output = _run_git_quiet(args, timeout=RANGE_TIMEOUT, cwd=root)
+    try:
+        output = run_git(
+            ["log", "--format=%H", f"--grep={pattern}", "-P"],
+            timeout=RANGE_TIMEOUT, cwd=root,
+        )
+    except Exception:
+        # -P 依赖 git 编译期 PCRE 支持（部分精简发行版不带）。
+        # 原实现在此场景会静默返回空列表，重复归档检测随之失效；
+        # 回退 BRE 字面量匹配（丢失边界锚定，可能轻微误报，但检测不失效）。
+        bre_pattern = f"specpowers.*{safe_feature}"
+        try:
+            output = run_git(
+                ["log", "--format=%H", f"--grep={bre_pattern}"],
+                timeout=RANGE_TIMEOUT, cwd=root,
+            )
+        except Exception:
+            return []
     if not output:
         return []
     return [line.strip() for line in output.split("\n") if line.strip()]

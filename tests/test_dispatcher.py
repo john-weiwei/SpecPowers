@@ -334,3 +334,93 @@ def test_handle_reset_clears_residual_lock_file(tmp_path):
     _handle_reset(root, {})
 
     assert not (root / ".specpowers" / ".lock").exists()
+
+
+# ---- feature slug 保留字消歧（安全修复回归）----
+
+def test_normalize_feature_archive_reserved():
+    """保留字 archive 与 OpenSpec 归档目录冲突：追加后缀消歧。"""
+    assert normalize_feature("archive") == "archive-feature"
+
+
+def test_normalize_feature_windows_device_names_reserved():
+    """Windows 保留设备名（con/nul/com1 等）追加后缀消歧。"""
+    assert normalize_feature("con") == "con-feature"
+    assert normalize_feature("NUL") == "nul-feature"
+    assert normalize_feature("COM1") == "com1-feature"
+
+
+def test_normalize_feature_normal_slug_untouched():
+    """普通 slug 不受保留字消歧影响（幂等）。"""
+    assert normalize_feature("user-login") == "user-login"
+    assert normalize_feature("fix bug in login") == "fix-bug-in-login"
+
+
+# ---- fallback 回退计数与上限（安全修复回归：文档承诺落地确定性层）----
+
+def _seed_build_stage(root: Path, feature: str = "fallback-feature") -> None:
+    """把 state 推进到 build 并补齐 specify 前置产物（proposal 含数据流契约）。"""
+    from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE
+
+    state = dict(DEFAULT_STATE)
+    state["stage"] = "build"
+    state["mode"] = "fast"
+    state["feature"] = feature
+    save_state(root, state)
+    # specify 前置：constitution.md + proposal.md（含数据流契约段头）
+    (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    proposal = root / "openspec" / "changes" / feature / "proposal.md"
+    proposal.parent.mkdir(parents=True, exist_ok=True)
+    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
+
+
+def test_fallback_from_build_increments_count(tmp_path):
+    """首次 build→specify 回退：fallback_count +1 且放行。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.fs_state import load_state
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_build_stage(root)
+
+    rc = route("specify", "full", root, extra={"requirement": "回退补规格"})
+    assert rc == 0
+    assert load_state(root)["fallback_count"] == 1
+    assert load_state(root)["stage"] == "specify"
+    assert load_state(root)["mode"] == "full"
+
+
+def test_second_fallback_rejected(tmp_path):
+    """第二次 build→specify 回退：按「生命周期最多 1 次」承诺拒绝。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_build_stage(root)
+
+    # 第一次回退成功
+    assert route("specify", "full", root, extra={"requirement": "回退补规格"}) == 0
+    # 推回 build 后再次回退 → 拒绝
+    state = load_state(root)
+    state["stage"] = "build"
+    save_state(root, state)
+    with pytest.raises(StateError):
+        route("specify", "full", root, extra={"requirement": "再次回退"})
+
+
+def test_specify_from_brainstorm_not_counted(tmp_path):
+    """正常路径（brainstorm→specify）不计回退数。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
+
+    root = _create_temp_git_repo(tmp_path)
+    state = dict(DEFAULT_STATE)
+    state["stage"] = "brainstorm"
+    state["feature"] = "normal-flow"
+    save_state(root, state)
+    (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    proposal = root / "openspec" / "changes" / "normal-flow" / "proposal.md"
+    proposal.parent.mkdir(parents=True, exist_ok=True)
+    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
+
+    assert route("specify", "full", root, extra={"requirement": "正常流程"}) == 0
+    assert load_state(root)["fallback_count"] == 0

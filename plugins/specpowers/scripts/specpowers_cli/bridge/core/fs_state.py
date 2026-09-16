@@ -75,6 +75,16 @@ def load_state(root: Path) -> dict:
             f"Run /specpowers.reset to recover."
         )
 
+    # 顶层类型校验：合法 JSON 但非对象（数组/字符串/数字）时 dict.update
+    # 会抛意外异常或静默混入错误结构，显式拒绝并引导 reset
+    if not isinstance(data, dict):
+        from specpowers_cli.bridge.core.errors import FatalError
+        raise FatalError(
+            f"state.json is corrupted: top level must be a JSON object, "
+            f"got {type(data).__name__}. "
+            f"Run /specpowers.reset to recover."
+        )
+
     # Merge with defaults to handle missing keys
     result = dict(DEFAULT_STATE)
     result.update(data)

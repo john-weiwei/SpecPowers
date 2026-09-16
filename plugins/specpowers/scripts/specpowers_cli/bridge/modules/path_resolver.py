@@ -13,12 +13,44 @@
 
 from pathlib import Path
 
+# 保留的 feature slug：与 OpenSpec 归档目录或 Windows 设备名冲突，禁止直接用作 change 名
+# - "archive"：openspec/changes/archive/ 是归档快照目录，同名 change 会被自引用移动
+# - con/prn/aux/nul/com1-9/lpt1-9：Windows 保留设备名，用作目录名行为异常
+# 作者：005819 | 协作：GLM-5.3
+RESERVED_FEATURE_SLUGS = frozenset(
+    {"archive", "con", "prn", "aux", "nul"}
+    | {f"com{i}" for i in range(1, 10)}
+    | {f"lpt{i}" for i in range(1, 10)}
+)
+
+# 保留字冲突时的后缀（拼在 slug 后避免撞名）
+RESERVED_FALLBACK_SUFFIX = "-feature"
+
+
+def sanitize_feature_slug(slug: str) -> str:
+    """校验并修正 feature slug，规避与系统目录/设备名的冲突。
+
+    slug 命中保留字（archive、Windows 设备名等，大小写不敏感）时追加
+    后缀消歧；其余值原样返回（幂等，已修正值不会被二次修改）。
+
+    Args:
+        slug: 待校验的 feature slug。
+
+    Returns:
+        可安全用作目录名的 feature slug。
+    """
+    if slug and slug.lower() in RESERVED_FEATURE_SLUGS:
+        return slug + RESERVED_FALLBACK_SUFFIX
+    return slug
+
 
 def resolve_openspec_change(root: Path, feature: str) -> Path:
     """解析 OpenSpec change 目录的绝对路径（临时 active change，归档前所在位置）。
 
     路径：openspec/changes/<feature>
     归档成功后 OpenSpec 会把它移到 openspec/changes/archive/YYYY-MM-DD-<feature>/。
+    作为纵深防御，feature 在拼接前统一过 sanitize_feature_slug，
+    即使调用方传入未净化的保留字（如 "archive"）也不会落到归档目录本身。
 
     Args:
         root: 项目根目录。
@@ -26,6 +58,7 @@ def resolve_openspec_change(root: Path, feature: str) -> Path:
     """
     if not feature or not feature.strip():
         feature = "unnamed"
+    feature = sanitize_feature_slug(feature)
     return root / "openspec" / "changes" / feature
 
 

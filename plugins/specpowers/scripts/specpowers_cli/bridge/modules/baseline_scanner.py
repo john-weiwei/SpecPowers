@@ -86,8 +86,10 @@ def _check_large_repo(root: Path) -> bool:
     用 git ls-files 统计版本控制内的文件数，避免 rglob 全量遍历大目录
     （rglob 恰恰在大仓库场景下会卡死，与检测目的背道而驰）。
     """
+    # 顶层目录计数改用 -r 递归列出全部目录节点：
+    # 非 -d 的 ls-tree 只列顶层（恒 <1000），该信号原实现永远不触发
     try:
-        output = run_git(["ls-tree", "-d", "--name-only", "HEAD"], cwd=root)
+        output = run_git(["ls-tree", "-r", "-d", "--name-only", "HEAD"], cwd=root)
         lines = output.split("\n") if output else []
         if len(lines) > 1000:
             return True
