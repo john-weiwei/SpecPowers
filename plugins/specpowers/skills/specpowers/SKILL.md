@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，六阶段流水线（constitution→brainstorm→specify→plan→build→archive）+ 无人值守模式 + 优化模式
-version: 1.1.0
+version: 1.1.1
 ---
 
 # SpecPowers 桥接插件

@@ -1,6 +1,6 @@
 [project]
 name = "specpowers"
-version = "1.1.0"
+version = "1.1.1"
 description = "SpecPowers — a bridging plugin for spec-driven development. Orchestrates OpenSpec and superpowers with structure gates and pipeline automation."
 readme = "README.md"
 requires-python = ">=3.11"
