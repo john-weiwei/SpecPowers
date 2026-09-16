@@ -1,0 +1,29 @@
+pyproject.toml
+  s_9e3bbf799e5f88::t_8015fccad814bb 3
+marketplace.json
+  s_9e3bbf799e5f88::t_2bf2a952a49a9d 13
+plugins/specpowers/.codex-plugin/plugin.json
+  s_9e3bbf799e5f88::t_b60748e2768b0d 3
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_9e3bbf799e5f88::t_63a3a69ede4fa7 4
+plugins/specpowers/.claude-plugin/plugin.json
+  s_9e3bbf799e5f88::t_25658a0974c34f 3
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_9e3bbf799e5f88::t_57d0ce095cabfb 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "87d76c73111f08f0098822b9a16dcd20dd8e267f",
+  "prompts": {},
+  "sessions": {
+    "s_9e3bbf799e5f88": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_fb6caf4f-1449-4938-9fbf-3271a1d68e69",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
