@@ -125,3 +125,31 @@ def test_load_state_rejects_non_dict_json():
         (root / ".specpowers" / "state.json").write_text('["stage", "ready"]', encoding="utf-8")
         with pytest.raises(FatalError):
             load_state(root)
+
+
+# ---- iteration_count 字段（多轮迭代：docs/auto-iteration-plan.md）----
+
+def test_default_state_has_iteration_count():
+    """DEFAULT_STATE 与 load 默认值都应含 iteration_count=0（首轮语义）。"""
+    assert DEFAULT_STATE["iteration_count"] == 0
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".specpowers").mkdir(exist_ok=True)
+        assert load_state(root)["iteration_count"] == 0
+
+
+def test_reset_state_clears_iteration_count():
+    """reset 放弃当前 feature → iteration_count 清零（新需求从首轮开始），fallback_count 仍保留。"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        (root / ".specpowers").mkdir(exist_ok=True)
+
+        state = {"stage": "build", "mode": "full", "fallback_used": False,
+                 "fallback_count": 2, "feature": "iter-feat", "last_archive_ref": "",
+                 "iteration_count": 3}
+        save_state(root, state)
+
+        new_state = reset_state(root)
+        assert new_state["stage"] == "ready"
+        assert new_state["iteration_count"] == 0
+        assert new_state["fallback_count"] == 2

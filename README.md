@@ -134,6 +134,15 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 /specpowers-archive
 ```
 
+### 4. 归档前调整需求（多轮迭代）
+
+**归档前，所有调整都视为同一个需求的新迭代轮**，记录进当前 change 目录的同一个 spec 文件；归档即宣告需求终结、开启全新需求：
+
+- **人工模式**：直接重入 `/specpowers-specify "调整描述"`（场景/范围调整）或 `/specpowers-brainstorm`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）
+- **auto 模式**：重入 `/specpowers-auto`（新文档 / 原文档 / `--instruction "口头调整"`），自动三分判定全新（fresh）/ 续跑（resume）/ 迭代轮（iterate）
+
+> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
+
 ---
 
 ## 流水线
@@ -142,7 +151,10 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 constitution → ready ─┬─ brainstorm → specify → plan → build → archive → ready
                      ├─ specify ────→ plan → build → archive → ready
                      ├─ auto ─── 无人值守依次驱动上述全部阶段（含 codex-review）──→ ready
-                     └─ fast → 用户编码 → build → archive → ready
+                     ├─ fast → 用户编码 → build → archive → ready
+                     └─ 迭代重入 ─→ 归档前任意阶段重入 specify/brainstorm（或 auto 重入），
+                                    确认后受控回 specify：feature 锁定不变，
+                                    spec 增量修订 + tasks 分轮演进（归档即新需求）
 ```
 
 ### 阶段命令详解
@@ -150,13 +162,13 @@ constitution → ready ─┬─ brainstorm → specify → plan → build → a
 | 命令 | 依赖 | 做什么 | 产物 |
 |------|------|--------|------|
 | `/specpowers-constitution` | — | 内联生成项目原则（质量/测试/UX/性能，插件自包含），同时扫描顶层目录、依赖清单、源码目录规律 → 结构基线 | `.specpowers/constitution.md` + `.specpowers/baseline.json` |
-| `/specpowers-brainstorm "需求"` | constitution | 调 superpowers 的 `brainstorming` 探索需求，提出方案并对比优劣，最终产出一份结构化决策摘要 | `openspec/changes/<feature>/proposal.md` |
-| `/specpowers-specify "需求"` | brainstorm（或 ready） | 读取 proposal.md（如有）和 constitution.md，用 OpenSpec 场景格式描述要构建什么，定义可测试的验收条件 | `openspec/changes/<feature>/specs/<capability>/spec.md` |
+| `/specpowers-brainstorm "需求"` | constitution | 调 superpowers 的 `brainstorming` 探索需求，提出方案并对比优劣，最终产出一份结构化决策摘要；未归档重入=同需求方案变更迭代轮（经确认开轮，proposal 覆盖更新 + 迭代历史） | `openspec/changes/<feature>/proposal.md` |
+| `/specpowers-specify "需求"` | brainstorm（或 ready） | 读取 proposal.md（如有）和 constitution.md，用 OpenSpec 场景格式描述要构建什么，定义可测试的验收条件；未归档重入=同需求场景调整迭代轮（经确认开轮，spec 增量修订） | `openspec/changes/<feature>/specs/<capability>/spec.md` |
 | `/specpowers-plan` | specify | 调 superpowers 的 `writing-plans`，将 spec.md 拆成可执行任务列表，并声明本特性适合哪种执行方式（conductor 顺序执行 / worktree 隔离 / subagent 并行 / TDD 测试驱动） | `openspec/changes/<feature>/tasks.md` |
 | `/specpowers-build` | plan（或 ready+fast） | ① 提示用户选择执行方式（conductor/worktree/subagent/TDD）；② 结构门禁：比对 git diff 与 baseline.json，三态判定（通过/转人工/打回）；③ 调用 superpowers 能力池执行编码 | 代码变更 |
 | `/specpowers-archive` | build | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<feature>/spec.md`（主规格）+ `openspec/changes/archive/`（快照） |
 | `/specpowers-fast "需求"` | constitution | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 brainstorm/specify/plan，直接编码 → build → archive | 验收清单 3-5 条 |
-| `/specpowers-auto "设计文档路径"` | ready | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后依次驱动 constitution → brainstorm → specify → plan → build → codex-review → archive；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑 | 汇总报告（产物清单/审查结论/编译测试/遗留风险） |
+| `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后依次驱动 constitution → brainstorm → specify → plan → build → codex-review → archive；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（产物清单/审查结论/编译测试/遗留风险） |
 | `/specpowers-baseline` | — | 手动刷新结构基线，重新扫描项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json` | 更新 `baseline.json` |
 | `/specpowers-reset` | — | 重置流水线状态：清除 `state.json` 和 `.lock`，回到 `ready` 重新开始（不丢 baseline） | — |
 
@@ -169,7 +181,7 @@ constitution → ready ─┬─ brainstorm → specify → plan → build → a
 | **阶段** | brainstorm → specify → plan → build → archive | specify → plan → build → archive | constitution → … → build → codex-review → archive | 用户编码 → build → archive |
 | **产物** | proposal + delta spec + tasks | delta spec + tasks | 全套产物 + 汇总报告 | 验收清单(delta spec) + 主规格合并 |
 | **能力池** | 全部可用 | 全部可用 | 全部可用 | 仅 TDD（禁 worktree/subagent） |
-| **回退** | — | — | 硬阻断停下后重入续跑 | 可升级为完整流程（1 次） |
+| **回退** | — | — | 硬阻断停下后重入续跑；归档前重入=同需求迭代轮 | 可升级为完整流程（1 次） |
 
 ### build 阶段详解
 

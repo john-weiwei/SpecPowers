@@ -6,6 +6,23 @@
 
 > **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（brainstorm/fast 阶段确定并锁定，同一流程不变）。
 
+## 重入识别（人工模式迭代轮入口）
+
+执行前置校验**之前**，先读 `.specpowers/state.json` 判断本次调用是否为迭代重入：
+
+- **触发条件**：`stage` ∈ {`specify`, `plan`, `build`} 且 `feature` 非空（活跃未归档）。此时 `facade brainstorm` 的常规入口（仅允许 from `ready`）不可用，重跑探索的唯一合理意图是：**同一个未归档需求的方案发生变更**，需要开新迭代轮更新 proposal。
+- **交互确认**（必须，禁止静默切换轮次）：
+
+  ```
+  检测到未归档需求 <feature>（stage=<stage>，当前 Round <iteration_count>）。
+  重跑探索意味着方案可能变更。是否开启 Round <iteration_count+1> 迭代轮并更新方案（proposal.md）？
+  1. 是 —— 调 `facade iterate` 开轮（feature 锁定不变），探索后覆盖更新 proposal.md 并追加迭代历史
+  2. 否 —— 取消（若仅是场景/范围调整，无需动方案：直接重入 /specpowers-specify 即可）
+  ```
+- **确认开启**：调 `facade iterate [--instruction "<调整描述>"] --root .`（stage → `specify`、feature 锁定、`iteration_count += 1`），然后按下方「迭代轮」小节执行探索与 proposal 覆盖更新；完成后提示用户 `/specpowers-specify` 做场景增量修订
+- **选择取消**：不改任何状态，向用户说明可选步骤后结束
+- **未触发**（stage=`ready`）：正常流程——全新需求探索（stage=`constitution` 时提示先跑 `/specpowers-constitution`）
+
 ## 前置校验
 
 ```bash
@@ -200,6 +217,25 @@ capability: 用户登录
 | `纯配置` | 仅配置修改 | 改 yaml/json/env |
 | `纯文案` | 仅文案修改 | 改 copy、i18n |
 | `纯重构` | 不改行为 | 重命名、提取方法 |
+
+## 迭代轮：proposal.md 覆盖 + 迭代历史（多轮迭代，auto 与人工模式通用）
+
+当本轮是迭代轮且**方案相对上一轮发生变更**时（人工模式由 `/specpowers-brainstorm`、`/specpowers-specify` 重入识别与用户确认，见「重入识别」小节；auto 模式由 auto 契约按「已定方案」判定）：
+
+- proposal.md **覆盖更新**（以本轮有效八要素为准），但文末必须**追加「## 迭代历史」小节**（已有则续写），记录本轮变化点，保证决策痕迹可追溯：
+
+```markdown
+## 迭代历史
+
+### Round <N>（<日期>）
+
+- 输入：<新设计文档 <路径> / 口头指令 "<摘要>">
+- 变化点：<相对上一轮的方案/边界/依赖变化，逐条列出；无变化则写「仅场景与范围调整，方案未变」>
+```
+
+- **feature 锁定**：迭代轮 feature 已由确定性层锁定（`state.json` 的 feature 字段，重入确认后的 `facade iterate` 或 `auto new-round` 轮次切换时均不改动），proposal.md 仍写入原 change 目录（`openspec/changes/<锁定slug>/`），不新建目录
+- **调用方式**：迭代轮更新 proposal 是**认知任务直接落盘**，不调 `facade brainstorm`（其语义是"从 ready 开新特性"，与迭代轮 stage=specify 冲突）；stage 保持 specify，proposal 前置校验天然满足
+- 首轮（非迭代轮）行为不变：按上方执行步骤全新生成
 
 ## 后续步骤
 

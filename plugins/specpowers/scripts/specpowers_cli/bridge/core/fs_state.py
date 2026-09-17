@@ -9,7 +9,8 @@ state.json structure:
     "fallback_count": int,
     "feature": str,
     "last_archive_ref": str,
-    "execution_mode": str    # build 阶段选择的执行方式：conductor|worktree|subagent|tdd（空=未选择）
+    "execution_mode": str,   # build 阶段选择的执行方式：conductor|worktree|subagent|tdd（空=未选择）
+    "iteration_count": int   # auto 模式需求迭代轮次（0=首轮，归档/reset 清零；与 fallback_count 互不占用）
 }
 """
 
@@ -51,6 +52,10 @@ DEFAULT_STATE = {
     # build.md 第二步声明记录到 state.json，这里落地该承诺。
     # 空串=未选择；reset/archive 时清空，避免新 feature 继承旧执行模式。
     "execution_mode": "",
+    # auto 模式需求迭代轮次：0=首轮，每次 auto new-round 递增。
+    # 归档即新需求 → archive 清零；reset 放弃当前 feature → 同样清零。
+    # 与 fallback_count（人工回退限额）语义独立，互不占用。
+    "iteration_count": 0,
 }
 
 
@@ -91,30 +96,40 @@ def load_state(root: Path) -> dict:
     return result
 
 
-def save_state(root: Path, state: dict) -> None:
-    """Atomically write state.json using temp file + rename.
+def atomic_write_json(path: Path, data: dict) -> None:
+    """原子写 JSON 文件（临时文件 + rename），state.json 之外的 specpowers 状态文件（如 auto_base.json）也复用此入口。
 
     Prevents half-written corruption on crash.
+
+    作者：005819 | 协作：GLM-5.3
     """
-    state_path = _get_state_path(root)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write to temp file in same directory (ensures same filesystem for atomic rename)
     fd, tmp_path = tempfile.mkstemp(
         suffix=".json",
         prefix=".state-",
-        dir=str(state_path.parent),
+        dir=str(path.parent),
     )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2, ensure_ascii=False)
+            json.dump(data, f, indent=2, ensure_ascii=False)
         # 原子替换：Windows 下对 PermissionError 重试（见 _atomic_replace）
-        _atomic_replace(tmp_path, state_path)
+        _atomic_replace(tmp_path, str(path))
     except Exception:
         # Clean up temp file on failure
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         raise
+
+
+def save_state(root: Path, state: dict) -> None:
+    """Atomically write state.json using temp file + rename.
+
+    Prevents half-written corruption on crash.
+    """
+    save_state_path = _get_state_path(root)
+    atomic_write_json(save_state_path, state)
 
 
 def init_state(root: Path) -> dict:
@@ -125,7 +140,10 @@ def init_state(root: Path) -> dict:
 
 
 def reset_state(root: Path) -> dict:
-    """Reset state to ready (preserves fallback_count)."""
+    """Reset state to ready (preserves fallback_count).
+
+    iteration_count 不保留：reset 意味着放弃当前 feature，新需求从首轮（0）开始。
+    """
     old_state = load_state(root)
     new_state = dict(DEFAULT_STATE)
     new_state["stage"] = "ready"

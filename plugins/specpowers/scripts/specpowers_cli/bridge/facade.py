@@ -18,6 +18,15 @@ Subcommands (user-facing, called by skill slash commands):
     baseline                     Manual baseline refresh
     reset                        Reset state (clear state + lock)
 
+Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.md):
+    auto-status [--design-doc <path>] [--instruction "<desc>"]
+                                 三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）
+    auto new-round [--design-doc <path>] [--instruction "<desc>"]
+                                 受控轮次切换：stage → specify、feature 锁定、rounds 落盘（auto 专用）
+    iterate [--design-doc <path>] [--instruction "<desc>"]
+                                 人工模式迭代轮切换原语（由 /specpowers-specify、/specpowers-brainstorm
+                                 重入识别确认后调用；同 new-round 但不要求 auto_base.json）
+
 Internal subcommands (for CI / agent direct use):
     scan [--root <path>]         Run baseline scanner
     gate [--base <ref>]          Extract structure gate signals
@@ -113,21 +122,29 @@ def _cmd_constitution(args: list[str], root: Path) -> int:
 def _cmd_brainstorm(args: list[str], root: Path) -> int:
     """Handle brainstorm command."""
     from specpowers_cli.bridge.dispatcher import route
-    req = " ".join(args) if args else ""
+    opts, positional = _extract_kv_options(args, ("feature",))
+    req = " ".join(positional) if positional else ""
     if not req.strip():
         print("Error: brainstorm requires a requirement description.", file=sys.stderr)
         return 2
-    return route("brainstorm", "full", root, extra={"requirement": req})
+    return route("brainstorm", "full", root, extra={
+        "requirement": req,
+        "feature": opts.get("feature", ""),
+    })
 
 
 def _cmd_specify(args: list[str], root: Path) -> int:
     """Handle specify command."""
     from specpowers_cli.bridge.dispatcher import route
-    req = " ".join(args) if args else ""
+    opts, positional = _extract_kv_options(args, ("feature",))
+    req = " ".join(positional) if positional else ""
     if not req.strip():
         print("Error: specify requires a requirement description.", file=sys.stderr)
         return 2
-    return route("specify", "full", root, extra={"requirement": req})
+    return route("specify", "full", root, extra={
+        "requirement": req,
+        "feature": opts.get("feature", ""),
+    })
 
 
 def _cmd_fast(args: list[str], root: Path) -> int:
@@ -163,6 +180,90 @@ def _cmd_baseline(args: list[str], root: Path) -> int:
     """Handle baseline command."""
     from specpowers_cli.bridge.dispatcher import route
     return route("baseline", "full", root)
+
+
+def _extract_kv_options(rest: list[str], keys: tuple[str, ...]) -> tuple[dict, list[str]]:
+    """从参数列表提取 --key <value> / --key=<value> 形式的命名选项。
+
+    值缺失（位于末尾或下一项以 -- 开头）直接报错退出，避免把 flag 字符串
+    当成值拼进后续逻辑。
+
+    Args:
+        rest: 待解析的参数列表（已移除全局 --root）。
+        keys: 支持的选项名集合（不含 -- 前缀，如 "design-doc"）。
+
+    Returns:
+        (选项字典, 剩余位置参数)。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    opts: dict = {}
+    remaining: list[str] = []
+    i = 0
+    while i < len(rest):
+        a = rest[i]
+        matched = False
+        for key in keys:
+            flag = f"--{key}"
+            if a == flag:
+                if i + 1 >= len(rest) or rest[i + 1].startswith("--"):
+                    print(f"Error: {flag} requires a value.", file=sys.stderr)
+                    sys.exit(2)
+                opts[key] = rest[i + 1]
+                i += 2
+                matched = True
+                break
+            if a.startswith(flag + "="):
+                opts[key] = a[len(flag) + 1:]
+                i += 1
+                matched = True
+                break
+        if not matched:
+            remaining.append(a)
+            i += 1
+    return opts, remaining
+
+
+def _cmd_auto_status(args: list[str], root: Path) -> int:
+    """Handle auto-status command — 三分判定（只读，fresh 时顺带清理归档残留）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.dispatcher import auto_status
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    result = auto_status(
+        root,
+        design_doc=opts.get("design-doc", ""),
+        instruction=opts.get("instruction", ""),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _cmd_auto_new_round(args: list[str], root: Path) -> int:
+    """Handle auto new-round command — 受控轮次切换（stage → specify，feature 锁定）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    return route("auto-new-round", "full", root, extra={
+        "design_doc": opts.get("design-doc", ""),
+        "instruction": opts.get("instruction", ""),
+    })
+
+
+def _cmd_iterate(args: list[str], root: Path) -> int:
+    """Handle iterate command — 人工模式迭代轮入口（不要求 auto_base.json）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    return route("iterate", "full", root, extra={
+        "design_doc": opts.get("design-doc", ""),
+        "instruction": opts.get("instruction", ""),
+    })
 
 
 def _cmd_reset(args: list[str], root: Path) -> int:
@@ -268,6 +369,12 @@ def main(argv: list[str] | None = None) -> int:
     subcommand = argv[0]
     rest = argv[1:]
 
+    # "auto status" / "auto new-round" 空格形式归一化为连字符子命令（auto-status / auto-new-round）
+    # 作者：005819 | 协作：GLM-5.3
+    if subcommand == "auto" and rest:
+        subcommand = f"auto-{rest[0]}"
+        rest = rest[1:]
+
     # 提取全局选项 --root 并从 rest 中移除，防止其被拼进 requirement
     root_arg, rest = _extract_global_options(rest)
 
@@ -300,6 +407,9 @@ def main(argv: list[str] | None = None) -> int:
         "scan": _cmd_scan,
         "gate": _cmd_gate,
         "record-execution-mode": _cmd_record_execution_mode,
+        "auto-status": _cmd_auto_status,
+        "auto-new-round": _cmd_auto_new_round,
+        "iterate": _cmd_iterate,
     }
 
     handler = handlers.get(subcommand)

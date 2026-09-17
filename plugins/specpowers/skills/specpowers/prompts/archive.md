@@ -28,7 +28,7 @@ Dispatcher 自动校验：
 
 ### 职责二：收尾产物
 
-- 标记 `openspec/changes/<feature>/tasks.md` 任务全部完成
+- 标记 `openspec/changes/<feature>/tasks.md` 任务全部完成（**跳过「## 已作废」小节**——作废任务不等价于待办，多轮迭代产物见 plan.md 迭代轮小节）
 - 归档由 dispatcher 调 `openspec archive` 确定性执行（产物收敛到 `openspec/specs/` 与 `openspec/changes/archive/`，详见职责三）
 
 ### 职责三：合体后校验
@@ -102,6 +102,7 @@ dispatcher 已提示是否触发 merge check，agent 如需额外校验：
 - **只转人工、不打回**（archive 是收尾，不打回重做）
 - **不提交代码**：archive 只做归档动作（openspec archive + state 跃迁），不执行 `git add` / `git commit`，代码与产物的提交由用户自行完成
 - 重复归档检测：防止同一 feature 被多人重复归档。**注意**：检测依据是 git log 中含 `specpowers.*<feature>` 的 commit——归档完成后请用户提交时在 commit message 中包含 feature 名（推荐格式 `specpowers: <feature>`），否则重复归档检测对该 feature 不生效
+- **归档即新需求**（auto 多轮迭代语义）：归档成功后确定性层自动清理 `.specpowers/auto_base.json` 并将 `iteration_count` 清零——下一轮 `/specpowers-auto` 无论带什么输入都判定为全新需求，不会被残留基线误判为续跑；裁决历史 `.specpowers/auto_decisions/<feature>.md` 保留作审计
 - 完成后 stage 跃迁到 `ready`，feature 清空
 
 ## 通知用户

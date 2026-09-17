@@ -1,14 +1,18 @@
 # auto-summary-template.md — /specpowers-auto 汇总报告模板
 
-> `/specpowers-auto` 结束时（正常收尾或硬阻断停下）按本模板输出汇总报告。全部中文；
+> `/specpowers-auto` 每轮结束时（正常收尾、硬阻断停下、或迭代轮跑完不归档）按本模板输出汇总报告。全部中文；
 > 方括号为占位符，按实际情况填写；无对应内容的段落写「无」并说明原因，不得删除段落。
 
-# /specpowers-auto 执行汇总：<功能名>
+# /specpowers-auto 执行汇总：<功能名>（Round <N>）
 
-- **执行模式**：无人值守直通（constitution → brainstorm → specify → plan → build → codex-review → archive）
-- **执行结果**：正常收尾 / 硬阻断停下（第 <N> 步）
-- **设计文档**：<路径>
-- **审查基点**：<base_commit SHA>（记录于 `.specpowers/auto_base.json`）
+- **执行模式**：无人值守（constitution → brainstorm → specify → plan → build → codex-review → [archive]）
+- **需求迭代轮次**：第 <N> 轮（归档前同一需求多轮迭代，轮次不设上限；与 review 复审轮次相互独立）
+- **本轮输入形态**：<新设计文档 <路径> / 原设计文档内容变更 / 口头指令 "<摘要>" / 断点续跑（无新输入）>
+- **本轮迭代深度**：<全量（方案变更）/ 全量（场景与范围调整）/ 轻量（spec 必改底线不变）/ 续跑>
+- **本轮调整范围**：<相对上一轮的变化点，逐条列出；首轮写「首次执行」>
+- **执行结果**：正常收尾（含归档）/ 迭代轮完成（未归档，可继续迭代或手动归档）/ 硬阻断停下（第 <M> 步）
+- **设计文档**：<当前有效设计文档路径>
+- **审查基点**：<base_commit SHA>（首轮记录，跨轮不变，记录于 `.specpowers/auto_base.json`）
 - **审查方式**：codex-review 技能 / 降级自审 checklist（二选一，降级时注明原因）
 
 ## 一、各阶段产物路径
@@ -16,14 +20,14 @@
 | 阶段 | 产物 | 路径 |
 |------|------|------|
 | constitution | constitution.md | `.specpowers/constitution.md` |
-| brainstorm | proposal.md | `openspec/changes/<feature>/proposal.md` |
-| specify | spec.md | `openspec/changes/<feature>/specs/.../spec.md` |
-| plan | tasks.md | `openspec/changes/<feature>/tasks.md` |
+| brainstorm | proposal.md | `openspec/changes/<feature>/proposal.md`（迭代轮含「## 迭代历史」） |
+| specify | spec.md | `openspec/changes/<feature>/specs/.../spec.md`（迭代轮为增量修订） |
+| plan | tasks.md | `openspec/changes/<feature>/tasks.md`（迭代轮按 Round 分节） |
 | build | 代码 + 测试 | <涉及目录> |
 | codex-review | 审查记录 | <落盘路径，如有> |
-| archive | 归档结果 | `openspec/specs/<capability>/spec.md`（归档后） |
+| archive | 归档结果 | `openspec/specs/<capability>/spec.md`（本轮归档时填写；未归档写「本轮未归档」） |
 
-## 二、实际修改 / 新增文件清单
+## 二、实际修改 / 新增文件清单（本轮）
 
 **修改（<N> 处）**：
 
@@ -35,8 +39,9 @@
 
 ## 三、review 结论与修复清单
 
-- **迭代轮次**：<N> 轮（上限 2 轮）
-- **最终结论**：<无本次改动引入的 P1/P2 遗留 / 仍有遗留见「遗留风险」>
+- **review 覆盖区间**：<首轮基点 SHA> → <当前 HEAD / 工作区>（累计覆盖全部 <N> 轮改动）
+- **复审轮次**：<N> 轮（单轮内上限 2 轮）
+- **最终结论**：<无本需求引入的 P1/P2 遗留 / 仍有遗留见「遗留风险」>
 
 ### 修复清单
 
@@ -52,26 +57,29 @@
 
 ### Strengths（做得好的点）
 
-- <本次改动中值得肯定的设计或实现，1–3 条，供人工回看时快速建立信心>
+- <本轮改动中值得肯定的设计或实现，1–3 条，供人工回看时快速建立信心>
 
 ## 四、编译与测试结果
 
 - **编译**：<命令，如 `mvn clean package -DskipTests`> → <通过/失败>
 - **单测**：<全部通过 / 跳过（原因：本地 MySQL/Redis 等依赖不可达）/ 失败（详见输出）>
-- **其他验证**：<门禁校验、归档校验等结果>
+- **其他验证**：<门禁校验、归档校验等结果；迭代轮注明历史轮 Scenario 回归结论>
 
 ## 五、裁决日志摘要
 
-> 完整裁决记录见 `.specpowers/auto_decisions.md`（如落盘）。
+> 完整裁决记录见 `.specpowers/auto_decisions/<feature>.md`（如落盘）。
 
 | 阶段 | 交互节点 | 裁决结果 | 依据 |
 |------|----------|----------|------|
+| <auto 入口> | <本轮模式判定> | <fresh/resume/iterate + 深度 full/light> | <auto-status 判定理由> |
 | <brainstorm> | <方案取舍确认> | <按文档结论执行> | <文档章节号> |
 | <build> | <门禁转人工信号> | <自愈/硬阻断> | <信号内容与处置> |
+| <plan> | <任务作废> | <移入已作废小节> | <作废依据> |
 
 ## 六、遗留风险
 
 - **外部依赖未就绪项**：<未就绪的外部接口及采用的降级策略（如 Remote 降级：返回空 + warn 日志 + 完整异常堆栈），接口就绪后仅需替换的层次>
 - **降级审查标注**：<若 codex-review 不可用，此处标注「本次为降级审查」及原因>
-- **2 轮后仍遗留问题**：<轮次上限内未收敛的 blocking 问题，交人工裁决>
+- **2 轮后仍遗留问题**：<复审轮次上限内未收敛的 blocking 问题，交人工裁决；带 blocking 遗留时 `--archive` 收口会被拦截>
+- **功能名变更**：<迭代轮设计文档功能名与锁定 slug 不一致时在此注明>
 - **其他**：<归档校验「只转人工、不打回」记录的问题等>

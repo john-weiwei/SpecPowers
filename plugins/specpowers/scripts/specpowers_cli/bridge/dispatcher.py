@@ -8,9 +8,12 @@ Routes each stage command through:
 5) Release lock
 """
 
+import hashlib
 import json
+import os
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +21,9 @@ from specpowers_cli.bridge.core.errors import (
     FatalError, StateError, ArtifactMissingError,
     ArchiveDuplicateError, RecoverableError,
 )
-from specpowers_cli.bridge.core.fs_state import load_state, save_state, init_state, reset_state, delete_state
+from specpowers_cli.bridge.core.fs_state import (
+    load_state, save_state, init_state, reset_state, delete_state, atomic_write_json,
+)
 from specpowers_cli.bridge.core.lock import acquire_lock, release_lock, force_unlock
 from specpowers_cli.bridge.core.git_util import is_git_repo, has_commits, is_detached_head, git_ref_of
 from specpowers_cli.bridge.modules.artifact_registry import required_for
@@ -30,7 +35,9 @@ VALID_TRANSITIONS: dict[str, list[str | None]] = {
     "constitution": ["constitution"],  # initial or force
     "ready": ["constitution", "archive"],
     "brainstorm": ["ready"],
-    "specify": ["brainstorm", "ready", "build"],
+    # specify 自环（from specify）：迭代轮已由 iterate/auto new-round 把 stage 置回 specify，
+    # 用户重跑 /specpowers-specify 属续作修订（iteration_count 不变、不消耗 fallback 额度），应放行
+    "specify": ["brainstorm", "ready", "build", "specify"],
     "plan": ["specify"],
     "build": ["plan", "ready"],
     "archive": ["build"],
@@ -97,6 +104,177 @@ def _finalize_feature_slug(slug: str) -> str:
     if not slug:
         return "unnamed"
     return sanitize_feature_slug(slug)
+
+
+# ---- auto 模式多轮迭代（方案 docs/auto-iteration-plan.md） ----
+
+def _auto_base_path(root: Path) -> Path:
+    """Return path to .specpowers/auto_base.json."""
+    return root / ".specpowers" / "auto_base.json"
+
+
+def _load_auto_base(root: Path) -> dict | None:
+    """读取 auto_base.json；不存在返回 None，损坏抛 FatalError 引导人工处理。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    path = _auto_base_path(root)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        raise FatalError(
+            f"auto_base.json 解析失败: {e}。"
+            "请人工检查或删除该文件后重试 /specpowers-auto。"
+        )
+
+
+def _write_auto_base(root: Path, data: dict) -> None:
+    """原子写 auto_base.json（复用 fs_state.atomic_write_json，与 state.json 同一保障）。"""
+    atomic_write_json(_auto_base_path(root), data)
+
+
+def _design_doc_hash(design_doc: str) -> str | None:
+    """计算设计文档内容的 sha256；文件不存在返回 None。
+
+    Args:
+        design_doc: 设计文档路径（绝对或相对 cwd）。
+
+    Returns:
+        十六进制 hash 字符串，文件不存在时 None。
+    """
+    path = Path(design_doc)
+    if not design_doc or not path.is_file():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _same_path(left: str, right: str) -> bool:
+    """跨平台路径等价比较（Windows 大小写不敏感、分隔符归一）。"""
+    return os.path.normcase(os.path.normpath(left)) == os.path.normcase(os.path.normpath(right))
+
+
+def _utc_now_iso() -> str:
+    """当前 UTC 时间的 ISO 格式字符串（rounds 记录用）。"""
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _migrate_legacy_auto_base(base: dict) -> list[dict]:
+    """旧格式 auto_base.json（无 rounds 字段）按 round 1 兼容迁移。
+
+    Args:
+        base: 已读取的 auto_base.json 内容。
+
+    Returns:
+        迁移后的 rounds 列表（含首轮一条记录，标注迁移来源）。
+    """
+    return [{
+        "round": 1,
+        "input": {"type": "doc", "doc": base.get("design_doc", ""), "instruction": ""},
+        "started_at": base.get("created_at", ""),
+        "note": "旧格式 auto_base.json 自动迁移（原文件无 rounds 字段）",
+    }]
+
+
+def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict:
+    """auto 模式重入三分判定：fresh / resume / iterate（facade auto-status 子命令入口）。
+
+    需求身份由归档状态唯一决定，与设计文档解耦：
+    - fresh：无活跃 feature（已归档或从未开始）；发现 auto_base.json 残留则顺带清理
+    - resume：活跃需求 + 无任何新输入（文档 hash 未变、无指令）→ 断点续跑
+    - iterate：活跃需求 + 任一新输入（文档实质变更 / 口头指令）→ 同需求新迭代轮
+
+    判定只读 state 与产物，不做状态跃迁；轮次切换必须走 auto new-round。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    state = load_state(root)
+    feature = (state.get("feature") or "").strip()
+    base = _load_auto_base(root)
+
+    # fresh：无活跃 feature（archive 后 stage=ready 且 feature 空，或从未开始）
+    if not feature and state["stage"] in ("ready", "constitution"):
+        removed = False
+        if base is not None:
+            # 上一需求的 auto_base.json 残留（旧版本归档清理缺失所遗留）→ 清理后按全新执行
+            _auto_base_path(root).unlink()
+            removed = True
+        return {
+            "mode": "fresh",
+            "feature": "",
+            "round": 0,
+            "iteration_count": 0,
+            "stage": state["stage"],
+            "scope_hint": "",
+            "reason": "无活跃 feature，按全新需求执行（设计文档必填）",
+            "design_doc_exists": None,
+            "auto_base_removed": removed,
+        }
+
+    # 活跃需求（full 流水线中 / fast 待编码）：base 缺失 = 人工流程被 auto 接管
+    if base is None:
+        return {
+            "mode": "iterate",
+            "feature": feature,
+            "round": state.get("iteration_count", 0) + 1,
+            "iteration_count": state.get("iteration_count", 0),
+            "stage": state["stage"],
+            "scope_hint": "full",
+            "reason": "存在未归档的活跃 feature 但缺 auto_base.json（人工流程接管），保守按全量迭代执行并补建基线",
+            "design_doc_exists": None,
+            "auto_base_missing": True,
+        }
+
+    # 新输入判定：口头指令非空，或文档内容 hash 相对基线发生变化
+    doc_changed = False
+    design_doc_exists: bool | None = None
+    if design_doc.strip():
+        new_hash = _design_doc_hash(design_doc)
+        design_doc_exists = new_hash is not None
+        if new_hash is None:
+            # 文档不存在：保守按有新输入处理，存在性标记交契约层做参数校验
+            doc_changed = True
+        else:
+            old_hash = base.get("design_doc_hash", "")
+            if old_hash:
+                doc_changed = new_hash != old_hash
+            else:
+                # 旧格式无 hash 基准：同路径视为未变（信任续跑），异路径视为新输入
+                old_doc = (base.get("design_doc") or "").strip()
+                doc_changed = (not old_doc) or (not _same_path(old_doc, design_doc))
+    has_new_input = bool(instruction.strip()) or doc_changed
+
+    round_now = state.get("iteration_count", 0)
+    if not has_new_input:
+        return {
+            "mode": "resume",
+            "feature": feature,
+            "round": round_now,
+            "iteration_count": round_now,
+            "stage": state["stage"],
+            "scope_hint": "",
+            "reason": "无新输入（文档未变且无指令），按断点续跑：读 state stage + 产物存在性定位断点，已完成阶段不重做",
+            "design_doc_exists": design_doc_exists,
+        }
+
+    # 迭代深度建议：文档实质变更 → full；仅口头指令 → light（最终由契约层按裁决规则表定夺）
+    if doc_changed:
+        scope_hint = "full"
+        reason = "设计文档相对上一轮已变更，重新解析八要素后按迭代轮推进"
+    else:
+        scope_hint = "light"
+        reason = "仅提供口头调整指令，若无歧义映射到现有 scenario 修订可走轻量路径（spec 必改底线不变）"
+    return {
+        "mode": "iterate",
+        "feature": feature,
+        "round": round_now + 1,
+        "iteration_count": round_now,
+        "stage": state["stage"],
+        "scope_hint": scope_hint,
+        "reason": reason,
+        "design_doc_exists": design_doc_exists,
+    }
 
 
 def _check_prerequisites(root: Path):
@@ -279,10 +457,19 @@ def _handle_constitution(root: Path, extra: dict) -> int:
 def _handle_brainstorm(root: Path, extra: dict) -> int:
     """Handle brainstorm stage."""
     req = extra.get("requirement", "")
-    feature = normalize_feature(req)
     state = load_state(root)
 
     _validate_transition(state["stage"], "brainstorm")
+
+    # feature 锁定：--feature 显式指定优先（auto 模式多轮迭代用首轮 slug 锁定 change 目录，
+    # 防止 requirement 措辞变化导致 slug 漂移、调整脱离当前 spec 文件），
+    # 其次 normalize requirement 兜底。
+    # 作者：005819 | 协作：GLM-5.3
+    explicit_feature = (extra.get("feature") or "").strip()
+    if explicit_feature:
+        feature = _finalize_feature_slug(explicit_feature)
+    else:
+        feature = normalize_feature(req)
 
     _check_prerequisites(root)
     _run_pre_stage_checks(root, "brainstorm", "full", feature)
@@ -322,10 +509,14 @@ def _handle_specify(root: Path, extra: dict) -> int:
             )
         state["fallback_count"] = fallback_count + 1
 
-    # Feature 锁定：优先复用 state 中已有 feature（保证同一流程文件名前缀一致），
-    # 仅当 feature 为空时才 normalize 当前 requirement
+    # Feature 锁定：--feature 显式指定 > state 已有 feature（同一流程文件名前缀一致）>
+    # normalize 当前 requirement 兜底。
+    # 作者：005819 | 协作：GLM-5.3
+    explicit_feature = (extra.get("feature") or "").strip()
     existing_feature = state.get("feature", "")
-    if existing_feature and existing_feature.strip():
+    if explicit_feature:
+        feature = _finalize_feature_slug(explicit_feature)
+    elif existing_feature and existing_feature.strip():
         feature = existing_feature
     else:
         feature = normalize_feature(req)
@@ -463,12 +654,19 @@ def _handle_archive(root: Path, extra: dict) -> int:
 
         # 归档成功：刷新 state，stage 跃迁到 ready
         # 清空 execution_mode：本 feature 的执行模式不应被下一轮 feature 继承
+        # iteration_count 清零：归档即新需求，下一轮从首轮开始（方案第 5 节）
+        # 作者：005819 | 协作：GLM-5.3
         state["last_archive_ref"] = git_ref_of(root)
         state["stage"] = "ready"
         state["feature"] = ""
         state["mode"] = "full"
         state["execution_mode"] = ""
+        state["iteration_count"] = 0
         save_state(root, state)
+
+        # 归档即需求生命周期终结：清理 auto_base.json（手动 archive 与 auto --archive
+        # 双通道统一生效），保证下一轮 /specpowers-auto 必然判定为 fresh，不被残留基线误判为续跑
+        auto_base_removed = _cleanup_auto_base(root)
 
         print(f"Archive 完成。Feature '{feature}' 已归档为 '{archived_as}'。")
         if specs_updated:
@@ -476,6 +674,8 @@ def _handle_archive(root: Path, extra: dict) -> int:
         else:
             print(f"  - 主规格合并：（无 delta 需合并）")
         print(f"  - change 快照：openspec/changes/archive/{archived_as}/")
+        if auto_base_removed:
+            print(f"  - auto 基线：.specpowers/auto_base.json 已清理（归档即新需求）")
         print(f"准备下一轮开发：/specpowers.brainstorm | .specify | .fast")
         return 0
 
@@ -512,6 +712,144 @@ def _handle_reset(root: Path, extra: dict) -> int:
     return 0
 
 
+def _cleanup_auto_base(root: Path) -> bool:
+    """归档成功后清理 auto_base.json（auto_base 缺失时 _load_auto_base 返回 None，无需重复清理）。
+
+    Returns:
+        是否实际删除了文件。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    path = _auto_base_path(root)
+    if path.exists():
+        path.unlink()
+        return True
+    return False
+
+
+def _handle_auto_new_round(root: Path, extra: dict) -> int:
+    """auto new-round — auto 模式同需求新迭代轮（要求 auto_base.json 存在）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    return _enter_new_round(root, extra, require_auto_base=True, entry="auto")
+
+
+def _handle_iterate(root: Path, extra: dict) -> int:
+    """iterate — 人工模式同需求新迭代轮的轮次切换原语（不要求 auto_base.json；存在则同样落盘 rounds）。
+
+    由 /specpowers-specify、/specpowers-brainstorm 重入识别并经用户确认后调用（无独立入口命令）。
+    与 auto 多轮迭代同一套语义：归档状态决定需求身份，feature 锁定不变，
+    stage 受控置回 specify。不占用 fallback_count（人工 build→specify 回退限额独立）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    return _enter_new_round(root, extra, require_auto_base=False, entry="manual")
+
+
+def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: str) -> int:
+    """同需求新迭代轮的受控轮次切换（auto new-round / iterate 共用实现）。
+
+    受控跃迁：不走 VALID_TRANSITIONS 常规校验，本处理器自身即受控重置入口。
+    前置：活跃 feature 未归档（auto 入口额外要求 auto_base.json 存在）；
+    动作：stage → specify、feature 锁定不变、iteration_count += 1、execution_mode 清空
+    （新轮执行方式在 build 阶段重新确认，不继承上一轮）；
+    落盘：auto_base.json 存在时追加本轮 rounds 记录（旧格式按 round 1 兼容迁移）并刷新文档指针。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    state = load_state(root)
+    feature = (state.get("feature") or "").strip()
+
+    base = _load_auto_base(root)
+    if require_auto_base and base is None:
+        raise StateError(
+            "auto new-round 需要 .specpowers/auto_base.json（auto 模式需求基线）。"
+            "该文件不存在说明本次不是 auto 模式需求，请走全新 /specpowers-auto。"
+        )
+    if not feature:
+        raise StateError(
+            "当前 state 无活跃 feature，无法开启迭代轮。"
+            "若要开始新需求：无人值守用 /specpowers-auto，人工模式用 /specpowers-brainstorm 或 /specpowers-specify。"
+        )
+    from specpowers_cli.bridge.modules.archive_auditor import is_feature_archived
+    if is_feature_archived(root, feature):
+        raise StateError(
+            f"feature '{feature}' 已归档，归档即新需求，"
+            "请直接开启新需求（无人值守 /specpowers-auto，人工 /specpowers-brainstorm）。"
+        )
+
+    design_doc = (extra.get("design_doc") or "").strip()
+    instruction = (extra.get("instruction") or "").strip()
+
+    # 旧格式兼容：无 rounds 字段 → 首轮记录按 round 1 迁移，
+    # 并把轮次基线校正为 1（迁移记录代表历史已跑过一轮），保证新轮号不与迁移记录冲突
+    if base is not None and not isinstance(base.get("rounds"), list):
+        if state.get("iteration_count", 0) < 1:
+            state["iteration_count"] = 1
+
+    # 受控跃迁：stage 置回 specify（specify 起全量/轻量重跑），feature 身份锁定不变
+    new_round = state.get("iteration_count", 0) + 1
+    state["iteration_count"] = new_round
+    state["stage"] = "specify"
+    state["mode"] = "full"
+    state["execution_mode"] = ""
+    save_state(root, state)
+
+    _append_round_record(root, base, feature, new_round, design_doc, instruction)
+
+    label = "auto 模式" if entry == "auto" else "人工模式"
+    print(f"迭代轮已开启（{label}）：Round {new_round}，feature '{feature}' 锁定不变，stage → specify")
+    if entry == "auto":
+        print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ specify → plan → build → codex-review")
+    else:
+        print("迭代轮已开启（人工模式重入）：按 prompts/specify.md 迭代轮小节增量修订 spec.md"
+              "（方案变更时先按 brainstorm.md 迭代轮小节更新 proposal.md）；"
+              "完成后 /specpowers-plan → /specpowers-build → 随时可 /specpowers-archive 收口")
+    return 0
+
+
+def _append_round_record(root: Path, base: dict | None, feature: str,
+                         new_round: int, design_doc: str, instruction: str) -> None:
+    """auto_base.json 存在时追加本轮 rounds 记录并刷新文档指针（含旧格式迁移）。
+
+    base 为 None（人工模式无 auto 基线）时跳过落盘，仅 state.iteration_count 已承载轮次。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    if base is None:
+        return
+    rounds = base.get("rounds")
+    if not isinstance(rounds, list):
+        rounds = _migrate_legacy_auto_base(base)
+    if design_doc:
+        digest = _design_doc_hash(design_doc)
+        if digest:
+            base["design_doc"] = design_doc
+            base["design_doc_hash"] = digest
+    if design_doc and instruction:
+        input_type = "doc+instruction"
+    elif design_doc:
+        input_type = "doc"
+    elif instruction:
+        input_type = "instruction"
+    else:
+        input_type = "resume"
+    entry_input: dict = {"type": input_type}
+    if design_doc:
+        entry_input["doc"] = design_doc
+    if instruction:
+        entry_input["instruction"] = instruction
+    rounds.append({
+        "round": new_round,
+        "input": entry_input,
+        "started_at": _utc_now_iso(),
+    })
+    base["feature"] = base.get("feature") or feature
+    base["rounds"] = rounds
+    _write_auto_base(root, base)
+
+
 # ---- Route table ----
 
 STAGE_HANDLERS = {
@@ -524,6 +862,8 @@ STAGE_HANDLERS = {
     "archive": _handle_archive,
     "baseline": _handle_baseline,
     "reset": _handle_reset,
+    "auto-new-round": _handle_auto_new_round,
+    "iterate": _handle_iterate,
 }
 
 

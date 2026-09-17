@@ -123,6 +123,15 @@ Build 完成。下一步：/specpowers-archive
 - 直接运行结构门禁 + delta spec Scenario 验证
 - 中途可通过自然语言"升级为完整流程"回退到 specify（仅一次）
 
+## 迭代轮：只执行未完成且未作废的任务（多轮迭代，auto 与人工模式通用）
+
+当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-specify`、`/specpowers-brainstorm` 重入识别确认（人工模式）或 `/specpowers-auto`（无人值守））时，tasks.md 已按 plan 契约完成分轮差异同步，build 执行范围收敛为：
+
+- **只执行未勾选（`[ ]`）且不在「## 已作废」小节的任务**；跨轮保留的 `[x]` 任务视为已交付，跳过
+- 执行前先核对：任务引用的 spec 场景在当前 delta spec 中仍存在（plan 同步与 spec 修订之间若出现漂移，以 spec 为准并记录裁决）
+- 本轮新增任务的执行方式仍按第二步确认（新轮 `execution_mode` 已被确定性层清空，按 tasks.md 顶部推荐或默认 conductor 重新确认并 `record-execution-mode` 记录）
+- 验证阶段（第六步）按**当前 delta spec 全量 Scenario** 验证（含历史轮场景回归），确保迭代未破坏既有行为
+
 ## 后续步骤
 
 完成后 stage 跃迁到 `build`，下一步：`/specpowers-archive [--force-merge-check]`

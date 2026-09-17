@@ -6,6 +6,25 @@
 
 > **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（brainstorm/fast 阶段确定并锁定，同一流程不变）。
 
+## 重入识别（人工模式迭代轮入口）
+
+执行前置校验**之前**，先读 `.specpowers/state.json` 判断本次调用是否为迭代重入：
+
+- **触发条件**：`stage` ∈ {`plan`, `build`} 且 `feature` 非空（活跃未归档——归档后 stage 已回 `ready`，不在此列）。这表明用户要在**同一个未归档需求**上做调整，需求身份由归档状态唯一决定，调整必须落在当前 change 目录的当前 spec 文件内。
+- **交互确认**（必须，禁止静默切换轮次）：
+
+  ```
+  检测到未归档需求 <feature>（stage=<stage>，当前 Round <iteration_count>）。本次重入意图是？
+  1. 开启 Round <iteration_count+1> 迭代轮 —— 调整/优化需求，调整记录进当前 spec 文件
+  2. 取消 —— 继续现有流程（/specpowers-build 或 /specpowers-archive）
+  ```
+
+  - `stage=build` 且 `mode=fast` 时追加选项：`3. fast→full 流程回退（原 fallback 语义：消耗整个生命周期唯一 1 次回退额度，放弃 fast 产物重新完整生成 spec）`
+  - 用户给出调整描述（命令参数）时在选项 1 中原样带入，作为本轮修订依据
+- **确认开启迭代轮**：调 `facade iterate [--instruction "<调整描述>"] --root .`（确定性层完成：stage → `specify`、feature 锁定不变、`iteration_count += 1`、不占 fallback 额度）。成功后**不要再调 `facade specify`**（状态已就位），直接按下方「迭代轮」小节增量修订 spec.md
+- **选择取消**：不改任何状态，向用户说明当前可选步骤后结束
+- **未触发**（stage 为 `ready`/`brainstorm`/`specify`）：走正常流程——stage=`specify` 的重跑属迭代轮**续作**（`iteration_count ≥ 1` 时按迭代轮小节执行，轮次不变），其余按前置校验常规进入
+
 ## 前置校验
 
 ```bash
@@ -13,7 +32,7 @@ python -m specpowers_cli.bridge.facade specify "<需求>" --root .
 ```
 
 Dispatcher 自动校验：
-- 合法 from_stage：`brainstorm` / `ready`（跳过探索）/ `build`（fallback 回退）
+- 合法 from_stage：`brainstorm` / `ready`（跳过探索）/ `build`（fallback 回退）/ `specify`（迭代轮续作，自环幂等）
 - **从 brainstorm 进入时**：`openspec/changes/<feature>/proposal.md` 必须存在**且含「## 数据流契约」小节**（确定性层校验段头，倒逼 brainstorm 必须完成探索）
 - `.specpowers/constitution.md` 必须存在
 
@@ -84,6 +103,21 @@ The system SHALL <一句话描述 feature 的核心能力>。
 - Scenario 的 WHEN/THEN 必须真实、可测试、可验证，禁止填空
 - 若 proposal.md 存在，capability 必须从其 frontmatter 解析
 - 迭代场景（capability ≠ feature）：requirement 名用 feature slug，与主规格已有 requirement 累积不冲突
+
+## 迭代轮：spec.md 增量修订（多轮迭代，auto 与人工模式通用）
+
+当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-specify`、`/specpowers-brainstorm` 重入识别确认（人工模式，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，specify 不做盲目重写，改为**对照本轮有效场景清单增量修订**现有 delta spec（`openspec/changes/<feature>/specs/<capability>/spec.md`）。场景清单来源：auto 迭代轮取八要素「必测场景清单」；人工迭代轮取用户本轮调整描述与现有 spec 的合并结果：
+
+| 现有场景 vs 本轮清单 | 处理 |
+|----------------------|------|
+| 场景仍存在但描述有变 | 按本轮清单更新 WHEN/THEN（保持 Scenario 名稳定，便于 plan/build 追踪） |
+| 场景仍存在且无变化 | 原样保留 |
+| 场景已从清单删除 | 从 delta 中移除该 Scenario（归档前 delta 只在 change 内，移除安全） |
+| 清单新增场景 | 按 OpenSpec delta 格式追加 |
+
+- 修订完成后在 spec.md 末尾追加一行 HTML 注释记录轮次痕迹：`<!-- Round <N> 修订：+<新增数> / ~<更新数> / -<删除数> -->`
+- **硬底线**：无论多小的迭代，本轮调整必须反映到 spec.md（这是「归档前所有调整记录在当前 spec 文件内」的落点），轻量迭代也不例外
+- 首轮（`iteration_count` = 0）行为不变：按上方执行步骤全新生成
 
 ## 回退场景（fallback）
 
