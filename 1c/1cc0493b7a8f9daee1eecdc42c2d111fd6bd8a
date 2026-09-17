@@ -1,0 +1,123 @@
+plugins/specpowers/skills/specpowers/prompts/build.md
+  s_21edef829eabab::t_f47afee16298fc 126
+  s_21edef829eabab::t_2bb14e8dbf4d4c 127,129-134
+  s_681bce4d02d6d4::t_c3e2c07af3d73f 128
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_21edef829eabab::t_4cfa0e5033f8a6 31
+  s_21edef829eabab::t_354c4f79342c31 105
+plugins/specpowers/skills/specpowers/prompts/plan.md
+  s_21edef829eabab::t_72c04de70b2600 187
+  s_21edef829eabab::t_7ece407a7348f9 188,190-203,209
+  s_681bce4d02d6d4::t_22c71126c63a87 189
+plugins/specpowers/commands/specpowers-auto.md
+  s_21edef829eabab::t_8ad39f0f5bf263 2,11-12,18-24
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_21edef829eabab::t_13395341db2c93 125-126,130-133,139-140,144-147
+  s_21edef829eabab::t_007bd8e02e063e 412
+  s_21edef829eabab::t_458499bbec031a 410-411
+  s_681bce4d02d6d4::t_6f861e0780a14a 27-28
+  s_21edef829eabab::t_0745d504f4dacc 372-377
+  s_21edef829eabab::t_bcd04c34f25787 185-255
+  s_21edef829eabab::t_c3a8f0f2e106a2 21-24,29
+  s_21edef829eabab::t_bf31f4d74a713c 256-268
+  s_21edef829eabab::t_04948461521e5c 25-26
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_681bce4d02d6d4::t_6ab7b8fbe290e1 105
+  s_21edef829eabab::t_afcca095d19780 1,5,7-17,20-22,27,29-31,34,37,39,41-43,45,47,49-54,56,58-60,75-104,106,108-113,116-117,125-126,130,144-145,148,154-155,158-160,171,175-177,182,196-208,216,222
+  s_21edef829eabab::t_1c11c32eca9d6a 107,114
+  s_681bce4d02d6d4::t_9971aba0b9201c 44
+  s_681bce4d02d6d4::t_ac6ff05bf1d21f 115
+plugins/specpowers/.claude-plugin/plugin.json
+  s_681bce4d02d6d4::t_657f372c961d08 3
+README.md
+  s_681bce4d02d6d4::t_18eb8d552ac8d3 154-157
+  s_681bce4d02d6d4::t_7b35be00e5b9a7 137-145
+  s_681bce4d02d6d4::t_dea35e8e7d723c 165-166
+  s_681bce4d02d6d4::t_df115746c340de 184
+  s_681bce4d02d6d4::t_5f48f95ee0e23f 171
+plugins/specpowers/.codex-plugin/plugin.json
+  s_681bce4d02d6d4::t_657f372c961d08 3
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_21edef829eabab::t_a73415aeff4934 866
+  s_21edef829eabab::t_368bfb4b436591 657-658,664,667-670,677-678
+  s_21edef829eabab::t_a1c843e3079177 464-472
+  s_681bce4d02d6d4::t_c7a1cac62c0821 38-40
+  s_21edef829eabab::t_ff857e0f738a54 11,13,16,24-26
+  s_21edef829eabab::t_1186ca00b0efcd 731,733-738,740,742-752,754,757,765,773,779,787,799-805,809-824
+  s_681bce4d02d6d4::t_3c7aa40836ecb5 739,741
+  s_21edef829eabab::t_22518fecea3910 512-515,517-519
+  s_21edef829eabab::t_d7247abd9a070d 715-730,732,753,755-756,758-764,766-772,774-778,780-784,790-798,825-852
+  s_21edef829eabab::t_0df8b846f6f9ce 785-786,788-789
+  s_21edef829eabab::t_832183d326d573 109-279
+  s_21edef829eabab::t_e67d075205e37a 865
+  s_681bce4d02d6d4::t_9bd9f992bd952e 806-808
+  s_21edef829eabab::t_a3cb8de1c7ff6a 473
+plugins/specpowers/skills/specpowers/prompts/brainstorm.md
+  s_681bce4d02d6d4::t_6d4210a8a16eb1 223
+  s_21edef829eabab::t_2ea49d5c945928 237
+  s_681bce4d02d6d4::t_65c1163f9544a9 9-25
+  s_681bce4d02d6d4::t_5a3b5865c0b3ba 236
+  s_21edef829eabab::t_f258fbfd1f817c 222,224-235,238-239
+  s_21edef829eabab::t_65d28cc5d9a82b 221
+plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py
+  s_21edef829eabab::t_4f402bfeb67d8b 12-13
+  s_21edef829eabab::t_5e7d2a3dce106a 99-100,103-104,106,112,116,118,126-132
+  s_21edef829eabab::t_8b4bd9dce444dc 55-58
+  s_21edef829eabab::t_095627322190db 143-146
+  s_21edef829eabab::t_a21f61f9c26130 133-134
+plugins/specpowers/commands/specpowers-brainstorm.md
+  s_681bce4d02d6d4::t_90f36ed719c79d 2,20-24
+plugins/specpowers/skills/specpowers/templates/auto-summary-template.md
+  s_21edef829eabab::t_e6e732e1d2c4e4 3,6,8-15,23-25,28,30,42-44,60,66,70,74,77,83-84
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_681bce4d02d6d4::t_657f372c961d08 4
+  s_681bce4d02d6d4::t_979e490489c186 69
+  s_21edef829eabab::t_2821581efdbb4b 114
+  s_681bce4d02d6d4::t_f28b766c89095d 35
+  s_21edef829eabab::t_b6e153e8c398df 42
+  s_21edef829eabab::t_366ee035207d76 54
+  s_681bce4d02d6d4::t_066ab021dca740 55-57
+  s_681bce4d02d6d4::t_2a53a48a2caaab 73
+  s_681bce4d02d6d4::t_ad602ea1a00698 67-68
+plugins/specpowers/commands/specpowers-specify.md
+  s_681bce4d02d6d4::t_297d43e3111fcd 2,20-25
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_681bce4d02d6d4::t_657f372c961d08 3
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_681bce4d02d6d4::t_657f372c961d08 3
+plugins/specpowers/skills/specpowers/prompts/specify.md
+  s_681bce4d02d6d4::t_dc1830b4741791 109
+  s_21edef829eabab::t_e71d7f2468b9e1 108,110-121
+  s_21edef829eabab::t_54ae1687bb56dd 107
+  s_681bce4d02d6d4::t_137ace828cc99d 9-27,35
+pyproject.toml
+  s_681bce4d02d6d4::t_657f372c961d08 3
+marketplace.json
+  s_681bce4d02d6d4::t_657f372c961d08 13
+tests/test_fs_state.py
+  s_21edef829eabab::t_516d9235272e94 128-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1c1cc0493b7a8f9daee1eecdc42c2d111fd6bd8a",
+  "prompts": {},
+  "sessions": {
+    "s_21edef829eabab": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_605efa25-345f-4fa6-9488-b21448873248",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_681bce4d02d6d4": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_1b710464-99b3-4520-a46b-0a953f6f6bc0",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
