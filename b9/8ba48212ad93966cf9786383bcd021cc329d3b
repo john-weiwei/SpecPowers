@@ -1,0 +1,87 @@
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_4ba81d07e79ce0::t_d09e46a4a84ae6 260-279
+  s_4ba81d07e79ce0::t_73e84543fe8af0 436
+  s_4ba81d07e79ce0::t_44726e6ba1ce6b 23-24,27-29
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 3
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 3
+docs/auto-clarification-plan.md
+  s_4ba81d07e79ce0::t_349ed19b93c45d 3,7,9-12,16,20-24,26,28,30-34,36,38,40,42-47,49,51-65,86,98,103,115,122-123,129-132,134,140-142,150,152-153,155,162-163,165,167,173,180-181
+  s_4ba81d07e79ce0::t_5b831f1abdcd9d 1-2,4-6,8,13-15,17-19,25,27,29,35,37,39,41,48,50,66-85,87-97,99-102,104-114,116-121,124-128,133,135-139,143-149,151,154,156-161,164,166,168-172,174-179
+plugins/specpowers/commands/specpowers-auto.md
+  s_4ba81d07e79ce0::t_1c9c66844cefd7 2,11,19-21,23-24
+plugins/specpowers/.claude-plugin/plugin.json
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 3
+plugins/specpowers/skills/specpowers/templates/clarification-template.md
+  s_4ba81d07e79ce0::t_c75f782b2a320a 1-41
+pyproject.toml
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 3
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_4ba81d07e79ce0::t_f7b4936acb8f38 180-208,218-219
+  s_4ba81d07e79ce0::t_97632bce086081 937
+  s_4ba81d07e79ce0::t_74354b7d49a8ee 244
+  s_4ba81d07e79ce0::t_7a392bb3f695fe 259
+  s_4ba81d07e79ce0::t_c84335bfce941a 292,311
+  s_4ba81d07e79ce0::t_30a0ed13a4e5a9 888-921
+  s_4ba81d07e79ce0::t_0652efdf68760a 922-923
+plugins/specpowers/.codex-plugin/plugin.json
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 3
+plugins/specpowers/skills/specpowers/templates/auto-summary-template.md
+  s_4ba81d07e79ce0::t_6d7028ec8eb798 8-10,14
+  s_4ba81d07e79ce0::t_2c3a98767ef013 76
+  s_4ba81d07e79ce0::t_697622b971c94b 83
+tests/test_auto_iteration.py
+  s_21edef829eabab::t_e0c74b8f21af5c 19-20
+  s_21edef829eabab::t_a036d40903e7d2 1-18,21-133,136-255,258-315,318-335,337,340-367,370-387
+  s_681bce4d02d6d4::t_27058e2995c883 390
+  s_21edef829eabab::t_c48e30d9b085ee 256-257
+  s_681bce4d02d6d4::t_20a6f29bd3bb40 522
+  s_21edef829eabab::t_1bb662b31f1d54 316-317
+  s_21edef829eabab::t_941158d0784b1a 368-369
+  s_681bce4d02d6d4::t_75116a7eedda70 480-521,523-534
+  s_21edef829eabab::t_e36607235340c3 464-467
+  s_21edef829eabab::t_541cdf6aefb79b 134-135
+  s_21edef829eabab::t_04cf2276525b35 336,338-339
+  s_21edef829eabab::t_aceceb93160269 388-389,391-463,468-479
+  s_4ba81d07e79ce0::t_1cb8ecb95559c1 535-656
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_4ba81d07e79ce0::t_e7271dc86c507f 296,298,300,304
+  s_4ba81d07e79ce0::t_7c120260d134de 1,14,19-22,45-46,48-49,53-57,85-146,159-170,181,195,202-209,223-225,231,237,243,254,258,260,274,284,297
+marketplace.json
+  s_4ba81d07e79ce0::t_b7b8a4b53c6175 13
+README.md
+  s_4ba81d07e79ce0::t_55a5a62cb3f3ab 171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b98ba48212ad93966cf9786383bcd021cc329d3b",
+  "prompts": {},
+  "sessions": {
+    "s_21edef829eabab": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_605efa25-345f-4fa6-9488-b21448873248",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_4ba81d07e79ce0": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_b2494d9a-1ba4-4de8-8cf7-b8d35287914a",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_681bce4d02d6d4": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_1b710464-99b3-4520-a46b-0a953f6f6bc0",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
