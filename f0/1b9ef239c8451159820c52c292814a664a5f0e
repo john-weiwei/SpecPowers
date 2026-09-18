@@ -1,0 +1,28 @@
+docs/auto-iteration-plan.md
+  s_681bce4d02d6d4::t_8777bc562b5b0b 32-33
+  s_21edef829eabab::t_de5a42d5a3ed86 1-31,34-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f01b9ef239c8451159820c52c292814a664a5f0e",
+  "prompts": {},
+  "sessions": {
+    "s_21edef829eabab": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_605efa25-345f-4fa6-9488-b21448873248",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_681bce4d02d6d4": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_1b710464-99b3-4520-a46b-0a953f6f6bc0",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
