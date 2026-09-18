@@ -1,6 +1,6 @@
 {
   "name": "specpowers",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "六阶段 spec 驱动开发流水线编排插件：constitution→brainstorm→specify→plan→build→archive，叠加结构一致性门禁与实时卡转人工。新增无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通，自动裁决确认/门禁节点）。桥接 OpenSpec CLI + superpowers 插件 + codex-review 技能，需预装。",
   "author": {
     "name": "SpecPowers Team"

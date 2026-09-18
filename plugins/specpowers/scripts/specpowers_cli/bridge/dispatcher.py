@@ -177,6 +177,35 @@ def _migrate_legacy_auto_base(base: dict) -> list[dict]:
     }]
 
 
+def _clarification_view(base: dict | None, has_new_input: bool) -> dict | None:
+    """从 auto_base.json 提取需求澄清结论视图（方案 docs/auto-clarification-plan.md）。
+
+    pending_input 语义：上一轮澄清 ceiling=brainstorm（停靠 brainstorm 等待方案结论）
+    且本次重入无新输入 → 契约层不得从断点盲目续跑 specify，需提示用户带结论重入。
+
+    Args:
+        base: 已读取的 auto_base.json 内容（None 或旧格式无 clarification 字段 → 返回 None，
+              契约层据 null 补做澄清）。
+        has_new_input: 本次重入是否携带新输入（文档变更 / 口头指令）。
+
+    Returns:
+        澄清结论视图字典，无澄清记录时 None。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    if base is None:
+        return None
+    clar = base.get("clarification")
+    if not isinstance(clar, dict) or not clar.get("ceiling"):
+        return None
+    return {
+        "ceiling": clar["ceiling"],
+        "report_path": clar.get("report_path", ""),
+        "checked_at": clar.get("checked_at", ""),
+        "pending_input": clar["ceiling"] == "brainstorm" and not has_new_input,
+    }
+
+
 def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict:
     """auto 模式重入三分判定：fresh / resume / iterate（facade auto-status 子命令入口）。
 
@@ -186,6 +215,8 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
     - iterate：活跃需求 + 任一新输入（文档实质变更 / 口头指令）→ 同需求新迭代轮
 
     判定只读 state 与产物，不做状态跃迁；轮次切换必须走 auto new-round。
+    响应携带 clarification 视图（上一轮澄清结论 + pending_input），供契约层
+    做 resume 停靠保护与迭代轮增量澄清。
 
     作者：005819 | 协作：GLM-5.3
     """
@@ -210,6 +241,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
             "reason": "无活跃 feature，按全新需求执行（设计文档必填）",
             "design_doc_exists": None,
             "auto_base_removed": removed,
+            "clarification": None,
         }
 
     # 活跃需求（full 流水线中 / fast 待编码）：base 缺失 = 人工流程被 auto 接管
@@ -224,6 +256,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
             "reason": "存在未归档的活跃 feature 但缺 auto_base.json（人工流程接管），保守按全量迭代执行并补建基线",
             "design_doc_exists": None,
             "auto_base_missing": True,
+            "clarification": None,
         }
 
     # 新输入判定：口头指令非空，或文档内容 hash 相对基线发生变化
@@ -256,6 +289,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
             "scope_hint": "",
             "reason": "无新输入（文档未变且无指令），按断点续跑：读 state stage + 产物存在性定位断点，已完成阶段不重做",
             "design_doc_exists": design_doc_exists,
+            "clarification": _clarification_view(base, has_new_input=False),
         }
 
     # 迭代深度建议：文档实质变更 → full；仅口头指令 → light（最终由契约层按裁决规则表定夺）
@@ -274,6 +308,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
         "scope_hint": scope_hint,
         "reason": reason,
         "design_doc_exists": design_doc_exists,
+        "clarification": _clarification_view(base, has_new_input=True),
     }
 
 
@@ -850,6 +885,42 @@ def _append_round_record(root: Path, base: dict | None, feature: str,
     _write_auto_base(root, base)
 
 
+def _handle_auto_clarify(root: Path, extra: dict) -> int:
+    """auto clarify — 需求澄清结论登记（写/刷新 auto_base.json 的 clarification 字段）。
+
+    需求澄清步骤（auto 契约第 1 步）的收尾登记原语：契约层完成五维检查后调用，
+    把推进深度上限（ceiling）落盘为断点续跑凭据——resume 凭此不重做澄清，
+    ceiling=brainstorm 时 auto-status 输出 pending_input 阻止盲目续跑。
+    要求 auto_base.json 已存在（第 0 步基点记录已完成），防「声称澄清但无基线」；
+    确定性层只兜「结论已登记、结构可读」的形式底线，五维检查实质质量由契约层保证。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    ceiling = (extra.get("ceiling") or "").strip()
+    if ceiling not in ("full", "brainstorm"):
+        raise FatalError(
+            f"clarification ceiling 非法：'{ceiling}'（仅允许 full | brainstorm）。"
+            "用法：facade auto clarify --ceiling <full|brainstorm> [--report <澄清报告路径>]"
+        )
+    base = _load_auto_base(root)
+    if base is None:
+        raise StateError(
+            "auto clarify 需要 .specpowers/auto_base.json（第 0 步基点记录的产物）。"
+            "该文件不存在说明澄清先于基点记录执行，请按 prompts/auto.md 顺序先跑第 0 步。"
+        )
+    base["clarification"] = {
+        "ceiling": ceiling,
+        "report_path": (extra.get("report") or "").strip(),
+        "checked_at": _utc_now_iso(),
+    }
+    _write_auto_base(root, base)
+    print(f"澄清结论已登记：ceiling={ceiling}")
+    if ceiling == "brainstorm":
+        print("推进上限为 brainstorm：跑完 constitution → brainstorm 产出未收敛草案后停靠，"
+              "等待用户带方案结论（--instruction）或补充文档重入")
+    return 0
+
+
 # ---- Route table ----
 
 STAGE_HANDLERS = {
@@ -863,6 +934,7 @@ STAGE_HANDLERS = {
     "baseline": _handle_baseline,
     "reset": _handle_reset,
     "auto-new-round": _handle_auto_new_round,
+    "auto-clarify": _handle_auto_clarify,
     "iterate": _handle_iterate,
 }
 

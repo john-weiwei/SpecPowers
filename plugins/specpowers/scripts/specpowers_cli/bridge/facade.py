@@ -20,9 +20,13 @@ Subcommands (user-facing, called by skill slash commands):
 
 Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.md):
     auto-status [--design-doc <path>] [--instruction "<desc>"]
-                                 三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）
+                                 三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）；
+                                 响应携带 clarification 视图（上一轮澄清 ceiling + pending_input 停靠保护）
     auto new-round [--design-doc <path>] [--instruction "<desc>"]
                                  受控轮次切换：stage → specify、feature 锁定、rounds 落盘（auto 专用）
+    auto clarify --ceiling <full|brainstorm> [--report <路径>]
+                                 需求澄清结论登记（写/刷新 auto_base.json 的 clarification 字段，
+                                 resume 凭据；见 docs/auto-clarification-plan.md）
     iterate [--design-doc <path>] [--instruction "<desc>"]
                                  人工模式迭代轮切换原语（由 /specpowers-specify、/specpowers-brainstorm
                                  重入识别确认后调用；同 new-round 但不要求 auto_base.json）
@@ -253,6 +257,26 @@ def _cmd_auto_new_round(args: list[str], root: Path) -> int:
     })
 
 
+def _cmd_auto_clarify(args: list[str], root: Path) -> int:
+    """Handle auto clarify command — 需求澄清结论登记（ceiling 落盘，见 docs/auto-clarification-plan.md）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    opts, _ = _extract_kv_options(args, ("ceiling", "report"))
+    ceiling = (opts.get("ceiling") or "").strip()
+    if ceiling not in ("full", "brainstorm"):
+        print(
+            "Error: auto clarify requires --ceiling <full|brainstorm>.",
+            file=sys.stderr,
+        )
+        return 2
+    return route("auto-clarify", "full", root, extra={
+        "ceiling": ceiling,
+        "report": opts.get("report", ""),
+    })
+
+
 def _cmd_iterate(args: list[str], root: Path) -> int:
     """Handle iterate command — 人工模式迭代轮入口（不要求 auto_base.json）。
 
@@ -409,6 +433,7 @@ def main(argv: list[str] | None = None) -> int:
         "record-execution-mode": _cmd_record_execution_mode,
         "auto-status": _cmd_auto_status,
         "auto-new-round": _cmd_auto_new_round,
+        "auto-clarify": _cmd_auto_clarify,
         "iterate": _cmd_iterate,
     }
 
