@@ -92,7 +92,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | 依赖 | 类型 | 影响阶段 | 必需性 | 安装方式 |
 |------|------|---------|--------|---------|
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
-| **superpowers 插件** | agent skill 包 | brainstorm / plan / build | 推荐 | `/plugin install superpowers` |
+| **superpowers 插件** | agent skill 包 | plan / build（brainstorm 用内置 specpowers-explore 技能，无需预装） | 推荐 | `/plugin install superpowers` |
 
 **自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查。
 
@@ -103,7 +103,7 @@ openspec --version          # OpenSpec CLI 可用性
 ```
 
 > - 未装 OpenSpec CLI：仅 archive 阶段会拒绝执行（提示安装），其余阶段正常。
-> - 未装 superpowers：brainstorm/plan/build 会降级为纯提示词引导（无原生 skill 加持），功能可用但体验打折。
+> - 未装 superpowers：plan/build 会降级为纯提示词引导（无原生 skill 加持），功能可用但体验打折；brainstorm 阶段用内置 specpowers-explore 技能，不受影响。
 
 ---
 
@@ -150,7 +150,7 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 ```
 constitution → ready ─┬─ brainstorm → specify → plan → build → archive → ready
                      ├─ specify ────→ plan → build → archive → ready
-                     ├─ auto ─── 无人值守依次驱动上述全部阶段（含 codex-review）──→ ready
+                     ├─ auto ─── 无人值守驱动上述阶段（含 codex-review，默认不归档）──→ ready
                      ├─ fast → 用户编码 → build → archive → ready
                      └─ 迭代重入 ─→ 归档前任意阶段重入 specify/brainstorm（或 auto 重入），
                                     确认后受控回 specify：feature 锁定不变，
@@ -162,13 +162,13 @@ constitution → ready ─┬─ brainstorm → specify → plan → build → a
 | 命令 | 依赖 | 做什么 | 产物 |
 |------|------|--------|------|
 | `/specpowers-constitution` | — | 内联生成项目原则（质量/测试/UX/性能，插件自包含），同时扫描顶层目录、依赖清单、源码目录规律 → 结构基线 | `.specpowers/constitution.md` + `.specpowers/baseline.json` |
-| `/specpowers-brainstorm "需求"` | constitution | 调 superpowers 的 `brainstorming` 探索需求，提出方案并对比优劣，最终产出一份结构化决策摘要；未归档重入=同需求方案变更迭代轮（经确认开轮，proposal 覆盖更新 + 迭代历史） | `openspec/changes/<feature>/proposal.md` |
+| `/specpowers-brainstorm "需求"` | constitution | 调内置 `specpowers-explore` 技能（源 auto-brainstorm，随插件分发）静默探索项目 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘，最终产出一份结构化决策摘要；未归档重入=同需求方案变更迭代轮（经确认开轮，proposal 覆盖更新 + 迭代历史） | `openspec/changes/<feature>/proposal.md` + `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`（探索设计文档） |
 | `/specpowers-specify "需求"` | brainstorm（或 ready） | 读取 proposal.md（如有）和 constitution.md，用 OpenSpec 场景格式描述要构建什么，定义可测试的验收条件；未归档重入=同需求场景调整迭代轮（经确认开轮，spec 增量修订） | `openspec/changes/<feature>/specs/<capability>/spec.md` |
 | `/specpowers-plan` | specify | 调 superpowers 的 `writing-plans`，将 spec.md 拆成可执行任务列表，并声明本特性适合哪种执行方式（conductor 顺序执行 / worktree 隔离 / subagent 并行 / TDD 测试驱动） | `openspec/changes/<feature>/tasks.md` |
 | `/specpowers-build` | plan（或 ready+fast） | ① 提示用户选择执行方式（conductor/worktree/subagent/TDD）；② 结构门禁：比对 git diff 与 baseline.json，三态判定（通过/转人工/打回）；③ 调用 superpowers 能力池执行编码 | 代码变更 |
 | `/specpowers-archive` | build | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<feature>/spec.md`（主规格）+ `openspec/changes/archive/`（快照） |
 | `/specpowers-fast "需求"` | constitution | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 brainstorm/specify/plan，直接编码 → build → archive | 验收清单 3-5 条 |
-| `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后先做**需求澄清**（五维检查 → 推进深度上限：方案未定等缺陷不停摆，停靠 brainstorm 产出未收敛草案待补结论），再依次驱动 constitution → brainstorm → specify → plan → build → codex-review → archive；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（澄清结论/产物清单/审查结论/编译测试/遗留风险） |
+| `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后先做**需求澄清**（五维检查 → 推进深度上限：方案未定等缺陷不停摆，停靠 brainstorm 产出未收敛草案待补结论），再依次驱动 constitution → brainstorm → specify → plan → build → codex-review，**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口，`--archive` 先过收口前置检查）；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（澄清结论/产物清单/审查结论/编译测试/遗留风险） |
 | `/specpowers-baseline` | — | 手动刷新结构基线，重新扫描项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json` | 更新 `baseline.json` |
 | `/specpowers-reset` | — | 重置流水线状态：清除 `state.json` 和 `.lock`，回到 `ready` 重新开始（不丢 baseline） | — |
 
@@ -178,7 +178,7 @@ constitution → ready ─┬─ brainstorm → specify → plan → build → a
 |---|---|---|---|---|
 | **入口** | `/specpowers-brainstorm` | `/specpowers-specify` | `/specpowers-auto "设计文档路径"` | `/specpowers-fast` |
 | **适用** | 新特性，需求待梳理 | 需求已清晰 | 已有定稿设计文档，全程无需人工介入 | bugfix、单文件、纯配置/文案/重构 |
-| **阶段** | brainstorm → specify → plan → build → archive | specify → plan → build → archive | constitution → … → build → codex-review → archive | 用户编码 → build → archive |
+| **阶段** | brainstorm → specify → plan → build → archive | specify → plan → build → archive | constitution → … → build → codex-review（`--archive` 显式归档） | 用户编码 → build → archive |
 | **产物** | proposal + delta spec + tasks | delta spec + tasks | 全套产物 + 汇总报告 | 验收清单(delta spec) + 主规格合并 |
 | **能力池** | 全部可用 | 全部可用 | 全部可用 | 仅 TDD（禁 worktree/subagent） |
 | **回退** | — | — | 硬阻断停下后重入续跑；归档前重入=同需求迭代轮 | 可升级为完整流程（1 次） |
@@ -267,8 +267,10 @@ specpowers/
 │       │   └── … (specpowers-specify/plan/build/archive/fast/baseline/reset)
 │       ├── skills/specpowers/   ← 主编排 skill
 │       │   ├── SKILL.md
-│       │   ├── prompts/         ← 7 个阶段契约
-│       │   └── templates/       ← constitution 生成模板
+│       │   ├── prompts/         ← 8 个阶段契约（constitution/brainstorm/specify/plan/build/archive/fast_mode/auto）
+│       │   └── templates/       ← constitution/auto 汇总/澄清报告模板
+│       ├── skills/specpowers-explore/  ← 内置需求探索技能（源 auto-brainstorm，brainstorm 阶段专用）
+│       │   └── SKILL.md
 │       └── scripts/specpowers_cli/  ← 内嵌 Python bridge 包
 │           ├── main.py          ← specpowers init 安装器
 │           ├── bridge/          ← 确定性执行层
@@ -288,6 +290,7 @@ specpowers/
 | 文件 | Git 策略 | 说明 |
 |------|---------|------|
 | `openspec/changes/<feature>/proposal.md` | ✅ 提交 | brief（设计决策摘要），团队可见 |
+| `docs/specpowers/design/*-design.md` | ✅ 提交 | specpowers-explore 探索产出的设计文档，团队可见 |
 | `openspec/changes/<feature>/specs/<capability>/spec.md` | ✅ 提交 | spec（场景 + 验收条件），团队可见 |
 | `openspec/changes/<feature>/tasks.md` | ✅ 提交 | tasks（可执行任务列表），团队可见 |
 | `.specpowers/constitution.md` | ✅ 提交 | 项目原则全员一致 |

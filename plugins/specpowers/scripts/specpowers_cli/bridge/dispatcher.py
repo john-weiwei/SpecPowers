@@ -340,7 +340,7 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
                 f"Run the previous stage ({art['producer']}) first."
             )
 
-    # proposal 内容校验：倒逼 brainstorm 必须完成探索（防止 brainstorming 被架空）。
+    # proposal 内容校验：倒逼 brainstorm 必须完成探索（防止探索技能被架空）。
     # 进入 specify 时，proposal 除存在外，还必须含「数据流契约」段头或「无跨链路字段」声明。
     # 仅查段头存在性（确定性可判），不评判内容质量（认知层职责）。
     if stage == "specify" and mode == "full":
@@ -370,7 +370,7 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
 def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list, from_stage: str = "") -> None:
     """校验 proposal.md 含「数据流契约」小节（specify 阶段硬依赖）。
 
-    防止 brainstorming 被架空：agent 若跳过探索直接收口，proposal 不会含数据流契约，
+    防止探索被架空：agent 若跳过 specpowers-explore 探索直接收口，proposal 不会含数据流契约，
     本校验将其拦在 specify 之外，强制回 brainstorm 补全探索。
 
     Args:
@@ -414,9 +414,9 @@ def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list
             )
         raise ArtifactMissingError(
             f"proposal.md 缺少「## 数据流契约」小节。"
-            f"这是 specify 阶段的硬依赖——说明 brainstorm 探索未完成（brainstorming 可能被跳过）。"
+            f"这是 specify 阶段的硬依赖——说明 brainstorm 探索未完成（specpowers-explore 可能被跳过）。"
             f"{fallback_hint}"
-            f"请回到 /specpowers.brainstorm 调用 superpowers brainstorming 完成需求探索，"
+            f"请回到 /specpowers.brainstorm 调用内置 specpowers-explore 技能完成需求探索，"
             f"并在 proposal.md 补全「数据流契约」小节"
             f"（涉及跨链路字段则按字段卡片逐个详述，纯本地特性则声明「本特性无跨链路字段」）。"
         )
@@ -516,7 +516,7 @@ def _handle_brainstorm(root: Path, extra: dict) -> int:
     save_state(root, state)
 
     print(f"Brainstorm started for feature: {feature}")
-    print("Agent should now: call superpowers `brainstorming` skill to explore the requirement, "
+    print("Agent should now: invoke the built-in specpowers-explore skill to explore the requirement, "
           f"write openspec/changes/{feature}/proposal.md (must include 「## 数据流契约」 section), "
           "then continue to /specpowers.specify")
     return 0

@@ -7,7 +7,7 @@
 **需求身份由归档状态唯一决定，与设计文档解耦**：
 
 - **未归档**（state 有活跃 feature）：无论带什么输入重入 auto——新文档、原文档、还是无文档口头指令——都是**同一需求的新一轮迭代**，一切调整落在当前 change 目录（当前 spec 文件内）
-- **已归档**（stage=ready 且 feature 空）：任何输入都视为**全新需求**，新 slug、新 change 目录、直通归档
+- **已归档**（stage=ready 且 feature 空）：任何输入都视为**全新需求**，新 slug、新 change 目录
 - 归档是需求生命周期的唯一终结符；迭代轮数**不设上限**，由归档自然收口
 
 ## 2. 重入三分判定（确定性层 `facade auto-status`）
@@ -71,8 +71,8 @@ state=ready 且 feature 空         → mode=fresh（首轮 auto，文档必填�
 | 通道 | 行为 |
 |------|------|
 | **手动 `/specpowers-archive`** | 迭代轮跑完 stage 停在 build，archive 的合法 from_stage 就是 build，直接可用；归档即宣告新需求 |
-| **重入 auto 加 `--archive`** | 本轮（resume/iterate）跑完 build + review 后追加执行第 7 步归档；经 3.3 的 blocking 检查后执行 |
-| 默认值 | fresh 直通归档（现状）；迭代轮/续跑**默认不归档**；提供 `--no-archive` 显式让 fresh 首轮也进入迭代模式（对称完备） |
+| **重入 auto 加 `--archive`** | 本轮（fresh/resume/iterate）跑完 build + review 后追加执行归档步；经 3.3 的 blocking 检查后执行 |
+| 默认值 | **任何轮次（fresh/resume/iterate）默认都不归档**，止于 codex-review；归档仅经手动 `/specpowers-archive` 或显式 `--archive`（过收口前置检查）；v1.3.0 起移除 `--no-archive`（不再有默认归档需要关闭） |
 
 归档动作统一在确定性层 `_handle_archive` 成功后**清理 `auto_base.json`**（两个通道都生效）；`auto_decisions.md` 演进为 `.specpowers/auto_decisions/<feature>.md`，归档后保留作审计历史。
 
@@ -88,7 +88,7 @@ state=ready 且 feature 空         → mode=fresh（首轮 auto，文档必填�
 | 确定性层 | `plugins/specpowers/scripts/specpowers_cli/bridge/facade.py` | 新增 `auto-status`、`auto new-round` 子命令；brainstorm/specify 支持 `--feature` 显式锁定 |
 | 确定性层 | `plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py` | feature 锁定扩展；`_handle_archive` 成功后清理 `auto_base.json`；new-round 受控轮次切换处理器 |
 | 确定性层 | `plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py` | `DEFAULT_STATE` 增加 `iteration_count` |
-| 契约层 | `plugins/specpowers/skills/specpowers/prompts/auto.md` | 重写重入判定（三分 + 输入形态 + 深度分级）、迭代轮编排表、`--archive`/`--no-archive`、八要素基线+增量、review 基点策略、收口前置检查 |
+| 契约层 | `plugins/specpowers/skills/specpowers/prompts/auto.md` | 重写重入判定（三分 + 输入形态 + 深度分级）、迭代轮编排表、`--archive`、八要素基线+增量、review 基点策略、收口前置检查 |
 | 契约层 | `plugins/specpowers/skills/specpowers/prompts/specify.md` | 迭代轮 spec.md 增量修订规则（保留/更新/删除/新增场景） |
 | 契约层 | `plugins/specpowers/skills/specpowers/prompts/brainstorm.md` | 迭代轮 proposal.md 覆盖 + 「## 迭代历史」 |
 | 契约层 | `plugins/specpowers/skills/specpowers/prompts/plan.md` | tasks.md 分轮演进规则、差异分析、作废留痕 |

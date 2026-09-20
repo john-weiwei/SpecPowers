@@ -15,7 +15,7 @@ version: 1.2.0
 | 依赖 | 类型 | 用在哪 | 安装方式 |
 |------|------|--------|---------|
 | **OpenSpec CLI** | 命令行工具 | archive 阶段归档（强依赖，不可用则拒绝归档） | `npm install -g @funneler/openspec` 或见 [openspec 官方](https://github.com/funneler/openspec) |
-| **superpowers 插件** | agent skill 包 | brainstorm(`brainstorming`)/plan(`writing-plans`)/build(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`) | `/plugin install superpowers`（ZCode/Claude 内置市场） |
+| **superpowers 插件** | agent skill 包 | plan(`writing-plans`)/build(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`)。brainstorm 阶段已改用**内置** `specpowers-explore` 技能（`skills/specpowers-explore/`，源 auto-brainstorm，随插件分发） | `/plugin install superpowers`（ZCode/Claude 内置市场） |
 
 **自动检测**：本插件内置 SessionStart hook，会话启动时（startup/clear/compact）自动检测上述依赖。若缺失，agent 会在首条回复中提示你安装方法——无需手动检查。
 
@@ -25,7 +25,7 @@ openspec --version          # OpenSpec CLI 可用性
 ```
 superpowers 插件是否启用，在 agent 的插件管理界面查看。
 
-> 若未安装 superpowers，brainstorm/plan/build 阶段的探索、规划、执行能力会降级为提示词引导（无原生 skill 加持）；若未安装 OpenSpec CLI，仅 archive 阶段会拒绝执行，其余阶段正常。
+> 若未安装 superpowers，plan/build 阶段的规划、执行能力会降级为提示词引导（无原生 skill 加持）；brainstorm 阶段用内置 `specpowers-explore` 技能，不受影响；若未安装 OpenSpec CLI，仅 archive 阶段会拒绝执行，其余阶段正常。
 
 ## 三个概念
 
@@ -39,7 +39,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 
 | 开关 | 说明 |
 |------|------|
-| ① 无人值守模式 | `/specpowers-auto "<设计文档路径>"` — 以设计文档为唯一权威输入，六阶段全走直通 archive，中途含 codex-review；所有确认/门禁节点自动裁决，仅硬阻断才停；支持断点续跑。**多轮迭代**：归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮，调整落在当前 spec 文件内；归档即新需求 |
+| ① 无人值守模式 | `/specpowers-auto "<设计文档路径>"` — 以设计文档为唯一权威输入，六阶段直通 codex-review，**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口）；所有确认/门禁节点自动裁决，仅硬阻断才停；支持断点续跑。**多轮迭代**：归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮，调整落在当前 spec 文件内；归档即新需求 |
 | ② 优化模式 | `/specpowers-fast` — 判小跳 spec/plan，直进 build |
 | ③ 基线刷新 | `/specpowers-baseline` — 手动重扫结构基线 |
 
@@ -50,7 +50,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 ```
 constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
                        ├─(specify)─────▶ specify ─▶ plan ─▶ build ─▶ archive ─▶ ready
-                       ├─(auto)───无人值守依次驱动上述全部阶段（含 codex-review）──▶ ready
+                       ├─(auto)───无人值守驱动上述阶段（含 codex-review，默认不归档）──▶ ready
                        ├─(fast)──▶(用户编码)──▶ build ─▶ archive ─▶ ready
                        └─(迭代重入)──▶ 归档前任意阶段重入 /specpowers-specify 或 /specpowers-brainstorm，
                                       确认后受控回 specify，feature 锁定不变，
@@ -66,7 +66,7 @@ constitution ─▶ ready ─┬─(brainstorm)──▶ brainstorm ─▶ speci
 | `/specpowers-constitution` | `[--force]` | constitution / 任意(需确认) | 生成原则 + 扫基线 |
 | `/specpowers-brainstorm` | `"<需求>"` | ready；specify/plan/build 重入=迭代轮确认（方案变更路径） | 探索 + 写 proposal.md；未归档重入经确认开同需求新迭代轮 |
 | `/specpowers-specify` | `"<需求>"` | brainstorm / ready / build(fallback) / specify(迭代续作)；plan/build 重入=迭代轮确认（场景调整路径） | 生成/增量修订 spec.md；未归档重入经确认开同需求新迭代轮 |
-| `/specpowers-auto` | `"<设计文档路径>" [--instruction "<调整描述>"] [--archive] [--no-archive] [--new-round]` | fresh 首轮 ready；任意活跃状态可重入（三分判定 fresh/resume/iterate） | 全流程无人值守直通：六阶段 + codex-review，确认/门禁节点自动裁决，仅硬阻断才停，重入续跑；归档前重入为同需求迭代轮（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 |
+| `/specpowers-auto` | `"<设计文档路径>" [--instruction "<调整描述>"] [--archive] [--new-round]` | fresh 首轮 ready；任意活跃状态可重入（三分判定 fresh/resume/iterate） | 全流程无人值守：constitution→…→build→codex-review，**默认不归档**（`--archive` 显式收口，先过收口前置检查），确认/门禁节点自动裁决，仅硬阻断才停，重入续跑；归档前重入为同需求迭代轮（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 |
 | `/specpowers-fast` | `"<需求>"` | ready | 声明优化模式 |
 | `/specpowers-plan` | — | specify | 生成 tasks.md |
 | `/specpowers-build` | — | plan / ready(fast) | 执行构建 + 门禁 |
@@ -105,13 +105,14 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 |------|------|
 | `prompts/constitution.md` | 内联生成 constitution.md（4 类原则）；不调外部技能；不承载结构规则 |
 | `templates/constitution-template.md` | constitution 生成模板（四类原则骨架，填入质量/测试/UX/性能 4 类原则） |
-| `prompts/brainstorm.md` | 收口契约：HARD-GATE 强制 brainstorming 探索（防架空）+ 运行时数据流溯源（条件触发）+ 结构化决策摘要 → proposal.md 落盘（含「数据流契约」小节，specify 硬依赖）；判小信号映射 |
+| `prompts/brainstorm.md` | 收口契约：HARD-GATE 强制调用内置 specpowers-explore 技能探索（防架空）+ 运行时数据流溯源（条件触发）+ 结构化决策摘要 → proposal.md 落盘（含「数据流契约」小节，specify 硬依赖）；判小信号映射 |
+| `skills/specpowers-explore/SKILL.md` | 内置需求探索技能（源 auto-brainstorm，替代 superpowers `brainstorming`）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`，含架构/组件划分/数据流/接口定义/错误处理）→ 结构化探索结论交付（含跨链路字段线索）；不写流水线产物 |
 | `prompts/specify.md` | OpenSpec 场景格式；自动读 proposal.md + constitution |
 | `prompts/plan.md` | writing-plans 瘦身：生成单一 tasks.md（conductor/subagent 档字段） |
 | `prompts/build.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
 | `prompts/archive.md` | 三职责收尾；合体后校验 |
 | `prompts/fast_mode.md` | 判小 prompt / 确认交互 / 回退 / 清单 |
-| `prompts/auto.md` | 无人值守契约：八要素文档解析 + 重入三分判定（fresh/resume/iterate，`facade auto-status` 确定性支撑）+ 迭代深度分级（full/light）+ 阶段编排 0–7 + 裁决规则表 + codex-review 编排（首轮基点跨轮累计审查/传基点/滤范围/控 2 轮迭代）+ 归档双通道收口（`facade auto new-round` 轮次切换）+ 硬阻断定义 + 断点续跑 |
+| `prompts/auto.md` | 无人值守契约：八要素文档解析 + 重入三分判定（fresh/resume/iterate，`facade auto-status` 确定性支撑）+ 迭代深度分级（full/light）+ 阶段编排 0–8（第 8 步仅 `--archive` 触发）+ 裁决规则表 + codex-review 编排（首轮基点跨轮累计审查/传基点/滤范围/控 2 轮迭代）+ 归档双通道收口（`facade auto new-round` 轮次切换）+ 硬阻断定义 + 断点续跑 |
 | `templates/auto-summary-template.md` | auto 模式汇总报告模板（产物/文件清单/审查结论/编译测试/裁决日志/遗留风险） |
 
 ---

@@ -19,6 +19,7 @@ Output baseline.json:
 import hashlib
 import json
 import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -160,10 +161,10 @@ def scan(root: Path) -> dict:
     }
 
     # Persist（原子写：tempfile + rename，防止崩溃留下半截 JSON 损坏团队共享文件）
+    # 注意：os/tempfile 必须在模块顶部导入——函数内 import os 会把 os 变成整个
+    # 函数的局部变量，导致上方大仓库分支的 os.environ.get 抛 UnboundLocalError
     baseline_path = _get_baseline_path(root)
     baseline_path.parent.mkdir(parents=True, exist_ok=True)
-    import os
-    import tempfile
     fd, tmp_path = tempfile.mkstemp(
         suffix=".json", prefix=".baseline-", dir=str(baseline_path.parent),
     )

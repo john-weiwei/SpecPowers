@@ -5,18 +5,17 @@
 当用户调用 `/specpowers-auto` 时加载本契约。
 
 ```text
-/specpowers-auto [<设计文档路径>] [--instruction "<调整描述>"] [--archive] [--no-archive] [--new-round]
+/specpowers-auto [<设计文档路径>] [--instruction "<调整描述>"] [--archive] [--new-round]
 ```
 
 | 参数 | 语义 |
 |------|------|
 | `<设计文档路径>` | 本轮输入的设计文档。**fresh（全新需求）必填**，不存在即参数错误（硬阻断）；迭代轮可选 |
 | `--instruction "<描述>"` | 口头调整描述（如「补充导出失败场景」），迭代轮的无文档输入形态；brainstorm 停靠后重入时作为**方案结论答复**（见「需求澄清」） |
-| `--archive` | 本轮跑完 build + codex-review 后**追加执行归档**（收口通道之二，见「归档收口」） |
-| `--no-archive` | 显式跳过归档（fresh 默认直通归档，此标志让首轮也进入迭代模式） |
+| `--archive` | 本轮跑完 build + codex-review 后**追加执行归档**（先过收口前置检查；收口通道之二，见「归档收口」） |
 | `--new-round` | 显式声明开启新迭代轮（跳过「无新输入 → resume」判定） |
 
-> **定位**：元编排模式——与 `/specpowers-fast`（判小跳阶段）对偶，`auto` 八阶段全走但无人值守直通。
+> **定位**：元编排模式——与 `/specpowers-fast`（判小跳阶段）对偶，`auto` 全阶段无人值守驱动，**任何轮次默认都不归档**（止于 codex-review；归档需 `--archive` 或手动 `/specpowers-archive` 显式收口）。
 > **需求澄清（输入质量门禁，方案 docs/auto-clarification-plan.md）**：第 1 步对设计文档做五维检查，
 > 结论不是「跑 / 不跑」的二值门禁，而是**本轮推进深度上限（ceiling）**——文档能支撑到哪一步就推进到哪一步；
 > 支撑不了的深度（方案未定等）自然停靠在 brainstorm，产出未收敛草案等待输入，**零新参数、零门槛**。
@@ -46,7 +45,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base.json` 的 `base_commit`（跨轮不变，见 codex-review 一节）
 4. 解析八要素（见下节）随基点一并落盘 `parsed` 字段；`rounds` 初始化为空数组（rounds 只记录后续每次迭代轮的开启动作，fresh 首轮不单独记录）
 5. **需求澄清**（见「需求澄清（第 1 步）」小节）：五维检查 → 推进深度上限 ceiling → `facade auto clarify` 登记；功能名 null → 参数错误硬阻断
-6. 进入「阶段编排表」0–8 全流程（ceiling=brainstorm 时推进到第 3 步停靠）
+6. 进入「阶段编排表」全流程——默认 0–7 止于 codex-review，`--archive` 时追加第 8 步归档（ceiling=brainstorm 时推进到第 3 步停靠）
 
 ### 分支 B：`resume`（断点续跑）
 
@@ -102,7 +101,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 
 | 澄清结论 | ceiling | 行为 |
 |----------|---------|------|
-| 五维全部通过，或仅有：次要要素缺失 / 场景需推导或保守改写 / 可裁决的歧义与笼统 | `full` | 直通全流程至归档（现状行为 + 留痕），全部裁决记录进澄清报告 |
+| 五维全部通过，或仅有：次要要素缺失 / 场景需推导或保守改写 / 可裁决的歧义与笼统 | `full` | 直通全流程至 codex-review（默认不归档，归档需显式收口；留痕不变），全部裁决记录进澄清报告 |
 | 已定方案 null / 关键矛盾不可判 / 边界冲突不可裁 / 不可测场景占比 > 1/2 | `brainstorm` | 推进 constitution → brainstorm，产出**未收敛 proposal 草案**后**自然停靠**，不进入 specify 及以后 |
 | 功能名 null（无法解析出标题级功能描述） | 入口 | 按硬阻断类「参数错误」处理，输出澄清问题清单 |
 
@@ -114,12 +113,12 @@ ceiling=brainstorm 时，brainstorm 阶段（阶段编排表第 3 步）按其�
 
 - 探索代码事实照常执行（核对核心调用链等）
 - proposal.md 的 Why 段标题标注 `[未收敛]`，按缺陷类型组织草案内容：
-  - 方案未定 → 列出 2–3 个候选方向 + 各自 trade-off + 推荐（对齐 brainstorming 技能标准流程），**不做方案取舍**
+  - 方案未定 → 列出 2–3 个候选方向 + 各自 trade-off + 推荐（对齐内置 specpowers-explore 技能的方案对比标准流程），**不做方案取舍**
   - 关键矛盾 / 边界冲突 → 并列文档内冲突结论 + 代码事实，标注「待用户裁决」
   - 场景大面积不可测 → 列出不可导出 WHEN 的场景清单，标注「方案粒度不足」
 - 「## 数据流契约」小节照常产出（能确定多少写多少，`未确认项` 列出缺口），保证后续 specify 前置校验语义不变
 
-**停靠输出四要素**（格式对齐硬阻断，语义为「等待输入」而非「异常」）：① 停靠原因 + 待用户裁决问题清单；② 已完成阶段（constitution / brainstorm）；③ 产物位置（未收敛 proposal + 澄清报告）；④ 恢复方式：带方案结论重入 `/specpowers-auto --instruction "<结论摘要>"`，或补充设计文档后重入（重入即判 iterate，收敛草案后直通到底）；决定放弃需求走 `/specpowers-reset`（清理 change 目录与锁定 feature）。
+**停靠输出四要素**（格式对齐硬阻断，语义为「等待输入」而非「异常」）：① 停靠原因 + 待用户裁决问题清单；② 已完成阶段（constitution / brainstorm）；③ 产物位置（未收敛 proposal + 澄清报告）；④ 恢复方式：带方案结论重入 `/specpowers-auto --instruction "<结论摘要>"`，或补充设计文档后重入（重入即判 iterate，收敛草案后继续推进后续阶段）；决定放弃需求走 `/specpowers-reset`（清理 change 目录与锁定 feature）。
 
 **轮次语义**：首轮停靠后的重入计为 Round 1（「方案定稿轮」），草案轮记 Round 0；汇总报告注明「Round 0 为未收敛草案轮」。草案 + 定稿合起来视为需求的早期迭代，与「迭代不设上限、归档收口」模型自洽。
 
@@ -192,7 +191,7 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 
 > **人工模式同一语义**：未归档需求要调整时，重入 `/specpowers-specify`（场景/范围调整）或 `/specpowers-brainstorm`（方案变更），经重入识别确认后调同一个 `facade iterate` 完成轮次切换（不要求 auto_base.json）；轮次切换、feature 锁定、各契约迭代轮小节与本契约完全共用。区别仅在人工模式允许与用户交互确认方案是否变更，不适用无人值守裁决规则表。
 
-## 阶段编排表（fresh 全流程 0–8）
+## 阶段编排表（fresh 全流程 0–8，第 8 步仅 `--archive` 显式触发）
 
 按序执行，每个阶段产物落盘并通过该校验后再进入下一阶段：
 
@@ -206,7 +205,7 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 | 5 | `/specpowers-plan` | 任务拆分严格对照八要素「修改范围表」（缺失时按澄清遗留标注「范围以 plan 结论为准」自行拆分），每个任务标注涉及文件路径与验收要点 |
 | 6 | `/specpowers-build` | 执行方式按 tasks.md 顶部推荐自行确认（默认 conductor 顺序执行）；实时门禁三态与 TDD 照常遵守；「转人工」信号按裁决规则表处理 |
 | 7 | codex-review 编排 | 见下节 7a–7d |
-| 8 | `/specpowers-archive` | **默认执行**（fresh 直通归档）；`--no-archive` 时跳过，止于第 7 步（stage 停在 build，后续迭代或手动归档）；归档校验报告问题 → 按「只转人工、不打回」机制记录后正常收尾，**不重做前序阶段** |
+| 8 | `/specpowers-archive` | **仅当显式 `--archive` 时执行**（先过收口前置检查）；默认止于第 7 步（stage 停在 build，后续可继续迭代或手动 `/specpowers-archive` 归档）；归档校验报告问题 → 按「只转人工、不打回」机制记录后正常收尾，**不重做前序阶段** |
 
 ## 裁决规则表（无人值守核心）
 
@@ -281,9 +280,9 @@ codex-review 是用户级外部技能，本契约只做三件事：**传基点�
 | 通道 | 触发方式 | 行为 |
 |------|----------|------|
 | 手动 | 迭代轮跑完后用户执行 `/specpowers-archive`（stage 停在 build，合法入口） | 正常归档流程 |
-| auto 内 | 重入 auto 带 `--archive`，本轮（resume/iterate/fresh）跑完 build + review 后追加第 8 步 | 先过**收口前置检查**再归档 |
+| auto 内 | 调 `/specpowers-auto` 带 `--archive`（fresh 首轮 / resume / iterate 均可），本轮跑完 build + review 后追加第 8 步 | 先过**收口前置检查**再归档 |
 
-**收口前置检查（`--archive` 专属）**：codex-review 存在未收敛的 blocking P1/P2 → **停下报告、不执行归档**（归档意味着需求终结，带病归档不合理；人工裁决后可手动 `/specpowers-archive`）。
+**收口前置检查（auto 内归档必经）**：codex-review 存在未收敛的 blocking P1/P2 → **停下报告、不执行归档**（归档意味着需求终结，带病归档不合理；人工裁决后可手动 `/specpowers-archive`）。
 
 归档成功后确定性层自动：`iteration_count` 清零 + 清理 `.specpowers/auto_base.json`（`auto_decisions/<feature>.md` 保留作审计历史）→ 下一轮 `/specpowers-auto` 必然判定 fresh，即**新需求**。
 
@@ -301,4 +300,4 @@ codex-review 是用户级外部技能，本契约只做三件事：**传基点�
 
 ## 汇总输出
 
-每轮结束（正常收尾、硬阻断停下、brainstorm 停靠等待输入、或迭代轮跑完不归档）按 `templates/auto-summary-template.md` 输出汇总报告，至少包含：**需求澄清结论**（ceiling = full / brainstorm + 遗留项数，停靠时含待用户裁决问题清单）、**需求迭代轮次与本轮输入形态**（新文档/指令/续跑）、**本轮调整范围**（相比上一轮的变化点）、各阶段产物路径、实际修改/新增文件清单、review 结论与修复清单（含覆盖区间：首轮基点 → 当前 HEAD）、编译与测试结果、裁决日志摘要、遗留风险（澄清遗留项、外部依赖未就绪项、降级审查标注、2 轮后仍遗留问题、功能名变更）。
+每轮结束（正常收尾、硬阻断停下、brainstorm 停靠等待输入、或本轮跑完未归档）按 `templates/auto-summary-template.md` 输出汇总报告，至少包含：**需求澄清结论**（ceiling = full / brainstorm + 遗留项数，停靠时含待用户裁决问题清单）、**需求迭代轮次与本轮输入形态**（新文档/指令/续跑）、**本轮调整范围**（相比上一轮的变化点）、各阶段产物路径、实际修改/新增文件清单、review 结论与修复清单（含覆盖区间：首轮基点 → 当前 HEAD）、编译与测试结果、裁决日志摘要、遗留风险（澄清遗留项、外部依赖未就绪项、降级审查标注、2 轮后仍遗留问题、功能名变更）。

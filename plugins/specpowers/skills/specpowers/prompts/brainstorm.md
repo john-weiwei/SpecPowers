@@ -38,20 +38,20 @@ python -m specpowers_cli.bridge.facade brainstorm "<需求>" --root .
 ### 第一步：探索项目上下文
 
 <HARD-GATE>
-本阶段**必须先调用 superpowers 的 `brainstorming` 技能**完成需求探索，然后才允许收口写 proposal.md。禁止跳过探索直接读静态文件收口。
+本阶段**必须先调用本插件内置的 `specpowers-explore` 技能**（即 `specpowers:specpowers-explore`，源 auto-brainstorm，随插件分发无需外部依赖）完成需求探索，然后才允许收口写 proposal.md。禁止跳过探索直接读静态文件收口。
 
-brainstorming 技能的「逐问澄清 → 2-3 方案带 trade-off → 分节确认设计」流程必须真实执行——这是下游 specify 阶段的硬依赖。specify 进入时会被确定性层校验 proposal 是否含「数据流契约」小节，探索未完成的 proposal 会被拒收并打回 brainstorm。
+specpowers-explore 技能的「静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`）→ 结构化探索结论交付」流程必须真实执行——这是下游 specify 阶段的硬依赖。specify 进入时会被确定性层校验 proposal 是否含「数据流契约」小节，探索未完成的 proposal 会被拒收并打回 brainstorm。
 
 **分层局限说明**：确定性层的校验只查「数据流契约」**段头存在性**（形式合规），无法判定探索是否**实质发生**（内容质量）。要绕过本校验只需补个空段头——因此本机制兜的是「最低底线」（连段头都没有 = 肯定没好好探索），**探索的实质质量依赖**：① 本 HARD-GATE 措辞引导真探索（认知层）；② 用户人工 review proposal 内容（人工层）。三层防御，确定性层不是万能的。
 </HARD-GATE>
 
 1. 阅读 `.specpowers/constitution.md` 了解项目原则
 2. 阅读 `.specpowers/baseline.json` 了解项目结构
-3. **调用 superpowers 的 `brainstorming` 技能进行需求探索**（硬约束，见上 HARD-GATE）
+3. **调用内置 `specpowers-explore` 技能进行需求探索**（硬约束，见上 HARD-GATE；技能返回探索结论，含项目上下文/方案对比/推荐/设计文档路径/跨链路字段线索；设计文档落盘在 `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`）
 4. 与用户交互，提出澄清问题
 5. 运行时数据流溯源（条件触发）
 
-   探索后自检：本特性是否涉及**跨链路字段**——即数据要跨服务/跨模块/跨层传递，或依赖运行时才确定的值（上游接口注入、配置中心下发、DB 读取、MQ 透传、请求头携带等）。
+   以 specpowers-explore 探索结论的「跨链路字段线索」小节为起点，自检：本特性是否涉及**跨链路字段**——即数据要跨服务/跨模块/跨层传递，或依赖运行时才确定的值（上游接口注入、配置中心下发、DB 读取、MQ 透传、请求头携带等）。
 
    - **涉及跨链路字段** → 对每个字段追问以下 6 项（即第三步落盘字段卡片要填的标签，逐项落实，不缺项）：
 

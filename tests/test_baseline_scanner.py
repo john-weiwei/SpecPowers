@@ -102,3 +102,23 @@ def test_baseline_persistence(tmp_path):
     loaded = load_baseline(root)
 
     assert loaded["git_ref"] == baseline["git_ref"]
+
+
+def test_scan_large_repo_branch(tmp_path, monkeypatch):
+    """回归测试：大仓库分支不得因 os 作用域问题崩溃。
+
+    scan() 曾在函数中部 import os，使 os 编译为整个函数的局部变量，
+    导致大仓库分支（_check_large_repo 为 True 且未设置 shallow 深度）里
+    os.environ.get 在 import 语句之前执行，抛 UnboundLocalError。
+    """
+    from specpowers_cli.bridge.modules import baseline_scanner
+    root = _create_temp_git_repo(tmp_path)
+
+    # 强制走大仓库分支，并确保未设置 shallow 深度（否则跳过 os.environ.get）
+    monkeypatch.setattr(baseline_scanner, "_check_large_repo", lambda _root: True)
+    monkeypatch.delenv("SPECPOWERS_SCAN_DEPTH", raising=False)
+
+    baseline = baseline_scanner.scan(root)
+
+    assert baseline["git_ref"]
+    assert "src" in baseline["top_dirs"]
