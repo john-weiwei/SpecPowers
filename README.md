@@ -15,9 +15,9 @@ SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引�
 
 ## 安装
 
-### 方式一：插件市场（推荐 —— ZCode / Claude Code / Codex）
+### 方式一：插件市场（推荐 —— ZCode / Claude Code / Codex / WorkBuddy）
 
-三家的插件结构同构，本仓库已内置三份清单（`.zcode-plugin/`、`.claude-plugin/`、`.codex-plugin/`）。把本仓库添加为插件市场源后一行安装：
+四家的插件结构同构，本仓库已内置四份清单（`.zcode-plugin/`、`.claude-plugin/`、`.codex-plugin/`、`.codebuddy-plugin/`）。把本仓库添加为插件市场源后一行安装：
 
 ```bash
 # ZCode / Claude Code
@@ -27,6 +27,10 @@ SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引�
 # Codex CLI
 codex plugin marketplace add https://github.com/john-weiwei/SpecPowers
 codex plugin install specpowers
+
+# WorkBuddy
+/plugin marketplace add john-weiwei/SpecPowers
+/plugin install specpowers@specpowers-marketplace
 ```
 
 插件内嵌 `specpowers_cli` bridge 包（仅依赖 Python ≥ 3.11 标准库）。装好插件即可直接用 `/specpowers-init` 开始（pip 方式才需要先跑安装器命令 `specpowers init`，见下）。
@@ -71,7 +75,7 @@ v2.0.0 完成阶段重命名与流程缩减（六阶段 → 五阶段），**旧
 - 旧项目 **`state.json` 自动惰性迁移**（旧阶段名读出即归一，无需 reset，可从断点继续）
 - 产物落盘路径与 v1.x 完全一致（`openspec/changes/<feature>/` 三件套 + `.specpowers/` 固定产物）
 
-### 插件市场方式（ZCode / Claude Code）
+### 插件市场方式（ZCode / Claude Code / WorkBuddy）
 
 ```bash
 # 1. 刷新市场源（重新拉取 GitHub 上的最新插件内容）
@@ -113,7 +117,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 用内置 specpowers-explore 技能，无需预装） | 推荐 | `/plugin install superpowers` |
 
-**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查。
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（WorkBuddy 首版暂不注册 hooks，需按下方命令手动确认；Codex 同样不支持 hooks）。
 
 手动确认（可选）：
 ```bash
@@ -241,11 +245,11 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 | **ZCode** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | **Claude Code** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | **Codex CLI** | 插件市场（推荐） | skill 自动激活（Codex 无自定义 slash 命令） |
+| **WorkBuddy** | 插件市场（推荐）；pip 亦可 | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | Cursor | pip + `specpowers init --integration cursor` | 自然语言触发（rules 引导） |
 | GitHub Copilot | pip + `specpowers init --integration copilot` | 自然语言触发（rules 引导） |
 | Windsurf | pip + `specpowers init --integration windsurf` | 自然语言触发（rules 引导） |
 | Cline | pip + `specpowers init --integration cline` | 自然语言触发（rules 引导） |
-| WorkBuddy | pip + `specpowers init --integration workbuddy` | 自然语言触发（rules 引导） |
 
 > 插件市场方式享受完整体验（9 个 slash 命令 + SessionStart 依赖检测）；pip 方式生成 rules 文件引导 agent 按流水线执行，功能等价但无原生 slash 命令。
 
@@ -274,13 +278,15 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 
 ```
 specpowers/
-├── marketplace.json             ← 插件市场入口清单
+├── marketplace.json             ← 插件市场入口清单（ZCode / Claude Code / Codex）
+├── .codebuddy-plugin/marketplace.json ← WorkBuddy 市场入口清单
 ├── pyproject.toml               ← 包配置（pip 安装场景）
 ├── plugins/
 │   └── specpowers/              ← 插件根（三平台共用）
 │       ├── .zcode-plugin/plugin.json     ← ZCode 清单
 │       ├── .claude-plugin/plugin.json    ← Claude Code 清单
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
+│       ├── .codebuddy-plugin/plugin.json ← WorkBuddy 清单
 │       ├── commands/            ← 9 个 slash 命令（带 specpowers- 前缀防撞名）
 │       │   ├── specpowers-init.md
 │       │   ├── specpowers-explore.md

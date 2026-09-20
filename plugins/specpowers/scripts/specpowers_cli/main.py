@@ -86,7 +86,7 @@ def _get_plugin_root() -> Path:
     # scripts/specpowers_cli/ → 上三级到插件根
     for _ in range(4):
         cur = cur.parent
-        if (cur / ".zcode-plugin").exists() or (cur / ".claude-plugin").exists() or (cur / ".codex-plugin").exists():
+        if (cur / ".zcode-plugin").exists() or (cur / ".claude-plugin").exists() or (cur / ".codex-plugin").exists() or (cur / ".codebuddy-plugin").exists():
             return cur
     # 兜底：上三级（即使没有清单目录也按相对结构定位）
     return Path(__file__).resolve().parent.parent.parent.parent

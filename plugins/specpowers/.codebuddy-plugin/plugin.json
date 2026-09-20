@@ -1,0 +1,44 @@
+{
+  "name": "specpowers",
+  "version": "2.0.0",
+  "description": "五阶段 spec 驱动开发流水线编排插件：init→explore→propose→apply→archive（propose 一站式生成 proposal/spec/tasks 三件套），叠加结构一致性门禁与实时卡转人工。无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通，自动裁决确认/门禁节点）。explore 探索用内置 specpowers-explore 技能（源 auto-brainstorm）；桥接 OpenSpec CLI + superpowers 插件（propose/apply）+ codex-review 技能，需预装。",
+  "author": {
+    "name": "SpecPowers Team"
+  },
+  "license": "MIT",
+  "keywords": [
+    "spec-driven",
+    "pipeline",
+    "openspec",
+    "structure-gate",
+    "superpowers"
+  ],
+  "requirements": {
+    "_detect": "WorkBuddy 首版暂不注册 hooks（hooks.json 使用 ${CLAUDE_PLUGIN_ROOT} 变量，WorkBuddy 官方变量为 ${CODEBUDDY_PLUGIN_ROOT}，兼容性待实测）；用户需手动确认 OpenSpec CLI + superpowers 已装。ZCode/Claude 版本有 SessionStart 自动检测。",
+    "commands": [
+      {
+        "name": "openspec",
+        "check": "openspec --version",
+        "requiredFor": ["archive"],
+        "optional": false,
+        "installHint": "npm install -g @funneler/openspec"
+      }
+    ],
+    "plugins": [
+      {
+        "name": "superpowers",
+        "requiredFor": ["propose", "apply"],
+        "optional": true,
+        "installHint": "/plugin install superpowers"
+      },
+      {
+        "name": "codex-review",
+        "requiredFor": ["auto"],
+        "optional": true,
+        "installHint": "将 codex-review 技能安装到用户级 skills 目录（~/.workbuddy/skills/codex-review）"
+      }
+    ]
+  },
+  "commands": "./commands",
+  "skills": "./skills"
+}
