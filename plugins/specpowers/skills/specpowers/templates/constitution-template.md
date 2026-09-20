@@ -1,5 +1,5 @@
 # [PROJECT_NAME] Constitution
-<!-- 项目宪章：声明本项目的核心开发原则。由 /specpowers-constitution 内联生成 -->
+<!-- 项目宪章：声明本项目的核心开发原则。由 /specpowers-init 内联生成 -->
 
 ## Core Principles
 <!-- 核心原则：固定四类（质量/测试/UX/性能），不承载结构规则（目录规范/命名约定由 baseline.json 管理） -->

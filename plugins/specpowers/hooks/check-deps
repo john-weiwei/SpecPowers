@@ -58,7 +58,7 @@ build_message() {
     fi
 
     if ! check_superpowers; then
-        missing+=("⚠️ 缺少 superpowers 插件 —— /specpowers-plan、/specpowers-build 阶段会降级为纯提示词（无原生 skill 加持）。安装：/plugin install superpowers")
+        missing+=("⚠️ 缺少 superpowers 插件 —— /specpowers-propose、/specpowers-apply 阶段会降级为纯提示词（无原生 skill 加持）。安装：/plugin install superpowers")
         superpowers_ok=0
     fi
 

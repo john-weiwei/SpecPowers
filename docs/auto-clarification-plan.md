@@ -1,5 +1,7 @@
 # SpecPowers auto 模式需求澄清方案
 
+> **⚠️ v2.0.0 阶段名变更注记**：本文档为 v1.x 定稿方案，文中阶段名 constitution/brainstorm/specify/plan/build 已于 v2.0.0 重命名为 init/explore/propose(合并 specify+plan)/apply，语义不变；ceiling 值 `brainstorm` 相应改为 `explore`。本文按原文保留作历史依据，不再回改。
+
 > 背景：auto 模式（`docs/auto-iteration-plan.md`，v1.2.0）fresh 流程为「第 0 步三分判定 + 八要素解析落盘 → 直接进入 constitution→brainstorm→specify→plan→build→review→archive」。八要素解析不到仅标注 `null` + 原因即继续，设计文档的质量问题（要素缺失、自相矛盾、场景不可测、范围与边界冲突）没有入口检查，被推迟到下游各阶段由「裁决规则表」零散兜底——**垃圾进垃圾出**：文档若核心要素缺失，要到 build/review 阶段才暴露，前序阶段全部白跑。本方案在流水线最前面补一个显式的**需求澄清步骤**，作为实现依据。
 
 ## 1. 定位与核心语义

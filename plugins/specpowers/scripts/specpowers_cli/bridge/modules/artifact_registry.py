@@ -1,9 +1,11 @@
 """Artifact registry — 定义流水线产物及其依赖关系（路径 A：OpenSpec change 产物）。
 
-路径 A 下，brainstorm/specify/plan 的产物直接写入 OpenSpec change 目录：
-- proposal  → openspec/changes/<feature>/proposal.md        （brainstorm 产出）
-- spec      → openspec/changes/<feature>/specs/<capability>/spec.md （specify 产出）
-- tasks     → openspec/changes/<feature>/tasks.md            （plan 产出）
+v2.0.0 五阶段（init → explore → propose → apply → archive）下，explore 产出设计文档
+（docs/specpowers/design/，路径动态登记在 state.design_doc，不适用 feature 推导，
+由 dispatcher 特殊校验兜底，不进本注册表），propose 一站式产出 OpenSpec change 三件套：
+- proposal  → openspec/changes/<feature>/proposal.md        （propose 产出）
+- spec      → openspec/changes/<feature>/specs/<capability>/spec.md （propose 产出）
+- tasks     → openspec/changes/<feature>/tasks.md            （propose 产出）
 
 固定路径产物（项目级，不随 feature 变化）：
 - constitution.md / baseline.json / state.json / .lock → .specpowers/
@@ -40,45 +42,45 @@ MANIFEST: list[Artifact] = [
     {
         "layer": "cognitive",
         "path": ".specpowers/constitution.md",
-        "producer": "constitution",
-        "consumers": ["brainstorm", "specify", "plan", "build", "archive"],
+        "producer": "init",
+        "consumers": ["explore", "propose", "apply", "archive"],
         "required": True,
     },
     {
         "layer": "cognitive",
         "path": "proposal",  # 动态：openspec/changes/<feature>/proposal.md
-        "producer": "brainstorm",
-        "consumers": ["specify"],
-        # full 模式下 proposal（含「数据流契约」小节）是 specify 的硬依赖，
-        # 倒逼 brainstorm 必须完成探索并产出合格 proposal（防止 brainstorming 被架空）。
-        # fast 模式跳过 brainstorm/specify，故不需要。
+        "producer": "propose",
+        "consumers": ["apply"],
+        # full 模式下 proposal（含「数据流契约」小节）是 apply 的硬依赖，
+        # apply 入口确定性层校验数据流契约段头，倒逼 propose 必须承接 explore
+        # 探索结论（防止探索被架空，探空转直写 proposal）。fast 模式无 proposal。
         "required": {"full": True, "fast": False},
     },
     {
         "layer": "cognitive",
         "path": "spec",  # 动态：openspec/changes/<feature>/specs/<capability>/spec.md
-        "producer": "specify",
-        "consumers": ["plan", "build", "archive"],
+        "producer": "propose",
+        "consumers": ["apply", "archive"],
         "required": {"full": True, "fast": False},
     },
     {
         "layer": "cognitive",
         "path": "tasks",  # 动态：openspec/changes/<feature>/tasks.md
-        "producer": "plan",
-        "consumers": ["build"],
+        "producer": "propose",
+        "consumers": ["apply"],
         "required": {"full": True, "fast": False},
     },
     {
         "layer": "deterministic",
         "path": ".specpowers/baseline.json",
-        "producer": "constitution",
-        "consumers": ["build", "archive", "baseline"],
+        "producer": "init",
+        "consumers": ["apply", "archive", "baseline"],
         "required": True,
     },
     {
         "layer": "deterministic",
         "path": ".specpowers/state.json",
-        "producer": "constitution",
+        "producer": "init",
         "consumers": ["*"],
         "required": True,
     },

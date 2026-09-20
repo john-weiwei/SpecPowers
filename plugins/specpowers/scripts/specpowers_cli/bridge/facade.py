@@ -8,12 +8,11 @@ Usage:
     python -m specpowers_cli.bridge.facade <subcommand> [options]
 
 Subcommands (user-facing, called by skill slash commands):
-    constitution [--force]       Generate constitution + baseline scan
-    brainstorm "<requirement>"   Start feature with exploration
-    specify "<requirement>"      Start/open feature scenario
+    init [--force]               Generate constitution + baseline scan
+    explore "<requirement>"      Start feature with exploration
+    propose "<requirement>"      One-shot generate proposal/spec/tasks (OpenSpec change)
     fast "<requirement>"         Start feature in fast/optimized mode
-    plan                         Generate implementation plan
-    build                        Enter build phase with structure gate
+    apply                        Enter apply phase with structure gate
     archive [--force-merge-check]  Finalize and archive
     baseline                     Manual baseline refresh
     reset                        Reset state (clear state + lock)
@@ -23,12 +22,12 @@ Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.
                                  三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）；
                                  响应携带 clarification 视图（上一轮澄清 ceiling + pending_input 停靠保护）
     auto new-round [--design-doc <path>] [--instruction "<desc>"]
-                                 受控轮次切换：stage → specify、feature 锁定、rounds 落盘（auto 专用）
-    auto clarify --ceiling <full|brainstorm> [--report <路径>]
+                                 受控轮次切换：stage → propose、feature 锁定、rounds 落盘（auto 专用）
+    auto clarify --ceiling <full|explore> [--report <路径>]
                                  需求澄清结论登记（写/刷新 auto_base.json 的 clarification 字段，
                                  resume 凭据；见 docs/auto-clarification-plan.md）
     iterate [--design-doc <path>] [--instruction "<desc>"]
-                                 人工模式迭代轮切换原语（由 /specpowers-specify、/specpowers-brainstorm
+                                 人工模式迭代轮切换原语（由 /specpowers-propose、/specpowers-explore
                                  重入识别确认后调用；同 new-round 但不要求 auto_base.json）
 
 Internal subcommands (for CI / agent direct use):
@@ -36,7 +35,10 @@ Internal subcommands (for CI / agent direct use):
     gate [--base <ref>]          Extract structure gate signals
     status                       Print current state
     version                      Print version
-    record-execution-mode <mode> Record build execution mode (conductor|worktree|subagent|tdd)
+    record-execution-mode <mode> Record apply execution mode (conductor|worktree|subagent|tdd)
+    record-design-doc <path>     Register explore design doc path (propose 前置校验凭据)
+
+> v2.0.0 起旧子命令名（constitution/brainstorm/specify/plan/build）已移除，无别名。
 """
 
 import json
@@ -111,8 +113,8 @@ def print_help():
     print("  -h, --help        Show this help")
 
 
-def _cmd_constitution(args: list[str], root: Path) -> int:
-    """Handle constitution command."""
+def _cmd_init(args: list[str], root: Path) -> int:
+    """Handle init command."""
     from specpowers_cli.bridge.dispatcher import route
     force = "--force" in args
     # Ensure git repo
@@ -120,32 +122,32 @@ def _cmd_constitution(args: list[str], root: Path) -> int:
     if not is_git_repo(root):
         from specpowers_cli.bridge.core.errors import NotGitRepoError
         raise NotGitRepoError(f"'{root}' is not a git repository.")
-    return route("constitution", "full", root, extra={"force": force})
+    return route("init", "full", root, extra={"force": force})
 
 
-def _cmd_brainstorm(args: list[str], root: Path) -> int:
-    """Handle brainstorm command."""
+def _cmd_explore(args: list[str], root: Path) -> int:
+    """Handle explore command."""
     from specpowers_cli.bridge.dispatcher import route
     opts, positional = _extract_kv_options(args, ("feature",))
     req = " ".join(positional) if positional else ""
     if not req.strip():
-        print("Error: brainstorm requires a requirement description.", file=sys.stderr)
+        print("Error: explore requires a requirement description.", file=sys.stderr)
         return 2
-    return route("brainstorm", "full", root, extra={
+    return route("explore", "full", root, extra={
         "requirement": req,
         "feature": opts.get("feature", ""),
     })
 
 
-def _cmd_specify(args: list[str], root: Path) -> int:
-    """Handle specify command."""
+def _cmd_propose(args: list[str], root: Path) -> int:
+    """Handle propose command — 一站式生成 proposal/spec/tasks 三件套（合并原 specify+plan）。"""
     from specpowers_cli.bridge.dispatcher import route
     opts, positional = _extract_kv_options(args, ("feature",))
     req = " ".join(positional) if positional else ""
     if not req.strip():
-        print("Error: specify requires a requirement description.", file=sys.stderr)
+        print("Error: propose requires a requirement description.", file=sys.stderr)
         return 2
-    return route("specify", "full", root, extra={
+    return route("propose", "full", root, extra={
         "requirement": req,
         "feature": opts.get("feature", ""),
     })
@@ -161,16 +163,10 @@ def _cmd_fast(args: list[str], root: Path) -> int:
     return route("fast", "fast", root, extra={"requirement": req})
 
 
-def _cmd_plan(args: list[str], root: Path) -> int:
-    """Handle plan command."""
+def _cmd_apply(args: list[str], root: Path) -> int:
+    """Handle apply command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("plan", "full", root)
-
-
-def _cmd_build(args: list[str], root: Path) -> int:
-    """Handle build command."""
-    from specpowers_cli.bridge.dispatcher import route
-    return route("build", "full", root)
+    return route("apply", "full", root)
 
 
 def _cmd_archive(args: list[str], root: Path) -> int:
@@ -245,7 +241,7 @@ def _cmd_auto_status(args: list[str], root: Path) -> int:
 
 
 def _cmd_auto_new_round(args: list[str], root: Path) -> int:
-    """Handle auto new-round command — 受控轮次切换（stage → specify，feature 锁定）。
+    """Handle auto new-round command — 受控轮次切换（stage → propose，feature 锁定）。
 
     作者：005819 | 协作：GLM-5.3
     """
@@ -265,9 +261,12 @@ def _cmd_auto_clarify(args: list[str], root: Path) -> int:
     from specpowers_cli.bridge.dispatcher import route
     opts, _ = _extract_kv_options(args, ("ceiling", "report"))
     ceiling = (opts.get("ceiling") or "").strip()
-    if ceiling not in ("full", "brainstorm"):
+    # 旧值兼容：v1.x 登记 brainstorm（停靠在原 brainstorm 阶段）读入归一为 explore
+    if ceiling == "brainstorm":
+        ceiling = "explore"
+    if ceiling not in ("full", "explore"):
         print(
-            "Error: auto clarify requires --ceiling <full|brainstorm>.",
+            "Error: auto clarify requires --ceiling <full|explore>.",
             file=sys.stderr,
         )
         return 2
@@ -287,6 +286,26 @@ def _cmd_iterate(args: list[str], root: Path) -> int:
     return route("iterate", "full", root, extra={
         "design_doc": opts.get("design-doc", ""),
         "instruction": opts.get("instruction", ""),
+    })
+
+
+def _cmd_record_design_doc(args: list[str], root: Path) -> int:
+    """Handle record-design-doc command — 登记探索设计文档路径（propose 前置校验凭据）。
+
+    Usage: record-design-doc <设计文档路径>
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    positional = [a for a in args if not a.startswith("--")]
+    if not positional:
+        print(
+            "Error: record-design-doc requires a design doc path.",
+            file=sys.stderr,
+        )
+        return 2
+    return route("record-design-doc", "full", root, extra={
+        "design_doc": " ".join(positional),
     })
 
 
@@ -418,12 +437,11 @@ def main(argv: list[str] | None = None) -> int:
 
     # Dispatch subcommand
     handlers = {
-        "constitution": _cmd_constitution,
-        "brainstorm": _cmd_brainstorm,
-        "specify": _cmd_specify,
+        "init": _cmd_init,
+        "explore": _cmd_explore,
+        "propose": _cmd_propose,
         "fast": _cmd_fast,
-        "plan": _cmd_plan,
-        "build": _cmd_build,
+        "apply": _cmd_apply,
         "archive": _cmd_archive,
         "baseline": _cmd_baseline,
         "reset": _cmd_reset,
@@ -431,6 +449,7 @@ def main(argv: list[str] | None = None) -> int:
         "scan": _cmd_scan,
         "gate": _cmd_gate,
         "record-execution-mode": _cmd_record_execution_mode,
+        "record-design-doc": _cmd_record_design_doc,
         "auto-status": _cmd_auto_status,
         "auto-new-round": _cmd_auto_new_round,
         "auto-clarify": _cmd_auto_clarify,

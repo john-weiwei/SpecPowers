@@ -3,14 +3,15 @@
 Uses temp-file + rename pattern for atomic writes.
 state.json structure:
 {
-    "stage": str,            # constitution|ready|brainstorm|specify|plan|build|archive
+    "stage": str,            # init|ready|explore|propose|apply|archive
     "mode": str,             # full|fast
     "fallback_used": bool,
     "fallback_count": int,
     "feature": str,
     "last_archive_ref": str,
-    "execution_mode": str,   # build 阶段选择的执行方式：conductor|worktree|subagent|tdd（空=未选择）
-    "iteration_count": int   # auto 模式需求迭代轮次（0=首轮，归档/reset 清零；与 fallback_count 互不占用）
+    "execution_mode": str,   # apply 阶段选择的执行方式：conductor|worktree|subagent|tdd（空=未选择）
+    "iteration_count": int,  # auto 模式需求迭代轮次（0=首轮，归档/reset 清零；与 fallback_count 互不占用）
+    "design_doc": str        # explore 阶段登记的设计文档路径（propose 前置校验凭据；空=未登记）
 }
 """
 
@@ -42,21 +43,50 @@ def _atomic_replace(src: str, dst: str, retries: int = 5, delay: float = 0.05) -
 
 
 DEFAULT_STATE = {
-    "stage": "constitution",
+    "stage": "init",
     "mode": "full",
     "fallback_used": False,
     "fallback_count": 0,
     "feature": "",
     "last_archive_ref": "",
-    # build 阶段用户选择的执行方式（conductor/worktree/subagent/tdd）。
-    # build.md 第二步声明记录到 state.json，这里落地该承诺。
+    # apply 阶段用户选择的执行方式（conductor/worktree/subagent/tdd）。
+    # apply.md 第二步声明记录到 state.json，这里落地该承诺。
     # 空串=未选择；reset/archive 时清空，避免新 feature 继承旧执行模式。
     "execution_mode": "",
     # auto 模式需求迭代轮次：0=首轮，每次 auto new-round 递增。
     # 归档即新需求 → archive 清零；reset 放弃当前 feature → 同样清零。
     # 与 fallback_count（人工回退限额）语义独立，互不占用。
     "iteration_count": 0,
+    # explore 阶段认知层落盘设计文档后经 facade record-design-doc 登记的路径。
+    # propose 从 explore 进入时校验非空且文件存在（防探索被架空）；
+    # 归档/reset 清空；迭代轮保留（同需求指针仍有效，方案变更时 explore 重跑重新登记）。
+    "design_doc": "",
 }
+
+# v2.0.0 阶段重命名的旧值映射（load_state 惰性迁移用，幂等：新名不在表内原样返回）
+# constitution→init、brainstorm→explore、specify/plan→propose（plan 态映射后 propose 契约
+# 按产物存在性增量续作：spec 已在只补 tasks）、build→apply；ready/archive 不变。
+LEGACY_STAGE_MAP = {
+    "constitution": "init",
+    "brainstorm": "explore",
+    "specify": "propose",
+    "plan": "propose",
+    "build": "apply",
+}
+
+
+def migrate_legacy_stage(stage: str) -> str:
+    """旧版阶段名 → 新版阶段名（v2.0.0 重命名兼容）。
+
+    Args:
+        stage: state.json 中读出的 stage 值（可能为 v1.x 旧名）。
+
+    Returns:
+        新版阶段名；未知值原样返回（交由状态机校验拒绝）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    return LEGACY_STAGE_MAP.get(stage, stage)
 
 
 def _get_state_path(root: Path) -> Path:
@@ -93,6 +123,9 @@ def load_state(root: Path) -> dict:
     # Merge with defaults to handle missing keys
     result = dict(DEFAULT_STATE)
     result.update(data)
+    # 惰性迁移：v1.x 旧阶段名（constitution/brainstorm/specify/plan/build）读出即归一，
+    # 不主动写回（下次 save_state 自然落盘新值），旧项目无需 reset 即可续跑
+    result["stage"] = migrate_legacy_stage(str(result.get("stage", "")))
     return result
 
 

@@ -1,7 +1,7 @@
 """OpenSpec adapter — 场景生成 + archive 命令封装。
 
 职责：
-- to_scenario: specify 阶段把需求转成 OpenSpec 场景格式文本（认知层用）
+- to_scenario: propose 阶段把需求转成 OpenSpec 场景格式文本（认知层用）
 - is_openspec_available: 检测 openspec CLI 是否可用（归档强依赖）
 - archive_change: 调用真实 openspec archive 命令归档指定 change
 
@@ -22,11 +22,11 @@ from specpowers_cli.bridge.core.platform import _safe_which
 
 
 def to_scenario(req: str, brief: str | None = None) -> str:
-    """生成 OpenSpec 场景格式文本（specify 阶段认知层使用）。
+    """生成 OpenSpec 场景格式文本（propose 阶段认知层使用）。
 
     Args:
         req: 需求文本。
-        brief: 可选的 brief.md 内容（brainstorm 阶段产出）。
+        brief: 可选的 brief.md 内容（explore 阶段产出）。
 
     Returns:
         OpenSpec 格式的场景文本，供 agent 写入 spec.md。

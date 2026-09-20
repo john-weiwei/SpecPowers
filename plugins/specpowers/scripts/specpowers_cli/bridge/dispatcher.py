@@ -32,18 +32,17 @@ from specpowers_cli.bridge.modules.artifact_registry import required_for
 # ---- State machine validation ----
 
 VALID_TRANSITIONS: dict[str, list[str | None]] = {
-    "constitution": ["constitution"],  # initial or force
-    "ready": ["constitution", "archive"],
-    "brainstorm": ["ready"],
-    # specify 自环（from specify）：迭代轮已由 iterate/auto new-round 把 stage 置回 specify，
-    # 用户重跑 /specpowers-specify 属续作修订（iteration_count 不变、不消耗 fallback 额度），应放行
-    "specify": ["brainstorm", "ready", "build", "specify"],
-    "plan": ["specify"],
-    "build": ["plan", "ready"],
-    "archive": ["build"],
+    "init": ["init"],  # initial or force
+    "ready": ["init", "archive"],
+    "explore": ["ready"],
+    # propose 自环（from propose）：迭代轮已由 iterate/auto new-round 把 stage 置回 propose，
+    # 用户重跑 /specpowers-propose 属续作修订（iteration_count 不变、不消耗 fallback 额度），应放行
+    "propose": ["explore", "ready", "apply", "propose"],
+    "apply": ["propose", "ready"],
+    "archive": ["apply"],
 }
 
-STAGE_NAMES = ["constitution", "ready", "brainstorm", "specify", "plan", "build", "archive"]
+STAGE_NAMES = ["init", "ready", "explore", "propose", "apply", "archive"]
 
 
 def _validate_transition(from_stage: str, to_stage: str):
@@ -180,8 +179,8 @@ def _migrate_legacy_auto_base(base: dict) -> list[dict]:
 def _clarification_view(base: dict | None, has_new_input: bool) -> dict | None:
     """从 auto_base.json 提取需求澄清结论视图（方案 docs/auto-clarification-plan.md）。
 
-    pending_input 语义：上一轮澄清 ceiling=brainstorm（停靠 brainstorm 等待方案结论）
-    且本次重入无新输入 → 契约层不得从断点盲目续跑 specify，需提示用户带结论重入。
+    pending_input 语义：上一轮澄清 ceiling=explore（停靠 explore 等待方案结论）
+    且本次重入无新输入 → 契约层不得从断点盲目续跑 propose，需提示用户带结论重入。
 
     Args:
         base: 已读取的 auto_base.json 内容（None 或旧格式无 clarification 字段 → 返回 None，
@@ -198,11 +197,14 @@ def _clarification_view(base: dict | None, has_new_input: bool) -> dict | None:
     clar = base.get("clarification")
     if not isinstance(clar, dict) or not clar.get("ceiling"):
         return None
+    # 旧值兼容：v1.x 登记 ceiling=brainstorm（停靠在原 brainstorm 阶段），
+    # 读出归一为 explore（v2.0.0 同一停靠语义的新阶段名）
+    ceiling = "explore" if str(clar["ceiling"]) == "brainstorm" else str(clar["ceiling"])
     return {
-        "ceiling": clar["ceiling"],
+        "ceiling": ceiling,
         "report_path": clar.get("report_path", ""),
         "checked_at": clar.get("checked_at", ""),
-        "pending_input": clar["ceiling"] == "brainstorm" and not has_new_input,
+        "pending_input": ceiling == "explore" and not has_new_input,
     }
 
 
@@ -225,7 +227,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
     base = _load_auto_base(root)
 
     # fresh：无活跃 feature（archive 后 stage=ready 且 feature 空，或从未开始）
-    if not feature and state["stage"] in ("ready", "constitution"):
+    if not feature and state["stage"] in ("ready", "init"):
         removed = False
         if base is not None:
             # 上一需求的 auto_base.json 残留（旧版本归档清理缺失所遗留）→ 清理后按全新执行
@@ -340,14 +342,21 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
                 f"Run the previous stage ({art['producer']}) first."
             )
 
-    # proposal 内容校验：倒逼 brainstorm 必须完成探索（防止探索技能被架空）。
-    # 进入 specify 时，proposal 除存在外，还必须含「数据流契约」段头或「无跨链路字段」声明。
+    # 设计文档登记校验：倒逼 explore 必须完成探索并登记（防止探索被架空）。
+    # 仅从 explore 进入 propose 时校验（跳过探索直入 propose 的 ready 路径、
+    # apply fallback 路径、迭代续作自环路径均不要求）。
+    if stage == "propose" and mode == "full" and from_stage == "explore":
+        _check_design_doc_registered(root)
+
+    # proposal 内容校验：倒逼 propose 必须承接 explore 探索结论（防架空）。
+    # 进入 apply 时，proposal 除存在外，还必须含「数据流契约」段头或「无跨链路字段」声明。
     # 仅查段头存在性（确定性可判），不评判内容质量（认知层职责）。
-    if stage == "specify" and mode == "full":
+    # fast 模式无 proposal（跳过 explore/propose），不校验。
+    if stage == "apply" and mode == "full":
         _check_proposal_data_flow_contract(root, feature, artifacts, from_stage=from_stage)
 
-    # For fast mode build: check code changes exist
-    if stage == "build" and mode == "fast":
+    # For fast mode apply: check code changes exist
+    if stage == "apply" and mode == "fast":
         from specpowers_cli.bridge.core.git_util import diff_stat, run_git
         diff = diff_stat(root)  # working tree vs HEAD
         if not diff.strip():
@@ -363,21 +372,57 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
             if not diff2.strip():
                 raise FatalError(
                     "No code changes detected. "
-                    "Complete your coding before running /specpowers.build"
+                    "Complete your coding before running /specpowers.apply"
                 )
 
 
-def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list, from_stage: str = "") -> None:
-    """校验 proposal.md 含「数据流契约」小节（specify 阶段硬依赖）。
+def _check_design_doc_registered(root: Path) -> None:
+    """校验 explore 阶段的设计文档已登记（propose 从 explore 进入时的硬依赖）。
 
-    防止探索被架空：agent 若跳过 specpowers-explore 探索直接收口，proposal 不会含数据流契约，
-    本校验将其拦在 specify 之外，强制回 brainstorm 补全探索。
+    防止探索被架空：explore 落盘设计文档后经 `facade record-design-doc` 登记路径到
+    state.design_doc。agent 若跳过 specpowers-explore 探索直接收口，不会产生设计文档，
+    本校验将其拦在 propose 之外，强制回 explore 完成探索。
+
+    Args:
+        root: 项目根路径。
+
+    Raises:
+        ArtifactMissingError: state.design_doc 为空，或登记的文件不存在。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    state = load_state(root)
+    design_doc = (state.get("design_doc") or "").strip()
+
+    if not design_doc:
+        raise ArtifactMissingError(
+            "explore 阶段的设计文档未登记（state.design_doc 为空）。"
+            "这是 propose 从 explore 进入的硬依赖——说明 explore 探索未完成"
+            "（specpowers-explore 可能被跳过）。"
+            "请回到 /specpowers.explore 调用内置 specpowers-explore 技能完成需求探索，"
+            "设计文档落盘 docs/specpowers/design/ 后调 "
+            "`facade record-design-doc <设计文档路径>` 登记，再进入 /specpowers.propose"
+        )
+
+    if not Path(design_doc).is_file():
+        raise ArtifactMissingError(
+            f"登记的设计文档 '{design_doc}' 不存在。"
+            "请确认文件未被移动/删除，或回 /specpowers.explore 重新探索并登记"
+        )
+
+
+def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list, from_stage: str = "") -> None:
+    """校验 proposal.md 含「数据流契约」小节（apply 阶段硬依赖）。
+
+    防止探索结论被架空：agent 若跳过 explore/propose 直写 proposal，proposal 不会含
+    数据流契约，本校验将其拦在 apply 之外，强制回 propose 补全（propose 生成 proposal
+    时必须承接 explore 设计文档的数据流结论）。
 
     Args:
         root: 项目根路径。
         feature: feature slug，用于定位 proposal 路径。
         artifacts: required_for 返回的 artifact 列表（含已解析路径）。
-        from_stage: 调用方来源阶段（如 build），用于生成语境友好的错误提示。
+        from_stage: 调用方来源阶段（如 propose），用于生成语境友好的错误提示。
 
     Raises:
         ArtifactMissingError: proposal 缺「数据流契约」段头且无「无跨链路字段」声明时。
@@ -390,7 +435,7 @@ def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list
             proposal_path = root / art["path"]
             break
 
-    # 调用点（_run_pre_stage_checks）限定 stage="specify" + mode="full"，
+    # 调用点（_run_pre_stage_checks）限定 stage="apply" + mode="full"，
     # 此条件下 required_for 必返回 proposal，且文件存在性已由上层循环校验。
     # 此处保留防御：proposal_path 为 None 属上游逻辑错误，应显式暴露而非静默跳过。
     if proposal_path is None:
@@ -401,34 +446,35 @@ def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list
 
     content = proposal_path.read_text(encoding="utf-8")
     # 校验：含「## 数据流契约」二级段头，或显式声明「本特性无跨链路字段」。
-    # 必须为二级段头（##），与 brainstorm.md 模板一致；三级或无井号不匹配。
+    # 必须为二级段头（##），与 propose.md 模板一致；三级或无井号不匹配。
     has_contract = re.search(r"^##\s*数据流契约", content, re.MULTILINE)
     has_skip_decl = "本特性无跨链路字段" in content
     if not has_contract and not has_skip_decl:
-        # 区分 fallback 语境生成友好提示
+        # 区分回退语境生成友好提示
         fallback_hint = ""
-        if from_stage == "build":
+        if from_stage == "propose":
             fallback_hint = (
-                "（你正在从 build 回退并升级为完整流程，需先补跑 brainstorm 完成探索，"
-                "再继续后续阶段）"
+                "（你正在从 propose 刚进入 apply，说明上一轮 propose 未承接 explore "
+                "设计文档的数据流结论，需回 /specpowers.propose 补全 proposal 后再继续）"
             )
         raise ArtifactMissingError(
             f"proposal.md 缺少「## 数据流契约」小节。"
-            f"这是 specify 阶段的硬依赖——说明 brainstorm 探索未完成（specpowers-explore 可能被跳过）。"
+            f"这是 apply 阶段的硬依赖——说明 explore 探索结论未被 propose 承接"
+            f"（探索可能被跳过或 proposal 凭空生成）。"
             f"{fallback_hint}"
-            f"请回到 /specpowers.brainstorm 调用内置 specpowers-explore 技能完成需求探索，"
-            f"并在 proposal.md 补全「数据流契约」小节"
+            f"请回到 /specpowers.propose 基于 explore 设计文档重新生成 proposal.md"
+            f"并补全「## 数据流契约」小节"
             f"（涉及跨链路字段则按字段卡片逐个详述，纯本地特性则声明「本特性无跨链路字段」）。"
         )
 
 
-def _check_constitution_conflict(root: Path):
-    """Check if constitution command would discard an in-progress feature."""
+def _check_init_conflict(root: Path):
+    """Check if init command would discard an in-progress feature."""
     state = load_state(root)
-    if state.get("stage") != "constitution":
+    if state.get("stage") != "init":
         # Interactive confirmation needed — in CI mode, auto-confirm
         if is_ci_mode():
-            print("[CI] Auto-confirming constitution re-generation (would discard feature "
+            print("[CI] Auto-confirming init re-generation (would discard feature "
                   f"'{state.get('feature', '')}')", file=sys.stderr)
         else:
             feature = state.get("feature", "")
@@ -459,13 +505,13 @@ def _log_verbose(msg: str):
 
 # ---- Stage handlers ----
 
-def _handle_constitution(root: Path, extra: dict) -> int:
-    """Handle constitution stage."""
+def _handle_init(root: Path, extra: dict) -> int:
+    """Handle init stage."""
     force = extra.get("force", False)
     state = load_state(root)
 
-    if not force and state.get("stage") != "constitution":
-        _check_constitution_conflict(root)
+    if not force and state.get("stage") != "init":
+        _check_init_conflict(root)
 
     _log_verbose("Running baseline scanner...")
     from specpowers_cli.bridge.modules.baseline_scanner import scan, load_baseline
@@ -478,23 +524,26 @@ def _handle_constitution(root: Path, extra: dict) -> int:
             baseline_path.unlink()
         scan(root)
 
-    # Transition: constitution → ready
+    # Transition: init → ready
+    # design_doc 一并清空：init 重置意味着放弃当前 feature 流水线，
+    # 探索指针不应泄给下一需求（下一需求的 explore 会重新登记）
     new_state = load_state(root)
     new_state["stage"] = "ready"
     new_state["mode"] = "full"
     new_state["feature"] = ""
+    new_state["design_doc"] = ""
     save_state(root, new_state)
 
     print("Constitution + baseline ready. Stage: ready")
     return 0
 
 
-def _handle_brainstorm(root: Path, extra: dict) -> int:
-    """Handle brainstorm stage."""
+def _handle_explore(root: Path, extra: dict) -> int:
+    """Handle explore stage."""
     req = extra.get("requirement", "")
     state = load_state(root)
 
-    _validate_transition(state["stage"], "brainstorm")
+    _validate_transition(state["stage"], "explore")
 
     # feature 锁定：--feature 显式指定优先（auto 模式多轮迭代用首轮 slug 锁定 change 目录，
     # 防止 requirement 措辞变化导致 slug 漂移、调整脱离当前 spec 文件），
@@ -507,38 +556,44 @@ def _handle_brainstorm(root: Path, extra: dict) -> int:
         feature = normalize_feature(req)
 
     _check_prerequisites(root)
-    _run_pre_stage_checks(root, "brainstorm", "full", feature)
+    _run_pre_stage_checks(root, "explore", "full", feature)
 
     # Update state
-    state["stage"] = "brainstorm"
+    state["stage"] = "explore"
     state["mode"] = "full"
     state["feature"] = feature
     save_state(root, state)
 
-    print(f"Brainstorm started for feature: {feature}")
+    print(f"Explore started for feature: {feature}")
     print("Agent should now: invoke the built-in specpowers-explore skill to explore the requirement, "
-          f"write openspec/changes/{feature}/proposal.md (must include 「## 数据流契约」 section), "
-          "then continue to /specpowers.specify")
+          "write the design doc under docs/specpowers/design/ "
+          "(incl. data-flow conclusions), register it via "
+          f"`facade record-design-doc <path>`, then continue to /specpowers.propose")
     return 0
 
 
-def _handle_specify(root: Path, extra: dict) -> int:
-    """Handle specify stage."""
+def _handle_propose(root: Path, extra: dict) -> int:
+    """Handle propose stage — 一站式生成 OpenSpec change 三件套。
+
+    合并原 specify + plan：从 explore 设计文档（或跳过探索的清晰需求）出发，
+    依次落盘 proposal.md → spec.md → tasks.md（认知层按 prompts/propose.md 执行，
+    确定性层只做状态机与前置校验）。
+    """
     req = extra.get("requirement", "")
     state = load_state(root)
     from_stage = state["stage"]
 
-    _validate_transition(from_stage, "specify")
+    _validate_transition(from_stage, "propose")
 
-    # 回退上限（fast_mode.md/specify.md 承诺「fallback_count += 1、整个 state
-    # 生命周期最多 1 次 build→specify 回退」）：原实现不计数也不拦截，
+    # 回退上限（fast_mode.md/propose.md 承诺「fallback_count += 1、整个 state
+    # 生命周期最多 1 次 apply→propose 回退」）：原实现不计数也不拦截，
     # 流程可无限次往返抖动。此处把承诺落地为确定性层硬校验
     # 作者：005819 | 协作：GLM-5.3
-    if from_stage == "build":
+    if from_stage == "apply":
         fallback_count = state.get("fallback_count", 0)
         if fallback_count >= 1:
             raise StateError(
-                "回退次数已达上限：整个 state 生命周期最多 1 次 build→specify 回退。"
+                "回退次数已达上限：整个 state 生命周期最多 1 次 apply→propose 回退。"
                 "请先完成当前流程（archive）或重置（reset 不清除计次），"
                 "再开启新的 feature。"
             )
@@ -557,14 +612,14 @@ def _handle_specify(root: Path, extra: dict) -> int:
         feature = normalize_feature(req)
 
     _check_prerequisites(root)
-    _run_pre_stage_checks(root, "specify", "full", feature, from_stage=from_stage)
+    _run_pre_stage_checks(root, "propose", "full", feature, from_stage=from_stage)
 
-    state["stage"] = "specify"
+    state["stage"] = "propose"
     state["mode"] = "full"
     state["feature"] = feature
     save_state(root, state)
 
-    print(f"Specify started for feature: {feature}")
+    print(f"Propose started for feature: {feature}")
     return 0
 
 
@@ -575,7 +630,7 @@ def _handle_fast(root: Path, extra: dict) -> int:
 
     # fast 不是状态机的真实目标 stage（它把状态设为 ready+mode=fast），
     # 因此不能用 _validate_transition(state["stage"], "fast")——VALID_TRANSITIONS
-    # 里没有 "fast" 键，会误拒绝所有合法调用。fast 的合法入口与 brainstorm 一致，
+    # 里没有 "fast" 键，会误拒绝所有合法调用。fast 的合法入口与 explore 一致，
     # 仅允许从 ready 进入。
     # 作者：005819 | 协作：GLM-5.2
     valid_fast_from = ["ready"]
@@ -591,7 +646,7 @@ def _handle_fast(root: Path, extra: dict) -> int:
     baseline_path = root / ".specpowers" / "baseline.json"
     if not baseline_path.exists():
         raise FatalError(
-            "Baseline not found. Run /specpowers.constitution first."
+            "Baseline not found. Run /specpowers.init first."
         )
 
     # Feature 锁定：优先复用已有 feature，仅空时才 normalize
@@ -607,44 +662,29 @@ def _handle_fast(root: Path, extra: dict) -> int:
     save_state(root, state)
 
     print(f"Fast mode activated for feature: {feature}")
-    print("Agent will now: run small-judgment → confirmation → user codes → /specpowers.build")
+    print("Agent will now: run small-judgment → confirmation → user codes → /specpowers.apply")
     return 0
 
 
-def _handle_plan(root: Path, extra: dict) -> int:
-    """Handle plan stage."""
-    state = load_state(root)
-    feature = state.get("feature", "")
-    _validate_transition(state["stage"], "plan")
-
-    _check_prerequisites(root)
-    _run_pre_stage_checks(root, "plan", "full", feature)
-
-    state["stage"] = "plan"
-    save_state(root, state)
-    print("Plan stage ready.")
-    return 0
-
-
-def _handle_build(root: Path, extra: dict) -> int:
-    """Handle build stage."""
+def _handle_apply(root: Path, extra: dict) -> int:
+    """Handle apply stage."""
     state = load_state(root)
     mode = state.get("mode", "full")
     from_stage = state["stage"]
     feature = state.get("feature", "")
 
-    _validate_transition(from_stage, "build")
+    _validate_transition(from_stage, "apply")
 
     _check_prerequisites(root)
-    _run_pre_stage_checks(root, "build", mode, feature)
+    _run_pre_stage_checks(root, "apply", mode, feature)
 
-    state["stage"] = "build"
+    state["stage"] = "apply"
     save_state(root, state)
 
     if mode == "fast":
-        print("Build stage (fast mode). Agent will run: code extraction → structure gate → execute → verify.")
+        print("Apply stage (fast mode). Agent will run: code extraction → structure gate → execute → verify.")
     else:
-        print("Build stage (full mode). Agent will run: structure gate → ability pool → execute → verify.")
+        print("Apply stage (full mode). Agent will run: structure gate → ability pool → execute → verify.")
     return 0
 
 
@@ -652,7 +692,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
     """Handle archive stage — 确定性执行归档（委托 OpenSpec）。
 
     full 和 fast 统一：调 openspec archive 合并主规格 + change 移到 archive 快照。
-    产物（proposal/specs/tasks）由前面阶段增量写入 change 目录，archive 零转换。
+    产物（proposal/specs/tasks）由 propose 阶段一次性写入 change 目录，archive 零转换。
     """
     state = load_state(root)
     force_merge = extra.get("force_merge_check", False)
@@ -690,6 +730,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
         # 归档成功：刷新 state，stage 跃迁到 ready
         # 清空 execution_mode：本 feature 的执行模式不应被下一轮 feature 继承
         # iteration_count 清零：归档即新需求，下一轮从首轮开始（方案第 5 节）
+        # design_doc 清空：设计文档指针随需求生命周期终结，不泄给下一轮
         # 作者：005819 | 协作：GLM-5.3
         state["last_archive_ref"] = git_ref_of(root)
         state["stage"] = "ready"
@@ -697,6 +738,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
         state["mode"] = "full"
         state["execution_mode"] = ""
         state["iteration_count"] = 0
+        state["design_doc"] = ""
         save_state(root, state)
 
         # 归档即需求生命周期终结：清理 auto_base.json（手动 archive 与 auto --archive
@@ -711,7 +753,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
         print(f"  - change 快照：openspec/changes/archive/{archived_as}/")
         if auto_base_removed:
             print(f"  - auto 基线：.specpowers/auto_base.json 已清理（归档即新需求）")
-        print(f"准备下一轮开发：/specpowers.brainstorm | .specify | .fast")
+        print(f"准备下一轮开发：/specpowers.explore | .propose | .fast")
         return 0
 
     # feature 为空：不应发生（archive 要求 state 有 feature），兜底报错
@@ -773,9 +815,9 @@ def _handle_auto_new_round(root: Path, extra: dict) -> int:
 def _handle_iterate(root: Path, extra: dict) -> int:
     """iterate — 人工模式同需求新迭代轮的轮次切换原语（不要求 auto_base.json；存在则同样落盘 rounds）。
 
-    由 /specpowers-specify、/specpowers-brainstorm 重入识别并经用户确认后调用（无独立入口命令）。
+    由 /specpowers-propose、/specpowers-explore 重入识别并经用户确认后调用（无独立入口命令）。
     与 auto 多轮迭代同一套语义：归档状态决定需求身份，feature 锁定不变，
-    stage 受控置回 specify。不占用 fallback_count（人工 build→specify 回退限额独立）。
+    stage 受控置回 propose。不占用 fallback_count（人工 apply→propose 回退限额独立）。
 
     作者：005819 | 协作：GLM-5.3
     """
@@ -787,8 +829,8 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
 
     受控跃迁：不走 VALID_TRANSITIONS 常规校验，本处理器自身即受控重置入口。
     前置：活跃 feature 未归档（auto 入口额外要求 auto_base.json 存在）；
-    动作：stage → specify、feature 锁定不变、iteration_count += 1、execution_mode 清空
-    （新轮执行方式在 build 阶段重新确认，不继承上一轮）；
+    动作：stage → propose、feature 锁定不变、iteration_count += 1、execution_mode 清空
+    （新轮执行方式在 apply 阶段重新确认，不继承上一轮）；
     落盘：auto_base.json 存在时追加本轮 rounds 记录（旧格式按 round 1 兼容迁移）并刷新文档指针。
 
     作者：005819 | 协作：GLM-5.3
@@ -805,13 +847,13 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     if not feature:
         raise StateError(
             "当前 state 无活跃 feature，无法开启迭代轮。"
-            "若要开始新需求：无人值守用 /specpowers-auto，人工模式用 /specpowers-brainstorm 或 /specpowers-specify。"
+            "若要开始新需求：无人值守用 /specpowers-auto，人工模式用 /specpowers-explore 或 /specpowers-propose。"
         )
     from specpowers_cli.bridge.modules.archive_auditor import is_feature_archived
     if is_feature_archived(root, feature):
         raise StateError(
             f"feature '{feature}' 已归档，归档即新需求，"
-            "请直接开启新需求（无人值守 /specpowers-auto，人工 /specpowers-brainstorm）。"
+            "请直接开启新需求（无人值守 /specpowers-auto，人工 /specpowers-explore）。"
         )
 
     design_doc = (extra.get("design_doc") or "").strip()
@@ -823,10 +865,10 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
         if state.get("iteration_count", 0) < 1:
             state["iteration_count"] = 1
 
-    # 受控跃迁：stage 置回 specify（specify 起全量/轻量重跑），feature 身份锁定不变
+    # 受控跃迁：stage 置回 propose（propose 起全量/轻量重跑），feature 身份锁定不变
     new_round = state.get("iteration_count", 0) + 1
     state["iteration_count"] = new_round
-    state["stage"] = "specify"
+    state["stage"] = "propose"
     state["mode"] = "full"
     state["execution_mode"] = ""
     save_state(root, state)
@@ -834,13 +876,13 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     _append_round_record(root, base, feature, new_round, design_doc, instruction)
 
     label = "auto 模式" if entry == "auto" else "人工模式"
-    print(f"迭代轮已开启（{label}）：Round {new_round}，feature '{feature}' 锁定不变，stage → specify")
+    print(f"迭代轮已开启（{label}）：Round {new_round}，feature '{feature}' 锁定不变，stage → propose")
     if entry == "auto":
-        print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ specify → plan → build → codex-review")
+        print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ propose → apply → codex-review")
     else:
-        print("迭代轮已开启（人工模式重入）：按 prompts/specify.md 迭代轮小节增量修订 spec.md"
-              "（方案变更时先按 brainstorm.md 迭代轮小节更新 proposal.md）；"
-              "完成后 /specpowers-plan → /specpowers-build → 随时可 /specpowers-archive 收口")
+        print("迭代轮已开启（人工模式重入）：按 prompts/propose.md 迭代轮小节增量修订三件套"
+              "（方案变更时先按 explore.md 迭代轮小节更新设计文档与 proposal）；"
+              "完成后 /specpowers-apply → 随时可 /specpowers-archive 收口")
     return 0
 
 
@@ -890,17 +932,20 @@ def _handle_auto_clarify(root: Path, extra: dict) -> int:
 
     需求澄清步骤（auto 契约第 1 步）的收尾登记原语：契约层完成五维检查后调用，
     把推进深度上限（ceiling）落盘为断点续跑凭据——resume 凭此不重做澄清，
-    ceiling=brainstorm 时 auto-status 输出 pending_input 阻止盲目续跑。
+    ceiling=explore 时 auto-status 输出 pending_input 阻止盲目续跑。
     要求 auto_base.json 已存在（第 0 步基点记录已完成），防「声称澄清但无基线」；
     确定性层只兜「结论已登记、结构可读」的形式底线，五维检查实质质量由契约层保证。
 
     作者：005819 | 协作：GLM-5.3
     """
     ceiling = (extra.get("ceiling") or "").strip()
-    if ceiling not in ("full", "brainstorm"):
+    # 旧值兼容：v1.x 登记 brainstorm（停靠在原 brainstorm 阶段）读入归一为 explore
+    if ceiling == "brainstorm":
+        ceiling = "explore"
+    if ceiling not in ("full", "explore"):
         raise FatalError(
-            f"clarification ceiling 非法：'{ceiling}'（仅允许 full | brainstorm）。"
-            "用法：facade auto clarify --ceiling <full|brainstorm> [--report <澄清报告路径>]"
+            f"clarification ceiling 非法：'{ceiling}'（仅允许 full | explore）。"
+            "用法：facade auto clarify --ceiling <full|explore> [--report <澄清报告路径>]"
         )
     base = _load_auto_base(root)
     if base is None:
@@ -915,27 +960,58 @@ def _handle_auto_clarify(root: Path, extra: dict) -> int:
     }
     _write_auto_base(root, base)
     print(f"澄清结论已登记：ceiling={ceiling}")
-    if ceiling == "brainstorm":
-        print("推进上限为 brainstorm：跑完 constitution → brainstorm 产出未收敛草案后停靠，"
+    if ceiling == "explore":
+        print("推进上限为 explore：跑完 init → explore 产出未收敛草案后停靠，"
               "等待用户带方案结论（--instruction）或补充文档重入")
+    return 0
+
+
+def _handle_record_design_doc(root: Path, extra: dict) -> int:
+    """record-design-doc — 登记探索设计文档路径到 state.json（propose 前置校验凭据）。
+
+    explore 阶段认知层落盘设计文档（docs/specpowers/design/）后调用，
+    把路径写入 state.design_doc。propose 从 explore 进入时确定性层校验非空且文件存在，
+    形成防架空链：explore 必须真实探索 → propose 必须承接设计文档。
+    只登记不校验内容质量（认知层职责），但校验文件存在（防登记空指针）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    design_doc = (extra.get("design_doc") or "").strip()
+    if not design_doc:
+        raise FatalError(
+            "record-design-doc 需要设计文档路径参数。"
+            "用法：facade record-design-doc <设计文档路径> --root ."
+        )
+    path = Path(design_doc)
+    if not path.is_file():
+        raise FatalError(
+            f"设计文档 '{design_doc}' 不存在，拒绝登记。"
+            "请先由 specpowers-explore 技能落盘设计文档后再登记"
+        )
+
+    state = load_state(root)
+    state["design_doc"] = design_doc
+    save_state(root, state)
+    print(f"探索设计文档已登记：{design_doc}")
+    print("propose 阶段将以此为探索凭据（缺失会被前置校验拦回 explore）")
     return 0
 
 
 # ---- Route table ----
 
 STAGE_HANDLERS = {
-    "constitution": _handle_constitution,
-    "brainstorm": _handle_brainstorm,
-    "specify": _handle_specify,
+    "init": _handle_init,
+    "explore": _handle_explore,
+    "propose": _handle_propose,
     "fast": _handle_fast,
-    "plan": _handle_plan,
-    "build": _handle_build,
+    "apply": _handle_apply,
     "archive": _handle_archive,
     "baseline": _handle_baseline,
     "reset": _handle_reset,
     "auto-new-round": _handle_auto_new_round,
     "auto-clarify": _handle_auto_clarify,
     "iterate": _handle_iterate,
+    "record-design-doc": _handle_record_design_doc,
 }
 
 
@@ -946,7 +1022,8 @@ def route(stage: str, mode: str, root: Path, extra: dict | None = None) -> int:
     Called by facade.py command handlers.
 
     Args:
-        stage: Stage name (constitution, brainstorm, specify, fast, plan, build, archive, baseline, reset)
+        stage: Stage name (init, explore, propose, fast, apply, archive, baseline, reset,
+               auto-new-round, auto-clarify, iterate, record-design-doc)
         mode: Operation mode (full or fast)
         root: Project root path
         extra: Additional parameters (requirement, force, force_merge_check, etc.)

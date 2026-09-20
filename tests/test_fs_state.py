@@ -19,7 +19,7 @@ def test_load_state_default():
         # Create .specpowers dir
         (root / ".specpowers").mkdir(exist_ok=True)
         state = load_state(root)
-        assert state["stage"] == "constitution"
+        assert state["stage"] == "init"
         assert state["mode"] == "full"
         assert state["fallback_used"] is False
         assert state["fallback_count"] == 0
@@ -31,12 +31,12 @@ def test_save_and_load_state():
         root = Path(tmpdir)
         (root / ".specpowers").mkdir(exist_ok=True)
 
-        state = {"stage": "plan", "mode": "full", "fallback_used": False,
+        state = {"stage": "propose", "mode": "full", "fallback_used": False,
                  "fallback_count": 0, "feature": "test-feature", "last_archive_ref": ""}
         save_state(root, state)
 
         loaded = load_state(root)
-        assert loaded["stage"] == "plan"
+        assert loaded["stage"] == "propose"
         assert loaded["feature"] == "test-feature"
 
 
@@ -47,7 +47,7 @@ def test_init_state():
         (root / ".specpowers").mkdir(exist_ok=True)
 
         state = init_state(root)
-        assert state["stage"] == "constitution"
+        assert state["stage"] == "init"
         assert state["mode"] == "full"
 
         # File should exist
@@ -61,7 +61,7 @@ def test_reset_state_preserves_fallback_count():
         (root / ".specpowers").mkdir(exist_ok=True)
 
         # Save with fallback_count = 3
-        state = {"stage": "build", "mode": "fast", "fallback_used": True,
+        state = {"stage": "apply", "mode": "fast", "fallback_used": True,
                  "fallback_count": 3, "feature": "test", "last_archive_ref": "abc123"}
         save_state(root, state)
 
@@ -92,7 +92,7 @@ def test_atomic_write_corruption_resistance():
         (root / ".specpowers").mkdir(exist_ok=True)
 
         # Write a large state
-        state = {"stage": "build", "mode": "full", "fallback_used": False,
+        state = {"stage": "apply", "mode": "full", "fallback_used": False,
                  "fallback_count": 0, "feature": "x" * 1000, "last_archive_ref": "a" * 40}
         save_state(root, state)
 
@@ -144,7 +144,7 @@ def test_reset_state_clears_iteration_count():
         root = Path(tmpdir)
         (root / ".specpowers").mkdir(exist_ok=True)
 
-        state = {"stage": "build", "mode": "full", "fallback_used": False,
+        state = {"stage": "apply", "mode": "full", "fallback_used": False,
                  "fallback_count": 2, "feature": "iter-feat", "last_archive_ref": "",
                  "iteration_count": 3}
         save_state(root, state)
@@ -153,3 +153,51 @@ def test_reset_state_clears_iteration_count():
         assert new_state["stage"] == "ready"
         assert new_state["iteration_count"] == 0
         assert new_state["fallback_count"] == 2
+
+
+# ---- v2.0.0 旧阶段名惰性迁移回归 ----
+
+def test_load_state_migrates_legacy_stages(tmp_path):
+    """v1.x 旧阶段名读出即归一为新名（不写回，下次 save 自然落盘新值）。"""
+    from specpowers_cli.bridge.core.fs_state import load_state, _get_state_path
+
+    cases = {
+        "constitution": "init",
+        "brainstorm": "explore",
+        "specify": "propose",
+        "plan": "propose",
+        "build": "apply",
+        "ready": "ready",
+        "archive": "archive",
+    }
+    for old, new in cases.items():
+        root = tmp_path / f"migrate-{old}"
+        (root / ".specpowers").mkdir(parents=True)
+        _get_state_path(root).write_text(
+            json.dumps({"stage": old, "mode": "full", "feature": "f1"}), encoding="utf-8",
+        )
+        assert load_state(root)["stage"] == new, f"{old} should map to {new}"
+
+
+def test_load_state_unknown_stage_passthrough(tmp_path):
+    """未知 stage 值原样返回（交由状态机校验拒绝），不静默改写。"""
+    from specpowers_cli.bridge.core.fs_state import load_state, _get_state_path
+
+    root = tmp_path / "migrate-unknown"
+    (root / ".specpowers").mkdir(parents=True)
+    _get_state_path(root).write_text(
+        json.dumps({"stage": "galaxy", "mode": "full"}), encoding="utf-8",
+    )
+    assert load_state(root)["stage"] == "galaxy"
+
+
+def test_load_state_fills_design_doc_default(tmp_path):
+    """v1.x state 无 design_doc key 时按 DEFAULT_STATE 补默认空串。"""
+    from specpowers_cli.bridge.core.fs_state import load_state, _get_state_path
+
+    root = tmp_path / "migrate-designdoc"
+    (root / ".specpowers").mkdir(parents=True)
+    _get_state_path(root).write_text(
+        json.dumps({"stage": "propose", "mode": "full"}), encoding="utf-8",
+    )
+    assert load_state(root)["design_doc"] == ""

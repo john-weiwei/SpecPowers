@@ -16,10 +16,10 @@ python -m specpowers_cli.bridge.facade fast "<需求>" --root .
 ## 优化模式流水线
 
 ```
-/specpowers-fast "<需求>" → 判小+确认 → 用户编码 → /specpowers-build → /specpowers-archive
+/specpowers-fast "<需求>" → 判小+确认 → 用户编码 → /specpowers-apply → /specpowers-archive
 ```
 
-**跳过**：brainstorm（探索）→ specify（场景）→ plan（计划）
+**跳过**：explore（探索）→ propose（提案三件套）
 
 ## 执行步骤
 
@@ -61,7 +61,7 @@ python -m specpowers_cli.bridge.facade fast "<需求>" --root .
 ━━━━━━━━━━━━━━━━━━
 选项：
   1. go_fast — 确认优化模式，开始编码
-  2. run_brainstorm — 升级为完整流程（走 brainstorm→specify→plan→build）
+  2. run_explore — 升级为完整流程（走 explore→propose→apply）
 ━━━━━━━━━━━━━━━━━━
 ```
 
@@ -102,9 +102,9 @@ The system SHALL <一句话描述本特性的核心能力>。
 
 用户自行完成代码编写。
 
-### 第五步：运行 /specpowers-build
+### 第五步：运行 /specpowers-apply
 
-用户编码完成后调用 `/specpowers-build`：
+用户编码完成后调用 `/specpowers-apply`：
 - 检测到 `stage=ready, mode=fast`
 - 验证代码变更存在
 - 运行结构门禁信号提取
@@ -120,9 +120,9 @@ fast 模式 archive **与 full 一致**：
 
 ## 回退机制
 
-在 build 阶段，如果用户发现优化模式不适用：
+在 apply 阶段，如果用户发现优化模式不适用：
 - 自然语言表达"升级为完整流程"
-- stage 从 `build` → `specify`
+- stage 从 `apply` → `propose`
 - mode 改为 `full`
 - fallback_count += 1
 - **整个 state 生命周期最多 1 次回退**（reset 不清除计次）

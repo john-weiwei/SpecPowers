@@ -1,19 +1,20 @@
-# build.md — 构建执行契约
+# apply.md — 构建执行契约
 
 ## 触发
 
-当用户调用 `/specpowers-build` 时加载本契约。
+当用户调用 `/specpowers-apply` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（brainstorm/fast 阶段确定并锁定，同一流程不变）。
+> **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（explore/fast 阶段确定并锁定，同一流程不变）。
 
 ## 前置校验
 
 ```bash
-python -m specpowers_cli.bridge.facade build --root .
+python -m specpowers_cli.bridge.facade apply --root .
 ```
 
 Dispatcher 自动校验：
-- 合法 from_stage：`plan`（full 模式）/ `ready`（fast 模式）
+- 合法 from_stage：`propose`（full 模式）/ `ready`（fast 模式）
+- - Full 模式：`openspec/changes/<feature>/proposal.md` 必须存在**且含「## 数据流契约」小节**（确定性层校验段头，倒逼 propose 必须承接 explore 探索结论）
 - Full 模式：`openspec/changes/<feature>/tasks.md` 必须存在
 - Fast 模式：代码变更必须存在（`git diff --stat HEAD` 有输出）
 - constitution.md + baseline.json 必须存在
@@ -33,7 +34,7 @@ Dispatcher 自动校验：
 向用户展示 tasks.md 顶部注释块的推荐，让用户确认或更改执行方式：
 
 ```
-build 阶段 — 选择执行方式
+apply 阶段 — 选择执行方式
 ━━━━━━━━━━━━━━━━━━━━━━━
 tasks.md 推荐：conductor（顺序执行）
 ━━━━━━━━━━━━━━━━━━━━━━━
@@ -121,17 +122,17 @@ Build 完成。下一步：/specpowers-archive
 - 用户已**预先完成编码**（`/specpowers-fast` 声明后）
 - 不执行 tasks.md 中的任务（fast 无 tasks.md，只有 delta spec）
 - 直接运行结构门禁 + delta spec Scenario 验证
-- 中途可通过自然语言"升级为完整流程"回退到 specify（仅一次）
+- 中途可通过自然语言"升级为完整流程"回退到 propose（仅一次）
 
 ## 迭代轮：只执行未完成且未作废的任务（多轮迭代，auto 与人工模式通用）
 
-当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-specify`、`/specpowers-brainstorm` 重入识别确认（人工模式）或 `/specpowers-auto`（无人值守））时，tasks.md 已按 plan 契约完成分轮差异同步，build 执行范围收敛为：
+当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别确认（人工模式）或 `/specpowers-auto`（无人值守））时，tasks.md 已按 propose 契约完成分轮差异同步，apply 执行范围收敛为：
 
 - **只执行未勾选（`[ ]`）且不在「## 已作废」小节的任务**；跨轮保留的 `[x]` 任务视为已交付，跳过
-- 执行前先核对：任务引用的 spec 场景在当前 delta spec 中仍存在（plan 同步与 spec 修订之间若出现漂移，以 spec 为准并记录裁决）
+- 执行前先核对：任务引用的 spec 场景在当前 delta spec 中仍存在（propose 同步与 spec 修订之间若出现漂移，以 spec 为准并记录裁决）
 - 本轮新增任务的执行方式仍按第二步确认（新轮 `execution_mode` 已被确定性层清空，按 tasks.md 顶部推荐或默认 conductor 重新确认并 `record-execution-mode` 记录）
 - 验证阶段（第六步）按**当前 delta spec 全量 Scenario** 验证（含历史轮场景回归），确保迭代未破坏既有行为
 
 ## 后续步骤
 
-完成后 stage 跃迁到 `build`，下一步：`/specpowers-archive [--force-merge-check]`
+完成后 stage 跃迁到 `apply`，下一步：`/specpowers-archive [--force-merge-check]`

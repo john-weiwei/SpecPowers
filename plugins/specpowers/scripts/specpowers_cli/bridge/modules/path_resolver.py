@@ -1,9 +1,12 @@
 """产物路径解析器——OpenSpec change 产物的动态路径单一出口。
 
 路径方案（feature slug 作为文件名前缀，同一流程天然一致）：
-- proposal → openspec/changes/<feature>/proposal.md（brainstorm 产出）
-- spec     → openspec/changes/<feature>/specs/<capability>/spec.md（specify 产出）
-- tasks    → openspec/changes/<feature>/tasks.md（plan 产出）
+- proposal → openspec/changes/<feature>/proposal.md（propose 产出）
+- spec     → openspec/changes/<feature>/specs/<capability>/spec.md（propose 产出）
+- tasks    → openspec/changes/<feature>/tasks.md（propose 产出）
+
+explore 阶段产物为设计文档（docs/specpowers/design/，路径动态登记在
+state.design_doc，不随 feature 推导，不经过本模块）。
 
 固定路径产物（项目级，不随 feature 变化，仍由各自模块管理）：
 - constitution.md / baseline.json / state.json / .lock → .specpowers/
@@ -86,16 +89,16 @@ def resolve_openspec_archive_dir(root: Path) -> Path:
     return root / "openspec" / "changes" / "archive"
 
 
-# ---- OpenSpec change 产物路径（路径 A：specify/plan/brainstorm 直接生成）----
+# ---- OpenSpec change 产物路径（路径 A：propose 一次性生成）----
 
 def resolve_change_dir(root: Path, feature: str) -> Path:
     """解析 OpenSpec change 目录（active 状态，归档前所在位置）。
 
     路径：openspec/changes/<feature>
-    brainstorm/specify/plan 阶段增量写入此目录：
-      - proposal.md（brainstorm 产出）
-      - specs/<capability>/spec.md（specify 产出）
-      - tasks.md（plan 产出）
+    propose 阶段一次性写入此目录（v2.0.0 合并原 brainstorm/specify/plan 的落盘职责）：
+      - proposal.md（方案提案，承接 explore 设计文档结论）
+      - specs/<capability>/spec.md（delta 规格）
+      - tasks.md（任务清单）
     归档成功后 OpenSpec 把它整体移到 openspec/changes/archive/YYYY-MM-DD-<feature>/。
 
     Args:
@@ -106,7 +109,7 @@ def resolve_change_dir(root: Path, feature: str) -> Path:
 
 
 def resolve_change_proposal(root: Path, feature: str) -> Path:
-    """解析 change 的 proposal.md 路径（brainstorm 产出）。
+    """解析 change 的 proposal.md 路径（propose 产出）。
 
     路径：openspec/changes/<feature>/proposal.md
     OpenSpec 结构：## Why / ## What Changes / ## Capabilities / ## Impact
@@ -115,7 +118,7 @@ def resolve_change_proposal(root: Path, feature: str) -> Path:
 
 
 def resolve_change_spec(root: Path, feature: str, capability: str) -> Path:
-    """解析 change 的 delta spec 路径（specify 产出）。
+    """解析 change 的 delta spec 路径（propose 产出）。
 
     路径：openspec/changes/<feature>/specs/<capability>/spec.md
     capability 默认 = feature slug（独立能力）；
@@ -132,11 +135,11 @@ def resolve_change_spec(root: Path, feature: str, capability: str) -> Path:
 
 
 def resolve_change_tasks(root: Path, feature: str) -> Path:
-    """解析 change 的 tasks.md 路径（plan 产出）。
+    """解析 change 的 tasks.md 路径（propose 产出）。
 
     路径：openspec/changes/<feature>/tasks.md
     OpenSpec 复选框格式：## 任务组 / - [ ] 任务项
-    build 阶段执行时勾选 - [x]。
+    apply 阶段执行时勾选 - [x]。
     """
     return resolve_change_dir(root, feature) / "tasks.md"
 
@@ -144,8 +147,8 @@ def resolve_change_tasks(root: Path, feature: str) -> Path:
 def ensure_feature_locked(state: dict) -> str:
     """从 state 取已锁定的 feature slug，防止跨阶段漂移。
 
-    feature 一旦在 brainstorm/fast 阶段写入 state，后续阶段（specify/plan/
-    build/archive）应复用同一值，保证 openspec change 目录与产物名一致。
+    feature 一旦在 explore/fast 阶段写入 state，后续阶段（propose/apply/
+    archive）应复用同一值，保证 openspec change 目录与产物名一致。
 
     Args:
         state: state.json 加载出的 dict。

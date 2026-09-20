@@ -3,7 +3,7 @@
 回归覆盖：
 - --root <path> 与 --root=<path> 两种形式都能被正确解析
 - --root 必须从 requirement 中移除，不能被 " ".join(args) 拼进 feature 名
-  （原 bug：brainstorm "需求" --root . 导致 state.feature 变成
+  （原 bug：explore "需求" --root . 导致 state.feature 变成
   「洗护到家黄牛充值限制---root」一类的脏数据）
 
 作者：005819 | 协作：GLM-5.2
@@ -44,12 +44,12 @@ def _create_temp_git_repo(tmp_path: Path) -> Path:
 
 
 def _seed_ready_state(root: Path) -> None:
-    """把 state 推进到 ready 并补齐 brainstorm 前置产物，使 brainstorm 合法。"""
+    """把 state 推进到 ready 并补齐 explore 前置产物，使 explore 合法。"""
     from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE
     state = dict(DEFAULT_STATE)
     state["stage"] = "ready"
     save_state(root, state)
-    # brainstorm 前置检查要求 constitution.md 存在
+    # explore 前置检查要求 constitution.md 存在
     (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
 
 
@@ -98,12 +98,12 @@ def test_extract_root_value_cannot_be_next_option(capsys):
 
 # ---------- 通过 main() 的回归测试 ----------
 
-def test_brainstorm_root_not_merged_into_feature(tmp_path: Path):
-    """回归：brainstorm 带正确参数时 --root 不得污染 feature 名。"""
+def test_explore_root_not_merged_into_feature(tmp_path: Path):
+    """回归：explore 带正确参数时 --root 不得污染 feature 名。"""
     root = _create_temp_git_repo(tmp_path)
     _seed_ready_state(root)
 
-    rc = main(["brainstorm", "洗护到家黄牛充值限制", "--root", str(root)])
+    rc = main(["explore", "洗护到家黄牛充值限制", "--root", str(root)])
     assert rc == 0
 
     feature = load_state(root)["feature"]
@@ -114,12 +114,12 @@ def test_brainstorm_root_not_merged_into_feature(tmp_path: Path):
     assert "." not in feature
 
 
-def test_brainstorm_root_equals_form_not_merged_into_feature(tmp_path: Path):
+def test_explore_root_equals_form_not_merged_into_feature(tmp_path: Path):
     """回归：--root=<path> 形式同样不得污染 feature 名。"""
     root = _create_temp_git_repo(tmp_path)
     _seed_ready_state(root)
 
-    rc = main(["brainstorm", "--root=" + str(root), "登录模块重构"])
+    rc = main(["explore", "--root=" + str(root), "登录模块重构"])
     assert rc == 0
 
     feature = load_state(root)["feature"]

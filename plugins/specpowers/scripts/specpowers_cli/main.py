@@ -200,10 +200,10 @@ def _copy_agent_files(project_dir: Path, integration: dict):
         _atomic_copytree(bin_source, bin_target)
 
     # 2. Individual skills: specpowers-<stage>/SKILL.md (9 skills)
-    #    命令文件已去 specpowers. 前缀（constitution.md 等），这里恢复成独立 skill
+    #    命令文件已去 specpowers. 前缀（init.md 等），这里恢复成独立 skill
     if commands_dir.exists():
         for cmd_file in commands_dir.glob("*.md"):
-            # constitution.md → specpowers-constitution/SKILL.md
+            # init.md → specpowers-init/SKILL.md
             skill_name = f"specpowers-{cmd_file.stem}"
             skill_dir = skills_root / skill_name
             skill_dir.mkdir(parents=True, exist_ok=True)
@@ -315,13 +315,13 @@ def cmd_init(args: argparse.Namespace) -> int:
     print()
     print("Next steps:")
     print("  1. cd " + (args.directory or "."))
-    print("  2. $specpowers-constitution    ← generate project principles + baseline")
-    print("  3. $specpowers-brainstorm \"<requirement>\"   ← start a feature")
+    print("  2. $specpowers-init    ← generate project principles + baseline")
+    print("  3. $specpowers-explore \"<requirement>\"   ← start a feature")
     print("     or $specpowers-fast \"<requirement>\"      ← quick fix mode")
     print()
-    print("All skills: $specpowers-constitution $specpowers-brainstorm $specpowers-specify")
-    print("            $specpowers-plan $specpowers-build $specpowers-archive")
-    print("            $specpowers-fast $specpowers-baseline $specpowers-reset")
+    print("All skills: $specpowers-init $specpowers-explore $specpowers-propose")
+    print("            $specpowers-apply $specpowers-archive")
+    print("            $specpowers-fast $specpowers-auto $specpowers-baseline $specpowers-reset")
     return 0
 
 

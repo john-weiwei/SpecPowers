@@ -5,13 +5,13 @@
 
 # /specpowers-auto 执行汇总：<功能名>（Round <N>）
 
-- **执行模式**：无人值守（澄清 → constitution → brainstorm → specify → plan → build → codex-review → [archive]）
-- **需求澄清**：<ceiling = full（直通全流程）/ ceiling = brainstorm（停靠，待用户裁决 <N> 项）>；遗留 <N> 项（详见 `.specpowers/auto_clarifications/<feature>.md`）
+- **执行模式**：无人值守（澄清 → init → explore → propose → apply → codex-review → [archive]）
+- **需求澄清**：<ceiling = full（直通全流程）/ ceiling = explore（停靠，待用户裁决 <N> 项）>；遗留 <N> 项（详见 `.specpowers/auto_clarifications/<feature>.md`）
 - **需求迭代轮次**：第 <N> 轮（归档前同一需求多轮迭代，轮次不设上限；与 review 复审轮次相互独立；Round 0 为未收敛草案轮时在此注明）
 - **本轮输入形态**：<新设计文档 <路径> / 原设计文档内容变更 / 口头指令 "<摘要>" / 断点续跑（无新输入）>
 - **本轮迭代深度**：<全量（方案变更）/ 全量（场景与范围调整）/ 轻量（spec 必改底线不变）/ 续跑>
 - **本轮调整范围**：<相对上一轮的变化点，逐条列出；首轮写「首次执行」>
-- **执行结果**：本轮完成（未归档，可继续迭代、`--archive` 或手动归档）/ 本轮完成并归档（显式 `--archive` 收口）/ brainstorm 停靠（方案待定，等待输入：带 `--instruction "<方案结论>"` 或补充文档重入）/ 硬阻断停下（第 <M> 步）
+- **执行结果**：本轮完成（未归档，可继续迭代、`--archive` 或手动归档）/ 本轮完成并归档（显式 `--archive` 收口）/ explore 停靠（方案待定，等待输入：带 `--instruction "<方案结论>"` 或补充文档重入）/ 硬阻断停下（第 <M> 步）
 - **设计文档**：<当前有效设计文档路径>
 - **审查基点**：<base_commit SHA>（首轮记录，跨轮不变，记录于 `.specpowers/auto_base.json`）
 - **审查方式**：codex-review 技能 / 降级自审 checklist（二选一，降级时注明原因）
@@ -20,11 +20,10 @@
 
 | 阶段 | 产物 | 路径 |
 |------|------|------|
-| constitution | constitution.md | `.specpowers/constitution.md` |
-| brainstorm | proposal.md | `openspec/changes/<feature>/proposal.md`（迭代轮含「## 迭代历史」） |
-| specify | spec.md | `openspec/changes/<feature>/specs/.../spec.md`（迭代轮为增量修订） |
-| plan | tasks.md | `openspec/changes/<feature>/tasks.md`（迭代轮按 Round 分节） |
-| build | 代码 + 测试 | <涉及目录> |
+| init | constitution.md | `.specpowers/constitution.md` |
+| explore | 设计文档 | `docs/specpowers/design/...`（迭代轮含「## 迭代历史」） |
+| propose | proposal/spec/tasks 三件套 | `openspec/changes/<feature>/`（proposal 含数据流契约；spec 迭代轮为增量修订；tasks 迭代轮按 Round 分节） |
+| apply | 代码 + 测试 | <涉及目录> |
 | codex-review | 审查记录 | <落盘路径，如有> |
 | archive | 归档结果 | `openspec/specs/<capability>/spec.md`（本轮归档时填写；未归档写「本轮未归档」） |
 
@@ -74,9 +73,9 @@
 |------|----------|----------|------|
 | <auto 入口> | <本轮模式判定> | <fresh/resume/iterate + 深度 full/light> | <auto-status 判定理由> |
 | <澄清（第 1 步）> | <五维检查裁决> | <ceiling 判定 + 采信/改写/裁剪结论> | <文档章节 / 默认策略 / 保守原则，详见澄清报告> |
-| <brainstorm> | <方案取舍确认> | <按文档结论执行> | <文档章节号> |
-| <build> | <门禁转人工信号> | <自愈/硬阻断> | <信号内容与处置> |
-| <plan> | <任务作废> | <移入已作废小节> | <作废依据> |
+| <explore> | <方案取舍确认> | <按文档结论执行> | <文档章节号> |
+| <apply> | <门禁转人工信号> | <自愈/硬阻断> | <信号内容与处置> |
+| <propose> | <任务作废> | <移入已作废小节> | <作废依据> |
 
 ## 六、遗留风险
 

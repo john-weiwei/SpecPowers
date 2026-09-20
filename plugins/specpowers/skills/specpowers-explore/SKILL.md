@@ -1,6 +1,6 @@
 ---
 name: specpowers-explore
-description: SpecPowers 内置需求探索技能（源自 auto-brainstorm）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘 → 结构化探索结论，供 brainstorm 阶段收口 proposal.md
+description: SpecPowers 内置需求探索技能（源自 auto-brainstorm）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘 → 结构化探索结论，供 explore 阶段收口（propose 阶段承接生成 proposal.md）
 allowed-tools:
   - Read
   - Edit
@@ -12,15 +12,15 @@ allowed-tools:
 
 # specpowers-explore — 需求探索技能（SpecPowers 内置）
 
-> **定位**：流水线 brainstorm 阶段的探索引擎，替代外部 superpowers `brainstorming` 技能。
-> 本技能负责「探索 + 方案对比 + 推荐 + 设计文档落盘」；收口写 proposal.md、跨链路字段追问、与用户交互决策均由调用方契约 `prompts/brainstorm.md` 承担。
+> **定位**：流水线 explore 阶段的探索引擎，替代外部 superpowers `brainstorming` 技能。
+> 本技能负责「探索 + 方案对比 + 推荐 + 设计文档落盘」；数据流溯源收口、设计文档补全与登记、跨链路字段追问、与用户交互决策均由调用方契约 `prompts/explore.md` 承担（proposal.md 由下游 propose 阶段从设计文档提炼生成）。
 
 ## 触发方式
 
 | 调用方 | 行为 |
 |--------|------|
-| `prompts/brainstorm.md`（HARD-GATE） | 人工模式 brainstorm 阶段第一步强制调用 |
-| `prompts/auto.md` 阶段编排第 3 步 | auto 模式经 brainstorm 契约间接调用（方案已在设计文档定稿时，探索仅用于核对现有代码事实） |
+| `prompts/explore.md`（HARD-GATE） | 人工模式 explore 阶段第一步强制调用 |
+| `prompts/auto.md` 阶段编排第 3 步 | auto 模式经 explore 契约间接调用（方案已在设计文档定稿时，探索仅用于核对现有代码事实） |
 
 本技能**不产出 SpecPowers 流水线产物**（proposal.md / spec.md / tasks.md），探索结论以结构化 Markdown 在对话上下文中交付调用方；设计文档是本技能唯一的落盘产物。
 
@@ -61,7 +61,7 @@ allowed-tools:
 步骤5: 输出结构化探索结论（对话上下文交付）
        - 按下方「探索结论输出模板」组装（含设计文档路径）
        - 含「需用户裁决」标记项时（不可逆决策：选型/架构方向），
-         交由调用方 brainstorm.md 按其「交互决策原则」用 AskUserQuestion 处理
+         交由调用方 explore.md 按其「交互决策原则」用 AskUserQuestion 处理
 ```
 
 ## 关键规则
@@ -75,7 +75,7 @@ allowed-tools:
 | 遵循项目约定 | 发现项目用 MapStruct 就不要推 BeanUtils，用 Swagger 就不要推 SpringDoc |
 | 推荐唯一方案 | 不要说"都可以"，必须明确推荐一个并说明理由 |
 | 设计文档写文件 | 不只在对话中展示，必须 Write 到 `docs/specpowers/design/` 落盘 |
-| 探索结论留对话 | 结构化结论完整呈现在对话中，供调用方收口 proposal.md 引用 |
+| 探索结论留对话 | 结构化结论完整呈现在对话中，供调用方收口引用 |
 
 ### 禁止做
 
@@ -85,7 +85,7 @@ allowed-tools:
 | ❌ 跳过项目探索 | 不能只看需求描述就出方案，必须读代码 |
 | ❌ 引入新依赖 | 除非需求明确要求，否则使用项目已有技术栈 |
 | ❌ 输出占位符 | 设计文档与探索结论中均不允许出现 TBD/TODO/待补充 |
-| ❌ 写流水线产物 | 不写 proposal.md / spec.md / tasks.md——这些归 brainstorm 契约管；设计文档（`docs/specpowers/design/`）是本技能唯一落盘产物 |
+| ❌ 写流水线产物 | 不写 proposal.md / spec.md / tasks.md——这些归 propose 契约管；设计文档（`docs/specpowers/design/`）是本技能唯一落盘产物 |
 
 ## 方案对比表模板
 
@@ -182,15 +182,15 @@ docs/specpowers/design/YYYY-MM-DD-{name}-design.md
 ```
 本技能（specpowers-explore）
   输出：设计文档（磁盘文件 docs/specpowers/design/）+ 对话上下文中的结构化探索结论
-  衔接方式：返回调用方 prompts/brainstorm.md
+  衔接方式：返回调用方 prompts/explore.md
       ↓
-brainstorm.md 契约
+explore.md 契约
   输入：探索结论 + 设计文档
-  职责：跨链路字段数据流溯源（条件触发）→ 决策摘要 → proposal.md 落盘
-  （proposal.md 可引用设计文档路径作为决策佐证）
-  衔接方式：/specpowers-specify 做场景规格化
+  职责：跨链路字段数据流溯源（条件触发，结论写入设计文档数据流章节）→ 决策摘要
+  → 设计文档补全 + facade record-design-doc 登记
+  衔接方式：/specpowers-propose 一站式生成三件套
       ↓
-specify → plan → build → archive（SpecPowers 流水线后续阶段）
+propose → apply → archive（SpecPowers 流水线后续阶段）
 ```
 
 > 原版 auto-brainstorm 的下游链路（auto-plan → auto-save-plan → auto-execute-plan）不适用：SpecPowers 由自身流水线接管规划与执行，本技能不再衔接外部自动化链。

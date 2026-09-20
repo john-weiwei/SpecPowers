@@ -3,7 +3,7 @@
 覆盖方案 docs/auto-iteration-plan.md 的确定性层改动：
 - auto-status 三分判定（fresh 残留清理 / resume 文档未变 / iterate 文档变更与口头指令 / 人工流程接管 / 旧格式兼容）
 - auto new-round（轮次递增 + feature 锁定 + rounds 落盘 + 旧格式迁移 + 三类拒绝）
-- brainstorm/specify 的 --feature 显式锁定
+- explore/propose 的 --feature 显式锁定
 - 归档成功后清理 auto_base.json + iteration_count 清零
 
 作者：005819 | 协作：GLM-5.3
@@ -58,8 +58,8 @@ def _read_auto_base(root: Path) -> dict:
 
 
 def _seed_active_auto_feature(root: Path, feature: str = "auto-feat",
-                              iteration_count: int = 1, stage: str = "build") -> None:
-    """构造活跃 auto 需求：stage 默认 build、iteration_count 默认 1（已跑过一轮）。"""
+                              iteration_count: int = 1, stage: str = "apply") -> None:
+    """构造活跃 auto 需求：stage 默认 apply、iteration_count 默认 1（已跑过一轮）。"""
     from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE
 
     state = dict(DEFAULT_STATE)
@@ -165,7 +165,7 @@ def test_auto_status_iterate_when_manual_pipeline_no_base(tmp_path):
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "specify"
+    state["stage"] = "propose"
     state["feature"] = "manual-feat"
     save_state(root, state)
 
@@ -210,7 +210,7 @@ def test_auto_status_missing_doc_marks_not_exists(tmp_path):
 # ---- auto new-round 受控轮次切换 ----
 
 def test_auto_new_round_increments_and_locks_feature(tmp_path):
-    """new-round：iteration_count+1、stage→specify、feature 锁定、rounds 追加、execution_mode 清空。"""
+    """new-round：iteration_count+1、stage→propose、feature 锁定、rounds 追加、execution_mode 清空。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state
 
@@ -224,7 +224,7 @@ def test_auto_new_round_increments_and_locks_feature(tmp_path):
 
     state = load_state(root)
     assert state["iteration_count"] == 2
-    assert state["stage"] == "specify"
+    assert state["stage"] == "propose"
     assert state["feature"] == "auto-feat"
     assert state["execution_mode"] == ""
 
@@ -264,7 +264,7 @@ def test_auto_new_round_requires_auto_base(tmp_path):
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["feature"] = "plain-feat"
     save_state(root, state)
 
@@ -304,8 +304,8 @@ def test_auto_new_round_rejected_when_archived(tmp_path):
 
 # ---- feature 显式锁定（--feature）----
 
-def test_brainstorm_explicit_feature_lock(tmp_path):
-    """brainstorm --feature 显式锁定 slug，不随 requirement 措辞漂移。"""
+def test_explore_explicit_feature_lock(tmp_path):
+    """explore --feature 显式锁定 slug，不随 requirement 措辞漂移。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE, load_state
 
@@ -316,31 +316,33 @@ def test_brainstorm_explicit_feature_lock(tmp_path):
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
 
-    assert route("brainstorm", "full", root, extra={
+    assert route("explore", "full", root, extra={
         "requirement": "全新需求措辞",
         "feature": "locked-feat",
     }) == 0
     assert load_state(root)["feature"] == "locked-feat"
 
 
-def test_specify_explicit_feature_overrides_existing(tmp_path):
-    """specify --feature 显式指定优先级高于 state 已有 feature。"""
+def test_propose_explicit_feature_overrides_existing(tmp_path):
+    """propose --feature 显式指定优先级高于 state 已有 feature。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state
 
     root = _create_temp_git_repo(tmp_path)
     state = load_state(root)
-    state["stage"] = "brainstorm"
+    state["stage"] = "explore"
     state["feature"] = "origin-feat"
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
-    # proposal 按显式锁定的 slug 解析路径（迭代场景 change 目录即锁定 slug）
-    proposal = root / "openspec" / "changes" / "locked-feat" / "proposal.md"
-    proposal.parent.mkdir(parents=True, exist_ok=True)
-    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
+    # from explore 进入需要设计文档已登记（防架空链）
+    design_doc = root / "docs" / "specpowers" / "design" / "2026-01-01-origin-design.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text("# 设计\n## 数据流\n本特性无跨链路字段\n", encoding="utf-8")
+    state["design_doc"] = str(design_doc)
+    save_state(root, state)
 
-    assert route("specify", "full", root, extra={
+    assert route("propose", "full", root, extra={
         "requirement": "需求描述",
         "feature": "locked-feat",
     }) == 0
@@ -387,16 +389,16 @@ def test_archive_cleans_auto_base_and_resets_iteration(tmp_path, monkeypatch):
     assert state["iteration_count"] == 0
 
 
-# ---- 人工模式迭代轮（specify/brainstorm 重入识别 → facade iterate，不要求 auto_base.json）----
+# ---- 人工模式迭代轮（propose/explore 重入识别 → facade iterate，不要求 auto_base.json）----
 
 def test_iterate_without_auto_base_succeeds(tmp_path):
-    """人工流程（无 auto_base.json）也能开启迭代轮：stage→specify、feature 锁定、计数+1。"""
+    """人工流程（无 auto_base.json）也能开启迭代轮：stage→propose、feature 锁定、计数+1。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["mode"] = "full"
     state["feature"] = "manual-feat"
     state["execution_mode"] = "conductor"
@@ -405,7 +407,7 @@ def test_iterate_without_auto_base_succeeds(tmp_path):
     assert route("iterate", "full", root, extra={"instruction": "补充失败场景"}) == 0
 
     state = load_state(root)
-    assert state["stage"] == "specify"
+    assert state["stage"] == "propose"
     assert state["feature"] == "manual-feat"
     assert state["iteration_count"] == 1
     assert state["execution_mode"] == ""
@@ -436,7 +438,7 @@ def test_iterate_rejected_when_archived(tmp_path):
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["feature"] = "done-feat"
     save_state(root, state)
     subprocess.run(
@@ -449,34 +451,29 @@ def test_iterate_rejected_when_archived(tmp_path):
 
 
 def test_iterate_does_not_consume_fallback_count(tmp_path):
-    """迭代轮不占用 fallback 额度：iterate 后 fallback_count 仍为 0，build→specify 回退仍可用。"""
+    """迭代轮不占用 fallback 额度：iterate 后 fallback_count 仍为 0，apply→propose 回退仍可用。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["mode"] = "fast"
     state["feature"] = "manual-feat"
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
-    # fallback（build→specify）前置：proposal 含数据流契约
-    proposal = root / "openspec" / "changes" / "manual-feat" / "proposal.md"
-    proposal.parent.mkdir(parents=True, exist_ok=True)
-    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
-
-    # 先消耗唯一一次 fallback（build→specify）
-    assert route("specify", "full", root, extra={"requirement": "升级完整流程"}) == 0
+    # 先消耗唯一一次 fallback（apply→propose；from apply 不校验设计文档/proposal）
+    assert route("propose", "full", root, extra={"requirement": "升级完整流程"}) == 0
     assert load_state(root)["fallback_count"] == 1
 
-    # 推回 build 后走 iterate（不是 fallback）→ 放行且 fallback_count 不变
+    # 推回 apply 后走 iterate（不是 fallback）→ 放行且 fallback_count 不变
     state = load_state(root)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     save_state(root, state)
     assert route("iterate", "full", root, extra={}) == 0
     assert load_state(root)["fallback_count"] == 1
-    assert load_state(root)["stage"] == "specify"
+    assert load_state(root)["stage"] == "propose"
 
 
 def _seed_manual_iteration_repo(tmp_path: Path, feature: str = "manual-feat") -> Path:
@@ -485,20 +482,17 @@ def _seed_manual_iteration_repo(tmp_path: Path, feature: str = "manual-feat") ->
     from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE
 
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["mode"] = "full"
     state["feature"] = feature
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
-    proposal = root / "openspec" / "changes" / feature / "proposal.md"
-    proposal.parent.mkdir(parents=True, exist_ok=True)
-    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
     return root
 
 
-def test_specify_self_loop_after_iterate_continues_round(tmp_path):
-    """迭代轮开启后重跑 /specpowers-specify（from specify 自环）→ 放行续作：轮次不变、feature 锁定、不消耗 fallback。"""
+def test_propose_self_loop_after_iterate_continues_round(tmp_path):
+    """迭代轮开启后重跑 /specpowers-propose（from propose 自环）→ 放行续作：轮次不变、feature 锁定、不消耗 fallback。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state
 
@@ -506,30 +500,30 @@ def test_specify_self_loop_after_iterate_continues_round(tmp_path):
     assert route("iterate", "full", root, extra={"instruction": "补充失败场景"}) == 0
     assert load_state(root)["iteration_count"] == 1
 
-    # 迭代轮中重跑 specify：自环幂等放行（续作修订，不是新一轮，也不占 fallback 额度）
-    assert route("specify", "full", root, extra={"requirement": "补充失败场景"}) == 0
+    # 迭代轮中重跑 propose：自环幂等放行（续作修订，不是新一轮，也不占 fallback 额度）
+    assert route("propose", "full", root, extra={"requirement": "补充失败场景"}) == 0
 
     state = load_state(root)
-    assert state["stage"] == "specify"
+    assert state["stage"] == "propose"
     assert state["feature"] == "manual-feat"
     assert state["iteration_count"] == 1
     assert state["fallback_count"] == 0
 
 
-def test_specify_self_loop_idempotent_without_iteration(tmp_path):
-    """无迭代上下文（iteration_count=0）的 specify 自环重跑同样放行（幂等，轮次仍为 0）。"""
+def test_propose_self_loop_idempotent_without_iteration(tmp_path):
+    """无迭代上下文（iteration_count=0）的 propose 自环重跑同样放行（幂等，轮次仍为 0）。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state
 
     root = _seed_manual_iteration_repo(tmp_path)
     state = load_state(root)
-    state["stage"] = "specify"
+    state["stage"] = "propose"
     save_state(root, state)
 
-    assert route("specify", "full", root, extra={"requirement": "重新生成"}) == 0
+    assert route("propose", "full", root, extra={"requirement": "重新生成"}) == 0
 
     state = load_state(root)
-    assert state["stage"] == "specify"
+    assert state["stage"] == "propose"
     assert state["iteration_count"] == 0
     assert state["fallback_count"] == 0
 
@@ -544,12 +538,12 @@ def test_auto_clarify_registers_ceiling_and_refresh(tmp_path):
     _seed_active_auto_feature(root, iteration_count=0, stage="ready")
 
     assert route("auto-clarify", "full", root, extra={
-        "ceiling": "brainstorm",
+        "ceiling": "explore",
         "report": ".specpowers/auto_clarifications/auto-feat.md",
     }) == 0
     base = _read_auto_base(root)
     clar = base["clarification"]
-    assert clar["ceiling"] == "brainstorm"
+    assert clar["ceiling"] == "explore"
     assert clar["report_path"] == ".specpowers/auto_clarifications/auto-feat.md"
     assert clar["checked_at"]
     assert len(base["rounds"]) == 1
@@ -570,7 +564,7 @@ def test_auto_clarify_rejects_invalid_ceiling(tmp_path):
     _seed_active_auto_feature(root)
 
     with pytest.raises(FatalError):
-        route("auto-clarify", "full", root, extra={"ceiling": "specify"})
+        route("auto-clarify", "full", root, extra={"ceiling": "galaxy"})
     assert "clarification" not in _read_auto_base(root)
 
 
@@ -582,7 +576,7 @@ def test_auto_clarify_requires_auto_base(tmp_path):
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["feature"] = "plain-feat"
     save_state(root, state)
 
@@ -591,14 +585,14 @@ def test_auto_clarify_requires_auto_base(tmp_path):
 
 
 def test_auto_status_resume_reports_pending_input_when_parked(tmp_path):
-    """ceiling=brainstorm 停靠 + 无新输入重入 → resume + pending_input=True（契约层据此禁止盲续跑 specify）。"""
+    """ceiling=explore 停靠 + 无新输入重入 → resume + pending_input=True（契约层据此禁止盲续跑 propose）。"""
     from specpowers_cli.bridge.dispatcher import auto_status
 
     root = _create_temp_git_repo(tmp_path)
-    _seed_active_auto_feature(root, iteration_count=0, stage="brainstorm")
+    _seed_active_auto_feature(root, iteration_count=0, stage="explore")
     base = _read_auto_base(root)
     base["clarification"] = {
-        "ceiling": "brainstorm",
+        "ceiling": "explore",
         "report_path": ".specpowers/auto_clarifications/auto-feat.md",
         "checked_at": "2026-01-01T00:00:00+00:00",
     }
@@ -606,7 +600,7 @@ def test_auto_status_resume_reports_pending_input_when_parked(tmp_path):
 
     result = auto_status(root)
     assert result["mode"] == "resume"
-    assert result["clarification"]["ceiling"] == "brainstorm"
+    assert result["clarification"]["ceiling"] == "explore"
     assert result["clarification"]["pending_input"] is True
     assert result["clarification"]["report_path"].endswith("auto-feat.md")
 
@@ -616,10 +610,10 @@ def test_auto_status_iterate_clears_pending_input(tmp_path):
     from specpowers_cli.bridge.dispatcher import auto_status
 
     root = _create_temp_git_repo(tmp_path)
-    _seed_active_auto_feature(root, iteration_count=0, stage="brainstorm")
+    _seed_active_auto_feature(root, iteration_count=0, stage="explore")
     base = _read_auto_base(root)
     base["clarification"] = {
-        "ceiling": "brainstorm",
+        "ceiling": "explore",
         "report_path": "",
         "checked_at": "2026-01-01T00:00:00+00:00",
     }
@@ -627,7 +621,7 @@ def test_auto_status_iterate_clears_pending_input(tmp_path):
 
     result = auto_status(root, instruction="方案定为方案B，理由见讨论")
     assert result["mode"] == "iterate"
-    assert result["clarification"]["ceiling"] == "brainstorm"
+    assert result["clarification"]["ceiling"] == "explore"
     assert result["clarification"]["pending_input"] is False
 
 
@@ -650,7 +644,31 @@ def test_auto_clarify_via_facade_main(tmp_path):
     root = _create_temp_git_repo(tmp_path)
     _seed_active_auto_feature(root, iteration_count=0, stage="ready")
 
+    assert main(["auto", "clarify", "--ceiling", "explore", "--root", str(root)]) == 0
+    assert _read_auto_base(root)["clarification"]["ceiling"] == "explore"
+    # 旧值兼容：v1.x 的 brainstorm 读入归一为 explore
     assert main(["auto", "clarify", "--ceiling", "brainstorm", "--root", str(root)]) == 0
-    assert _read_auto_base(root)["clarification"]["ceiling"] == "brainstorm"
+    assert _read_auto_base(root)["clarification"]["ceiling"] == "explore"
 
     assert main(["auto", "clarify", "--ceiling", "bad", "--root", str(root)]) == 2
+
+
+# ---- v2.0.0 旧值兼容（ceiling=brainstorm 归一为 explore）----
+
+def test_auto_status_normalizes_legacy_brainstorm_ceiling(tmp_path):
+    """v1.x 登记的 ceiling=brainstorm 读出归一为 explore，pending_input 语义不变。"""
+    from specpowers_cli.bridge.dispatcher import auto_status
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_active_auto_feature(root, iteration_count=0, stage="explore")
+    base = _read_auto_base(root)
+    base["clarification"] = {
+        "ceiling": "brainstorm",
+        "report_path": "",
+        "checked_at": "2026-01-01T00:00:00+00:00",
+    }
+    _write_auto_base(root, base)
+
+    result = auto_status(root)
+    assert result["clarification"]["ceiling"] == "explore"
+    assert result["clarification"]["pending_input"] is True

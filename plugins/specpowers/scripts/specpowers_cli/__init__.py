@@ -1,3 +1,3 @@
 """SpecPowers CLI — spec 驱动开发桥接编排插件（桥接 OpenSpec CLI + superpowers）。"""
 
-__version__ = "1.3.0"
+__version__ = "2.0.0"

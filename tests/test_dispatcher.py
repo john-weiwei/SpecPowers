@@ -97,8 +97,8 @@ def test_handle_fast_from_ready_succeeds(tmp_path):
     assert exit_code == 0
 
 
-def test_handle_fast_from_build_rejected(tmp_path):
-    """fast 命令不允许从 build 阶段启动（应抛 StateError）。"""
+def test_handle_fast_from_apply_rejected(tmp_path):
+    """fast 命令不允许从 apply 阶段启动（应抛 StateError）。"""
     from specpowers_cli.bridge.dispatcher import _handle_fast
     from specpowers_cli.bridge.core.fs_state import init_state, save_state
 
@@ -106,10 +106,10 @@ def test_handle_fast_from_build_rejected(tmp_path):
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     state = init_state(root)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     save_state(root, state)
 
-    # 从 build 启动 fast 应被拒绝
+    # 从 apply 启动 fast 应被拒绝
     with pytest.raises(StateError):
         _handle_fast(root, {"requirement": "fix typo"})
 
@@ -136,10 +136,10 @@ def test_normalize_feature_truncate_at_40():
     assert len(result) <= 45
 
 
-# ---- proposal 数据流契约校验回归（防止 brainstorming 被架空）----
+# ---- proposal 数据流契约校验回归（v2.0.0：校验点从 specify 入口迁到 apply 入口，防探索结论被架空）----
 
-def _setup_specify_prereqs(root: Path, feature: str, proposal_content: str):
-    """构造进入 specify 所需的全部前置：state + constitution + proposal。
+def _setup_apply_prereqs(root: Path, feature: str, proposal_content: str):
+    """构造进入 apply 所需的全部前置：state(propose) + constitution/baseline + 三件套。
 
     Args:
         root: 临时仓库根。
@@ -155,62 +155,66 @@ def _setup_specify_prereqs(root: Path, feature: str, proposal_content: str):
         encoding="utf-8",
     )
     state = init_state(root)
-    state["stage"] = "brainstorm"
+    state["stage"] = "propose"
     state["feature"] = feature
     save_state(root, state)
     (specpowers_dir / "constitution.md").write_text("# 项目原则", encoding="utf-8")
     change_dir = root / "openspec" / "changes" / feature
-    change_dir.mkdir(parents=True, exist_ok=True)
+    spec_dir = change_dir / "specs" / feature
+    spec_dir.mkdir(parents=True, exist_ok=True)
     (change_dir / "proposal.md").write_text(proposal_content, encoding="utf-8")
+    (spec_dir / "spec.md").write_text("## ADDED Requirements\n", encoding="utf-8")
+    (change_dir / "tasks.md").write_text("### Task 1: 示例\n", encoding="utf-8")
 
 
-def test_specify_rejects_proposal_without_data_flow_contract(tmp_path):
-    """proposal 缺「数据流契约」小节时，specify 前置校验应拒收。
+def test_apply_rejects_proposal_without_data_flow_contract(tmp_path):
+    """proposal 缺「数据流契约」小节时，apply 前置校验应拒收。
 
-    防止 brainstorming 被架空：agent 若跳过探索，proposal 不会含数据流契约，
-    _check_proposal_data_flow_contract 将其拦在 specify 之外，强制回 brainstorm 补全。
+    防止探索结论被架空：agent 若跳过 explore/propose 直写 proposal，
+    proposal 不会含数据流契约，_check_proposal_data_flow_contract 将其拦在
+    apply 之外，强制回 propose 补全（propose 必须承接 explore 设计文档结论）。
     """
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
     from specpowers_cli.bridge.core.errors import ArtifactMissingError
 
     root = _create_temp_git_repo(tmp_path)
     # proposal 不含数据流契约段头，也不含「无跨链路字段」声明
-    _setup_specify_prereqs(root, "login", "## Why\n需要登录\n## What Changes\n加登录\n## Impact\n无")
+    _setup_apply_prereqs(root, "login", "## Why\n需要登录\n## What Changes\n加登录\n## Impact\n无")
 
     with pytest.raises(ArtifactMissingError):
-        _run_pre_stage_checks(root, "specify", "full", "login")
+        _run_pre_stage_checks(root, "apply", "full", "login")
 
 
-def test_specify_accepts_proposal_with_data_flow_contract(tmp_path):
-    """proposal 含「数据流契约」段头时，specify 前置校验应通过。"""
+def test_apply_accepts_proposal_with_data_flow_contract(tmp_path):
+    """proposal 含「数据流契约」段头时，apply 前置校验应通过。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
 
     root = _create_temp_git_repo(tmp_path)
-    _setup_specify_prereqs(
+    _setup_apply_prereqs(
         root, "login",
         "## Why\n需要登录\n## 数据流契约\n| 字段 | 来源 |\n|---|---|\n## Impact\n无",
     )
 
     # 不应抛异常
-    _run_pre_stage_checks(root, "specify", "full", "login")
+    _run_pre_stage_checks(root, "apply", "full", "login")
 
 
-def test_specify_accepts_proposal_with_no_crosslink_decl(tmp_path):
-    """proposal 含「本特性无跨链路字段」声明时，specify 前置校验应通过。"""
+def test_apply_accepts_proposal_with_no_crosslink_decl(tmp_path):
+    """proposal 含「本特性无跨链路字段」声明时，apply 前置校验应通过。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
 
     root = _create_temp_git_repo(tmp_path)
-    _setup_specify_prereqs(
+    _setup_apply_prereqs(
         root, "login",
         "## Why\n需要登录\n## 数据流契约\n本特性无跨链路字段\n## Impact\n无",
     )
 
     # 不应抛异常
-    _run_pre_stage_checks(root, "specify", "full", "login")
+    _run_pre_stage_checks(root, "apply", "full", "login")
 
 
 def test_fast_mode_skips_proposal_contract_check(tmp_path):
-    """fast 模式不触发 proposal 数据流契约校验（fast 跳过 brainstorm/specify）。"""
+    """fast 模式不触发 proposal 数据流契约校验（fast 跳过 explore/propose，无 proposal）。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
     from specpowers_cli.bridge.core.fs_state import init_state, save_state
 
@@ -221,64 +225,180 @@ def test_fast_mode_skips_proposal_contract_check(tmp_path):
     (specpowers_dir / "constitution.md").write_text("# 项目原则", encoding="utf-8")
     state = init_state(root)
     save_state(root, state)
+    # fast 语义：用户已完成编码（修改已跟踪文件留未提交变更，供代码变更检查通过）
+    (root / "README.md").write_text("# Test + fix", encoding="utf-8")
 
-    # fast 模式 plan：无 proposal，也不应因数据流契约校验失败
-    # （plan 不消费 proposal，且 fast 模式下 proposal required=False）
-    _run_pre_stage_checks(root, "plan", "fast", "login")
+    # fast 模式 apply：无 proposal 也不应因数据流契约校验失败
+    # （fast 模式下 proposal required=False）
+    _run_pre_stage_checks(root, "apply", "fast", "login")
 
 
-# ---- build→specify fallback 路径回归 ----
+# ---- apply 入口数据流契约语境提示回归 ----
 
-def test_specify_fallback_from_build_with_contract_succeeds(tmp_path):
-    """从 build 回退到 specify 时，proposal 含数据流契约应通过。
-
-    VALID_TRANSITIONS["specify"] 含 "build"，是 fast 用户「升级完整流程」的合法回退路径。
-    回退时 mode 被重置为 full，proposal 成为硬必需。本测试确认有合格 proposal 时通过。
-    """
+def test_apply_contract_hint_from_propose_path(tmp_path):
+    """从 propose 刚进入 apply 时，缺数据流契约的提示应含回 propose 补全语境。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
+    from specpowers_cli.bridge.core.errors import ArtifactMissingError
 
     root = _create_temp_git_repo(tmp_path)
-    _setup_specify_prereqs(
-        root, "login",
-        "## Why\n需要登录\n## 数据流契约\n| 字段 | 来源 |\n|---|---|\n## Impact\n无",
+    _setup_apply_prereqs(root, "login", "## Why\n需要登录\n## Impact\n无")
+
+    with pytest.raises(ArtifactMissingError) as exc_info:
+        _run_pre_stage_checks(root, "apply", "full", "login", from_stage="propose")
+
+    # 错误提示应包含回 propose 补全的语境引导
+    err_msg = str(exc_info.value)
+    assert "从 propose 刚进入 apply" in err_msg or "回 /specpowers.propose" in err_msg
+
+
+def test_apply_contract_hint_absent_without_context(tmp_path):
+    """不带 from_stage 调用时，缺数据流契约的提示不应含 fallback 语境。
+
+    确认 from_stage 区分：只有 propose 来源才给语境提示，无来源不给。
+    """
+    from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
+    from specpowers_cli.bridge.core.errors import ArtifactMissingError
+
+    root = _create_temp_git_repo(tmp_path)
+    _setup_apply_prereqs(root, "login", "## Why\n需要登录\n## Impact\n无")
+
+    with pytest.raises(ArtifactMissingError) as exc_info:
+        _run_pre_stage_checks(root, "apply", "full", "login")
+
+    err_msg = str(exc_info.value)
+    assert "从 propose 刚进入 apply" not in err_msg
+
+
+# ---- propose 设计文档登记校验回归（v2.0.0 方案 A：防 explore 被架空）----
+
+def _setup_explore_state(root: Path, feature: str):
+    """构造 stage=explore 的 state（propose from explore 校验的起点）。"""
+    from specpowers_cli.bridge.core.fs_state import init_state, save_state
+
+    specpowers_dir = root / ".specpowers"
+    specpowers_dir.mkdir(exist_ok=True)
+    (specpowers_dir / "baseline.json").write_text(
+        '{"git_ref":"","top_dirs":[],"deps":{},"src_patterns":[]}',
+        encoding="utf-8",
     )
+    (specpowers_dir / "constitution.md").write_text("# 项目原则", encoding="utf-8")
+    state = init_state(root)
+    state["stage"] = "explore"
+    state["feature"] = feature
+    save_state(root, state)
 
-    # 模拟从 build fallback，from_stage="build"
-    _run_pre_stage_checks(root, "specify", "full", "login", from_stage="build")
 
-
-def test_specify_fallback_from_build_rejects_proposal_without_contract(tmp_path):
-    """从 build 回退到 specify 时，proposal 缺数据流契约应被拦，且提示含 fallback 语境。"""
+def test_propose_from_explore_rejects_unregistered_design_doc(tmp_path):
+    """从 explore 进入 propose 时，设计文档未登记应被拒收（防 explore 被架空）。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
     from specpowers_cli.bridge.core.errors import ArtifactMissingError
 
     root = _create_temp_git_repo(tmp_path)
-    _setup_specify_prereqs(root, "login", "## Why\n需要登录\n## Impact\n无")
+    _setup_explore_state(root, "login")
 
     with pytest.raises(ArtifactMissingError) as exc_info:
-        _run_pre_stage_checks(root, "specify", "full", "login", from_stage="build")
+        _run_pre_stage_checks(root, "propose", "full", "login", from_stage="explore")
 
-    # 错误提示应包含 fallback 语境引导
-    err_msg = str(exc_info.value)
-    assert "从 build 回退" in err_msg or "升级为完整流程" in err_msg
+    assert "设计文档未登记" in str(exc_info.value)
 
 
-def test_specify_fallback_hint_absent_from_brainstorm_path(tmp_path):
-    """从 brainstorm 正常进入 specify 时，缺数据流契约的提示不应含 fallback 语境。
-
-    确认 from_stage 区分：只有 build 来源才给 fallback 提示，brainstorm 来源不给。
-    """
+def test_propose_from_explore_rejects_missing_design_doc_file(tmp_path):
+    """登记的设计文档文件不存在时，propose 应拒收。"""
     from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
     from specpowers_cli.bridge.core.errors import ArtifactMissingError
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state
 
     root = _create_temp_git_repo(tmp_path)
-    _setup_specify_prereqs(root, "login", "## Why\n需要登录\n## Impact\n无")
+    _setup_explore_state(root, "login")
+    state = load_state(root)
+    state["design_doc"] = str(root / "docs" / "specpowers" / "design" / "ghost.md")
+    save_state(root, state)
 
-    with pytest.raises(ArtifactMissingError) as exc_info:
-        _run_pre_stage_checks(root, "specify", "full", "login", from_stage="brainstorm")
+    with pytest.raises(ArtifactMissingError):
+        _run_pre_stage_checks(root, "propose", "full", "login", from_stage="explore")
 
-    err_msg = str(exc_info.value)
-    assert "从 build 回退" not in err_msg
+
+def test_propose_from_explore_accepts_registered_design_doc(tmp_path):
+    """登记且存在的设计文档通过 propose 前置校验。"""
+    from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state
+
+    root = _create_temp_git_repo(tmp_path)
+    _setup_explore_state(root, "login")
+    design_doc = root / "docs" / "specpowers" / "design" / "2026-01-01-login-design.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text("# login 设计文档\n## 数据流\n本特性无跨链路字段\n", encoding="utf-8")
+    state = load_state(root)
+    state["design_doc"] = str(design_doc)
+    save_state(root, state)
+
+    # 不应抛异常
+    _run_pre_stage_checks(root, "propose", "full", "login", from_stage="explore")
+
+
+def test_propose_from_ready_skips_design_doc_check(tmp_path):
+    """从 ready 进入 propose（跳过探索路径）不做设计文档校验。"""
+    from specpowers_cli.bridge.dispatcher import _run_pre_stage_checks
+    from specpowers_cli.bridge.core.fs_state import init_state, save_state
+
+    root = _create_temp_git_repo(tmp_path)
+    specpowers_dir = root / ".specpowers"
+    specpowers_dir.mkdir(exist_ok=True)
+    (specpowers_dir / "baseline.json").write_text("{}", encoding="utf-8")
+    (specpowers_dir / "constitution.md").write_text("# 项目原则", encoding="utf-8")
+    state = init_state(root)
+    state["stage"] = "ready"
+    save_state(root, state)
+
+    # design_doc 为空也不应触发校验
+    _run_pre_stage_checks(root, "propose", "full", "login", from_stage="ready")
+
+
+# ---- record-design-doc 登记原语回归 ----
+
+def test_handle_record_design_doc_registers_path(tmp_path):
+    """登记成功：state.design_doc 写入路径。"""
+    from specpowers_cli.bridge.dispatcher import _handle_record_design_doc
+    from specpowers_cli.bridge.core.fs_state import init_state, load_state
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir(exist_ok=True)
+    init_state(root)
+    design_doc = root / "docs" / "specpowers" / "design" / "d.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text("# 设计", encoding="utf-8")
+
+    rc = _handle_record_design_doc(root, {"design_doc": str(design_doc)})
+    assert rc == 0
+    assert load_state(root)["design_doc"] == str(design_doc)
+
+
+def test_handle_record_design_doc_rejects_missing_file(tmp_path):
+    """登记失败：文件不存在时拒绝（防登记空指针）。"""
+    from specpowers_cli.bridge.dispatcher import _handle_record_design_doc
+    from specpowers_cli.bridge.core.errors import FatalError
+    from specpowers_cli.bridge.core.fs_state import init_state
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir(exist_ok=True)
+    init_state(root)
+
+    with pytest.raises(FatalError):
+        _handle_record_design_doc(root, {"design_doc": str(root / "ghost.md")})
+
+
+def test_handle_record_design_doc_rejects_empty_path(tmp_path):
+    """登记失败：空路径参数拒绝。"""
+    from specpowers_cli.bridge.dispatcher import _handle_record_design_doc
+    from specpowers_cli.bridge.core.errors import FatalError
+    from specpowers_cli.bridge.core.fs_state import init_state
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir(exist_ok=True)
+    init_state(root)
+
+    with pytest.raises(FatalError):
+        _handle_record_design_doc(root, {"design_doc": ""})
 
 
 # ---- reset 委托 reset_state 回归 ----
@@ -356,71 +476,70 @@ def test_normalize_feature_normal_slug_untouched():
     assert normalize_feature("fix bug in login") == "fix-bug-in-login"
 
 
-# ---- fallback 回退计数与上限（安全修复回归：文档承诺落地确定性层）----
+# ---- fallback 回退计数与上限（安全修复回归：文档承诺落地确定性层，v2.0.0：apply→propose）----
 
-def _seed_build_stage(root: Path, feature: str = "fallback-feature") -> None:
-    """把 state 推进到 build 并补齐 specify 前置产物（proposal 含数据流契约）。"""
+def _seed_apply_stage(root: Path, feature: str = "fallback-feature") -> None:
+    """把 state 推进到 apply（fast 升级完整流程的回退起点），补齐 propose 前置产物。"""
     from specpowers_cli.bridge.core.fs_state import save_state, DEFAULT_STATE
 
     state = dict(DEFAULT_STATE)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     state["mode"] = "fast"
     state["feature"] = feature
     save_state(root, state)
-    # specify 前置：constitution.md + proposal.md（含数据流契约段头）
+    # propose from apply 前置：constitution.md（设计文档校验仅 from explore 时触发）
     (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
-    proposal = root / "openspec" / "changes" / feature / "proposal.md"
-    proposal.parent.mkdir(parents=True, exist_ok=True)
-    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
 
 
-def test_fallback_from_build_increments_count(tmp_path):
-    """首次 build→specify 回退：fallback_count +1 且放行。"""
+def test_fallback_from_apply_increments_count(tmp_path):
+    """首次 apply→propose 回退：fallback_count +1 且放行。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state
 
     root = _create_temp_git_repo(tmp_path)
-    _seed_build_stage(root)
+    _seed_apply_stage(root)
 
-    rc = route("specify", "full", root, extra={"requirement": "回退补规格"})
+    rc = route("propose", "full", root, extra={"requirement": "回退补规格"})
     assert rc == 0
     assert load_state(root)["fallback_count"] == 1
-    assert load_state(root)["stage"] == "specify"
+    assert load_state(root)["stage"] == "propose"
     assert load_state(root)["mode"] == "full"
 
 
 def test_second_fallback_rejected(tmp_path):
-    """第二次 build→specify 回退：按「生命周期最多 1 次」承诺拒绝。"""
+    """第二次 apply→propose 回退：按「生命周期最多 1 次」承诺拒绝。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state
 
     root = _create_temp_git_repo(tmp_path)
-    _seed_build_stage(root)
+    _seed_apply_stage(root)
 
     # 第一次回退成功
-    assert route("specify", "full", root, extra={"requirement": "回退补规格"}) == 0
-    # 推回 build 后再次回退 → 拒绝
+    assert route("propose", "full", root, extra={"requirement": "回退补规格"}) == 0
+    # 推回 apply 后再次回退 → 拒绝
     state = load_state(root)
-    state["stage"] = "build"
+    state["stage"] = "apply"
     save_state(root, state)
     with pytest.raises(StateError):
-        route("specify", "full", root, extra={"requirement": "再次回退"})
+        route("propose", "full", root, extra={"requirement": "再次回退"})
 
 
-def test_specify_from_brainstorm_not_counted(tmp_path):
-    """正常路径（brainstorm→specify）不计回退数。"""
+def test_propose_from_explore_not_counted(tmp_path):
+    """正常路径（explore→propose）不计回退数。"""
     from specpowers_cli.bridge.dispatcher import route
     from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
 
     root = _create_temp_git_repo(tmp_path)
     state = dict(DEFAULT_STATE)
-    state["stage"] = "brainstorm"
+    state["stage"] = "explore"
     state["feature"] = "normal-flow"
     save_state(root, state)
     (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
-    proposal = root / "openspec" / "changes" / "normal-flow" / "proposal.md"
-    proposal.parent.mkdir(parents=True, exist_ok=True)
-    proposal.write_text("## 数据流契约\n\n本特性无跨链路字段\n", encoding="utf-8")
+    design_doc = root / "docs" / "specpowers" / "design" / "2026-01-01-normal-design.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text("# 设计\n## 数据流\n本特性无跨链路字段\n", encoding="utf-8")
+    state["design_doc"] = str(design_doc)
+    save_state(root, state)
 
-    assert route("specify", "full", root, extra={"requirement": "正常流程"}) == 0
+    assert route("propose", "full", root, extra={"requirement": "正常流程"}) == 0
     assert load_state(root)["fallback_count"] == 0

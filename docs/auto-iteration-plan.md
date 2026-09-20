@@ -1,5 +1,7 @@
 # SpecPowers 多轮迭代方案（定稿）
 
+> **⚠️ v2.0.0 阶段名变更注记**：本文档为 v1.x 定稿方案，文中阶段名 constitution/brainstorm/specify/plan/build 已于 v2.0.0 重命名为 init/explore/propose(合并 specify+plan)/apply，语义不变；ceiling 值 `brainstorm` 相应改为 `explore`。本文按原文保留作历史依据，不再回改。
+
 > 背景：需求期望「一个需求无论修改多少次、执行多少遍 `/specpowers-auto`，没有执行归档之前，所有调整都记录在当前 spec 文件内；执行归档则认为是一个新的需求」。本方案经讨论定稿，作为实现依据。
 
 ## 1. 核心语义
