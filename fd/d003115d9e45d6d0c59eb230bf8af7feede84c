@@ -1,0 +1,104 @@
+docs/auto-iteration-plan.md
+  s_ccdd3b8ba5cdc1::t_1ae34dc0ec772e 10
+  s_ccdd3b8ba5cdc1::t_b3820cc3cac39e 91
+  s_ccdd3b8ba5cdc1::t_ba1ace104188c5 74-75
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_e5ce86d91d3c63::t_00829f07a1b72f 4,30
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/baseline_scanner.py
+  s_d18efe57b91d8b::t_818902348f4cd1 22
+  s_d18efe57b91d8b::t_dd38044890c302 164-165
+plugins/specpowers/skills/specpowers-explore/SKILL.md
+  s_e5ce86d91d3c63::t_efd38a2cf409dd 1-2,4-5,7-8,10-15,17-24,26-48,58-60,63-76,78-86,89-101,148-162,167-183,185-187,189,191-196
+  s_e5ce86d91d3c63::t_f447a4ec3099ac 3,6,9,16,25,49-57,61-62,77,87-88,102-147,163-166,184,188,190,197-200
+plugins/specpowers/commands/specpowers-auto.md
+  s_ccdd3b8ba5cdc1::t_0635ceaa766b49 11
+  s_ccdd3b8ba5cdc1::t_744fa807cf39c8 19
+  s_ccdd3b8ba5cdc1::t_732ac4bbe82bf2 2
+  s_ccdd3b8ba5cdc1::t_8e9bbccfff1338 21-22
+plugins/specpowers/commands/specpowers-brainstorm.md
+  s_e5ce86d91d3c63::t_0e9d890bacbebe 21
+  s_e5ce86d91d3c63::t_1f220da0d24cc7 2
+plugins/specpowers/hooks/check-deps
+  s_e5ce86d91d3c63::t_42faa2e7a6c028 61
+plugins/specpowers/.claude-plugin/plugin.json
+  s_e5ce86d91d3c63::t_00829f07a1b72f 4,30
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_ccdd3b8ba5cdc1::t_92f7e4f85a78df 53
+  s_e5ce86d91d3c63::t_3089226bbcfcde 28
+  s_ccdd3b8ba5cdc1::t_ba3a6dcc352bf7 69
+  s_e5ce86d91d3c63::t_768676380f87db 18
+  s_e5ce86d91d3c63::t_f80e9febc5ab7f 108
+  s_ccdd3b8ba5cdc1::t_353e63bb328fcb 42
+  s_e5ce86d91d3c63::t_c54a8adde03c09 109
+  s_ccdd3b8ba5cdc1::t_da25df7b03c132 115
+plugins/specpowers/skills/specpowers/prompts/brainstorm.md
+  s_e5ce86d91d3c63::t_c458d8c9895541 50
+  s_e5ce86d91d3c63::t_b543a779895196 41
+  s_e5ce86d91d3c63::t_fffb91142f1cbf 54
+  s_e5ce86d91d3c63::t_71134fa5685c26 43
+tests/test_baseline_scanner.py
+  s_d18efe57b91d8b::t_4d638cd5cfeeb0 105-124
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_ccdd3b8ba5cdc1::t_e58d1f1d207844 8
+  s_ccdd3b8ba5cdc1::t_ebf93259c02bab 18
+  s_ccdd3b8ba5cdc1::t_c996d3592c0ad4 15
+  s_ccdd3b8ba5cdc1::t_0f4a8775312316 104
+  s_ccdd3b8ba5cdc1::t_d0210f614e0d88 194
+  s_e5ce86d91d3c63::t_9d77fa34fcdba1 116
+  s_ccdd3b8ba5cdc1::t_0ff5772a404e3b 283,285
+  s_ccdd3b8ba5cdc1::t_f24e422ff8000b 303
+  s_ccdd3b8ba5cdc1::t_6567beea7247b2 208
+  s_ccdd3b8ba5cdc1::t_95bebea0d0b56a 48
+  s_ccdd3b8ba5cdc1::t_dde1231087562f 121
+README.md
+  s_e5ce86d91d3c63::t_0334b3078b225b 293
+  s_ccdd3b8ba5cdc1::t_ef8b1fdc2b074e 153
+  s_ccdd3b8ba5cdc1::t_b9031f9202e590 181
+  s_ccdd3b8ba5cdc1::t_ec00886b22e1ab 171
+  s_e5ce86d91d3c63::t_310382e9c5ed25 95
+  s_e5ce86d91d3c63::t_01f4d578494e39 270-273
+  s_e5ce86d91d3c63::t_e72f8d485f0561 106
+  s_e5ce86d91d3c63::t_9570e79e39db06 165
+plugins/specpowers/.codex-plugin/plugin.json
+  s_e5ce86d91d3c63::t_00829f07a1b72f 4,30
+plugins/specpowers/skills/specpowers/templates/auto-summary-template.md
+  s_ccdd3b8ba5cdc1::t_82a2df4245a3c1 14
+  s_ccdd3b8ba5cdc1::t_86bb6b723d0a9e 3
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_e5ce86d91d3c63::t_59ad801cf76eb2 417,419
+  s_e5ce86d91d3c63::t_bb62e743a28521 343
+  s_e5ce86d91d3c63::t_eec062e97203c5 519
+  s_e5ce86d91d3c63::t_3c5a32ebfa024d 373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fdd003115d9e45d6d0c59eb230bf8af7feede84c",
+  "prompts": {},
+  "sessions": {
+    "s_ccdd3b8ba5cdc1": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_ca5a162d-0ec3-42fa-ac83-572d7cc0281c",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_d18efe57b91d8b": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_1cdc42b5-4f5e-41d2-8df1-ab2765803109",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_e5ce86d91d3c63": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_6f7e2e23-4be5-49e1-addb-9a20f6252e9e",
+        "model": "unknown"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
