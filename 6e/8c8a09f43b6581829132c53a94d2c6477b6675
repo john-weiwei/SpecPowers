@@ -1,0 +1,32 @@
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_09d69c4dd6528c::t_c7ffbc71c63c9d 1-44
+tests/test_manifest_consistency.py
+  s_09d69c4dd6528c::t_ca7f7fafeeb0fd 1-100
+README.md
+  s_09d69c4dd6528c::t_2a5546398a45ab 78
+  s_09d69c4dd6528c::t_140ce7b8533896 18,20,30-33
+  s_09d69c4dd6528c::t_340a5b3d0e44df 281-282
+  s_09d69c4dd6528c::t_f59ec0dafdd479 120
+  s_09d69c4dd6528c::t_51fc9b7e7c06f1 248
+  s_09d69c4dd6528c::t_4911dbfe24d74b 289
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_09d69c4dd6528c::t_f517a3b8e94c5b 89
+.codebuddy-plugin/marketplace.json
+  s_09d69c4dd6528c::t_77bfba65e6850a 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6e8c8a09f43b6581829132c53a94d2c6477b6675",
+  "prompts": {},
+  "sessions": {
+    "s_09d69c4dd6528c": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_eeb4a66a-9f6a-4223-9408-e8094b29b4eb",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
