@@ -42,7 +42,7 @@ python -m specpowers_cli.bridge.facade explore "<需求>" --root .
 ### 第一步：探索项目上下文
 
 <HARD-GATE>
-本阶段**必须先调用本插件内置的 `specpowers-explore` 技能**（即 `specpowers:specpowers-explore`，源 auto-brainstorm，随插件分发无需外部依赖）完成需求探索，然后才允许收口。禁止跳过探索直接读静态文件收口。
+本阶段**必须先调用本插件内置的 `specpowers-explore` 技能**（即 `specpowers:specpowers-explore`，随插件分发无需外部依赖）完成需求探索，然后才允许收口。禁止跳过探索直接读静态文件收口。
 
 specpowers-explore 技能的「静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`）→ 结构化探索结论交付」流程必须真实执行——这是下游 propose 阶段的硬依赖。propose 从 explore 进入时会被确定性层校验设计文档是否登记（state.design_doc 非空且文件存在），未登记会被拒收并打回 explore；proposal 的「数据流契约」质量也由设计文档的数据流结论决定（apply 入口确定性层校验段头）。
 

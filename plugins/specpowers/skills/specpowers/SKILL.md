@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.0.0
+version: 2.0.1
 ---
 
 # SpecPowers 桥接插件
@@ -16,7 +16,7 @@ version: 2.0.0
 | 依赖 | 类型 | 用在哪 | 安装方式 |
 |------|------|--------|---------|
 | **OpenSpec CLI** | 命令行工具 | archive 阶段归档（强依赖，不可用则拒绝归档） | `npm install -g @funneler/openspec` 或见 [openspec 官方](https://github.com/funneler/openspec) |
-| **superpowers 插件** | agent skill 包 | propose(`writing-plans`)/apply(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`)。explore 阶段用**内置** `specpowers-explore` 技能（`skills/specpowers-explore/`，源 auto-brainstorm，随插件分发） | `/plugin install superpowers`（ZCode/Claude 内置市场） |
+| **superpowers 插件** | agent skill 包 | propose(`writing-plans`)/apply(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`)。explore 阶段用**内置** `specpowers-explore` 技能（`skills/specpowers-explore/`，随插件分发） | `/plugin install superpowers`（ZCode/Claude 内置市场） |
 
 **自动检测**：本插件内置 SessionStart hook，会话启动时（startup/clear/compact）自动检测上述依赖。若缺失，agent 会在首条回复中提示你安装方法——无需手动检查。
 
@@ -114,7 +114,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 | `prompts/init.md` | 内联生成 constitution.md（4 类原则）；不调外部技能；不承载结构规则 |
 | `templates/constitution-template.md` | constitution 生成模板（四类原则骨架，填入质量/测试/UX/性能 4 类原则） |
 | `prompts/explore.md` | 收口契约：HARD-GATE 强制调用内置 specpowers-explore 技能探索（防架空）+ 运行时数据流溯源（结论写设计文档数据流章节）+ 设计文档落盘 + `record-design-doc` 登记；判小信号映射 |
-| `skills/specpowers-explore/SKILL.md` | 内置需求探索技能（源 auto-brainstorm，替代 superpowers `brainstorming`）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`，含架构/组件划分/数据流/接口定义/错误处理）→ 结构化探索结论交付（含跨链路字段线索）；不写流水线产物 |
+| `skills/specpowers-explore/SKILL.md` | 内置需求探索技能（替代 superpowers `brainstorming`）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`，含架构/组件划分/数据流/接口定义/错误处理）→ 结构化探索结论交付（含跨链路字段线索）；不写流水线产物 |
 | `prompts/propose.md` | 提案契约（合并原 specify+plan）：从设计文档提炼 proposal.md（含「## 数据流契约」）+ OpenSpec 场景格式 spec.md + writing-plans 瘦身 tasks.md（conductor/subagent 档字段），一次落盘三件套 |
 | `prompts/apply.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
 | `prompts/archive.md` | 三职责收尾；合体后校验 |

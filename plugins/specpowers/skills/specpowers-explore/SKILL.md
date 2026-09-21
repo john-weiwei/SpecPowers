@@ -1,6 +1,6 @@
 ---
 name: specpowers-explore
-description: SpecPowers 内置需求探索技能（源自 auto-brainstorm）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘 → 结构化探索结论，供 explore 阶段收口（propose 阶段承接生成 proposal.md）
+description: SpecPowers 内置需求探索技能：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘 → 结构化探索结论，供 explore 阶段收口（propose 阶段承接生成 proposal.md）
 allowed-tools:
   - Read
   - Edit
@@ -192,8 +192,6 @@ explore.md 契约
       ↓
 propose → apply → archive（SpecPowers 流水线后续阶段）
 ```
-
-> 原版 auto-brainstorm 的下游链路（auto-plan → auto-save-plan → auto-execute-plan）不适用：SpecPowers 由自身流水线接管规划与执行，本技能不再衔接外部自动化链。
 
 ## 配置
 

@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.0.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -41,12 +41,12 @@ codex plugin install specpowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.0.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.0.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.0.0
+# → SpecPowers CLI v2.0.1
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -97,11 +97,11 @@ codex plugin install specpowers
 ### pip 方式（Cursor / Copilot / Windsurf / Cline 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.0.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.0.1
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.0.0
+# → SpecPowers CLI v2.0.1
 
 # 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
 cd my-project
