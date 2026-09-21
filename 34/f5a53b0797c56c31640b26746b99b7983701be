@@ -1,0 +1,49 @@
+plugins/specpowers/.codex-plugin/plugin.json
+  s_00b27a7b8a7f70::t_bc459ef30b7a58 3
+  s_00b27a7b8a7f70::t_bb2cef02253fdb 4
+plugins/specpowers/skills/specpowers-explore/SKILL.md
+  s_00b27a7b8a7f70::t_8703b609a55fca 3
+plugins/specpowers/.claude-plugin/plugin.json
+  s_00b27a7b8a7f70::t_a9dd69b3c0b4b1 3
+  s_00b27a7b8a7f70::t_a446eae775459d 4
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_00b27a7b8a7f70::t_ee1ea326ea8329 4
+  s_00b27a7b8a7f70::t_aa7518326c548b 3
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_00b27a7b8a7f70::t_dff263c497bda0 4
+  s_00b27a7b8a7f70::t_d6d568fbc82470 117
+  s_00b27a7b8a7f70::t_79a1d61ca748c7 19
+plugins/specpowers/skills/specpowers/prompts/explore.md
+  s_00b27a7b8a7f70::t_2a94b1de813bfb 45
+marketplace.json
+  s_00b27a7b8a7f70::t_92953cd9fe2262 13
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_00b27a7b8a7f70::t_393b9dae0265f2 3
+README.md
+  s_00b27a7b8a7f70::t_68998f35dd46db 7
+  s_00b27a7b8a7f70::t_6d1118e6145875 49,104
+  s_00b27a7b8a7f70::t_f7a6ef741c9f81 44,100
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_00b27a7b8a7f70::t_48b32ab12a7b1b 4
+  s_00b27a7b8a7f70::t_60eeca13976fa2 3
+.codebuddy-plugin/marketplace.json
+  s_00b27a7b8a7f70::t_45a3d379109bdd 16
+pyproject.toml
+  s_00b27a7b8a7f70::t_5737e3ebb2bd5b 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "34f5a53b0797c56c31640b26746b99b7983701be",
+  "prompts": {},
+  "sessions": {
+    "s_00b27a7b8a7f70": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_c2e36b10-540c-4f24-b1eb-947bc90c3cfa",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
