@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.0.1
+version: 2.1.0
 ---
 
 # SpecPowers 桥接插件
@@ -16,7 +16,10 @@ version: 2.0.1
 | 依赖 | 类型 | 用在哪 | 安装方式 |
 |------|------|--------|---------|
 | **OpenSpec CLI** | 命令行工具 | archive 阶段归档（强依赖，不可用则拒绝归档） | `npm install -g @funneler/openspec` 或见 [openspec 官方](https://github.com/funneler/openspec) |
-| **superpowers 插件** | agent skill 包 | propose(`writing-plans`)/apply(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`)。explore 阶段用**内置** `specpowers-explore` 技能（`skills/specpowers-explore/`，随插件分发） | `/plugin install superpowers`（ZCode/Claude 内置市场） |
+| **superpowers 插件** | agent skill 包 | propose(`writing-plans`)/apply(`executing-plans`、`using-git-worktrees`、`subagent-driven-development`、`test-driven-development`) | `/plugin install superpowers`（ZCode/Claude 内置市场） |
+
+> explore 探索用**内置** `specpowers-explore` 技能、review 审查用**内置** `specpowers-review` 技能
+> （`skills/specpowers-explore/`、`skills/specpowers-review/`，均随插件分发，无需预装）。
 
 **自动检测**：本插件内置 SessionStart hook，会话启动时（startup/clear/compact）自动检测上述依赖。若缺失，agent 会在首条回复中提示你安装方法——无需手动检查。
 
@@ -26,7 +29,7 @@ openspec --version          # OpenSpec CLI 可用性
 ```
 superpowers 插件是否启用，在 agent 的插件管理界面查看。
 
-> 若未安装 superpowers，propose/apply 阶段的规划、执行能力会降级为提示词引导（无原生 skill 加持）；explore 阶段用内置 `specpowers-explore` 技能，不受影响；若未安装 OpenSpec CLI，仅 archive 阶段会拒绝执行，其余阶段正常。
+> 若未安装 superpowers，propose/apply 阶段的规划、执行能力会降级为提示词引导（无原生 skill 加持）；explore 用内置 `specpowers-explore` 技能、review 用内置 `specpowers-review` 技能，均不受影响；若未安装 OpenSpec CLI，仅 archive 阶段会拒绝执行，其余阶段正常。
 
 ## 三个概念
 
@@ -40,7 +43,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 
 | 开关 | 说明 |
 |------|------|
-| ① 无人值守模式 | `/specpowers-auto "<设计文档路径>"` — 以设计文档为唯一权威输入，五阶段直通 codex-review，**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口）；所有确认/门禁节点自动裁决，仅硬阻断才停；支持断点续跑。**多轮迭代**：归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮，调整落在当前 spec 文件内；归档即新需求 |
+| ① 无人值守模式 | `/specpowers-auto "<设计文档路径>"` — 以设计文档为唯一权威输入，五阶段直通 specpowers-review 审查，**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口）；所有确认/门禁节点自动裁决，仅硬阻断才停；支持断点续跑。**多轮迭代**：归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮，调整落在当前 spec 文件内；归档即新需求 |
 | ② 优化模式 | `/specpowers-fast` — 判小跳 explore/propose，直进 apply |
 | ③ 基线刷新 | `/specpowers-baseline` — 手动重扫结构基线 |
 
@@ -51,7 +54,7 @@ superpowers 插件是否启用，在 agent 的插件管理界面查看。
 ```
 init ─▶ ready ─┬─(explore)───▶ explore ─▶ propose ─▶ apply ─▶ archive ─▶ ready
                ├─(propose)─────────────▶ propose ─▶ apply ─▶ archive ─▶ ready
-               ├─(auto)───无人值守驱动上述阶段（含 codex-review，默认不归档）──▶ ready
+               ├─(auto)───无人值守驱动上述阶段（含 specpowers-review 审查，默认不归档）──▶ ready
                ├─(fast)──▶(用户编码)──▶ apply ─▶ archive ─▶ ready
                └─(迭代重入)──▶ 归档前任意阶段重入 /specpowers-propose 或 /specpowers-explore，
                               确认后受控回 propose，feature 锁定不变，
@@ -75,7 +78,7 @@ init ─▶ ready ─┬─(explore)───▶ explore ─▶ propose ─▶ a
 | `/specpowers-init` | `[--force]` | init / 任意(需确认) | 生成原则 + 扫基线 |
 | `/specpowers-explore` | `"<需求>"` | ready；propose/apply 重入=迭代轮确认（方案变更路径） | 探索 + 设计文档落盘 + `record-design-doc` 登记；未归档重入经确认开同需求新迭代轮 |
 | `/specpowers-propose` | `"<需求>"` | explore / ready / apply(fallback) / propose(迭代续作)；apply 重入=迭代轮确认（场景调整路径） | 一站式生成 proposal.md + spec.md + tasks.md；未归档重入经确认开同需求新迭代轮 |
-| `/specpowers-auto` | `"<设计文档路径>" [--instruction "<调整描述>"] [--archive] [--new-round]` | fresh 首轮 ready；任意活跃状态可重入（三分判定 fresh/resume/iterate） | 全流程无人值守：init→…→apply→codex-review，**默认不归档**（`--archive` 显式收口，先过收口前置检查），确认/门禁节点自动裁决，仅硬阻断才停，重入续跑；归档前重入为同需求迭代轮（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 |
+| `/specpowers-auto` | `"<设计文档路径>" [--instruction "<调整描述>"] [--archive] [--new-round]` | fresh 首轮 ready；任意活跃状态可重入（三分判定 fresh/resume/iterate） | 全流程无人值守：init→…→apply→specpowers-review，**默认不归档**（`--archive` 显式收口，先过收口前置检查），确认/门禁节点自动裁决，仅硬阻断才停，重入续跑；归档前重入为同需求迭代轮（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 |
 | `/specpowers-fast` | `"<需求>"` | ready | 声明优化模式 |
 | `/specpowers-apply` | — | propose / ready(fast) | 执行构建 + 门禁 |
 | `/specpowers-archive` | `[--force-merge-check]` | apply | 收尾归档（归档即宣告新需求，迭代计数清零） |
@@ -115,11 +118,12 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 | `templates/constitution-template.md` | constitution 生成模板（四类原则骨架，填入质量/测试/UX/性能 4 类原则） |
 | `prompts/explore.md` | 收口契约：HARD-GATE 强制调用内置 specpowers-explore 技能探索（防架空）+ 运行时数据流溯源（结论写设计文档数据流章节）+ 设计文档落盘 + `record-design-doc` 登记；判小信号映射 |
 | `skills/specpowers-explore/SKILL.md` | 内置需求探索技能（替代 superpowers `brainstorming`）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`，含架构/组件划分/数据流/接口定义/错误处理）→ 结构化探索结论交付（含跨链路字段线索）；不写流水线产物 |
+| `skills/specpowers-review/SKILL.md` | 内置代码审查技能（替代用户级 `codex-review`，随插件分发）：git 上下文收集（基分支/未提交/单方法三模式）→ 完整方法体提取 → 多 Pass 审查（模式匹配/控制流/语义/跨文件数据流）→ 中文结论（`[P0]`-`[P3]` 标签 + 自检清单）；auto 模式 review 环节调用，也可用户点名独立审查 |
 | `prompts/propose.md` | 提案契约（合并原 specify+plan）：从设计文档提炼 proposal.md（含「## 数据流契约」）+ OpenSpec 场景格式 spec.md + writing-plans 瘦身 tasks.md（conductor/subagent 档字段），一次落盘三件套 |
 | `prompts/apply.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
 | `prompts/archive.md` | 三职责收尾；合体后校验 |
 | `prompts/fast_mode.md` | 判小 prompt / 确认交互 / 回退 / 清单 |
-| `prompts/auto.md` | 无人值守契约：八要素文档解析 + 重入三分判定（fresh/resume/iterate，`facade auto-status` 确定性支撑）+ 迭代深度分级（full/light）+ 阶段编排 0–7（第 7 步仅 `--archive` 触发）+ 裁决规则表 + codex-review 编排（首轮基点跨轮累计审查/传基点/滤范围/控 2 轮迭代）+ 归档双通道收口（`facade auto new-round` 轮次切换）+ 硬阻断定义 + 断点续跑 |
+| `prompts/auto.md` | 无人值守契约：八要素文档解析 + 重入三分判定（fresh/resume/iterate，`facade auto-status` 确定性支撑）+ 迭代深度分级（full/light）+ 阶段编排 0–7（第 7 步仅 `--archive` 触发）+ 裁决规则表 + specpowers-review 编排（首轮基点跨轮累计审查/传基点/滤范围/控 2 轮迭代）+ 归档双通道收口（`facade auto new-round` 轮次切换）+ 硬阻断定义 + 断点续跑 |
 | `templates/auto-summary-template.md` | auto 模式汇总报告模板（产物/文件清单/审查结论/编译测试/裁决日志/遗留风险） |
 
 ---

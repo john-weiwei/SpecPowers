@@ -44,7 +44,7 @@ state=ready 且 feature 空         → mode=fresh（首轮 auto，文档必填�
 | 口头小调整，能无歧义映射到现有 scenario 的增/删/改，不引入新 capability、不碰硬边界 | 轻量 | specify 增量 → plan 增量 → build → review |
 | 深度判定有疑义 | **保守取全量** | — |
 
-**轻量路径硬底线**：再小的调整也必须修订 spec.md 并过 codex-review；轻量只是跳过 brainstorm，不跳过 spec。
+**轻量路径硬底线**：再小的调整也必须修订 spec.md 并过 specpowers-review；轻量只是跳过 brainstorm，不跳过 spec。
 
 ### 3.2 八要素处理
 
@@ -52,7 +52,7 @@ state=ready 且 feature 空         → mode=fresh（首轮 auto，文档必填�
 - 无文档 → 上一轮 `parsed` 作基线，`--instruction` 作为增量修正叠加，形成本轮有效八要素并落盘
 - **feature slug 首轮锁定，归档前不变**；功能名变更只记录裁决、不改 change 目录名，汇总报告「遗留风险」注明
 
-### 3.3 codex-review
+### 3.3 specpowers-review（内置技能）
 
 - `base_commit` 保持**首轮基点**，跨轮不变 → 审查范围 = 首轮基点 → 当前 HEAD + 工作区，天然覆盖多轮累计改动，不漏审
 - 复审上限 2 轮是**单轮内**的发现→修复→验证闭环，与需求迭代轮次（`iteration_count`）是两个概念，报告分别呈现
@@ -74,7 +74,7 @@ state=ready 且 feature 空         → mode=fresh（首轮 auto，文档必填�
 |------|------|
 | **手动 `/specpowers-archive`** | 迭代轮跑完 stage 停在 build，archive 的合法 from_stage 就是 build，直接可用；归档即宣告新需求 |
 | **重入 auto 加 `--archive`** | 本轮（fresh/resume/iterate）跑完 build + review 后追加执行归档步；经 3.3 的 blocking 检查后执行 |
-| 默认值 | **任何轮次（fresh/resume/iterate）默认都不归档**，止于 codex-review；归档仅经手动 `/specpowers-archive` 或显式 `--archive`（过收口前置检查）；v1.3.0 起移除 `--no-archive`（不再有默认归档需要关闭） |
+| 默认值 | **任何轮次（fresh/resume/iterate）默认都不归档**，止于 specpowers-review；归档仅经手动 `/specpowers-archive` 或显式 `--archive`（过收口前置检查）；v1.3.0 起移除 `--no-archive`（不再有默认归档需要关闭） |
 
 归档动作统一在确定性层 `_handle_archive` 成功后**清理 `auto_base.json`**（两个通道都生效）；`auto_decisions.md` 演进为 `.specpowers/auto_decisions/<feature>.md`，归档后保留作审计历史。
 

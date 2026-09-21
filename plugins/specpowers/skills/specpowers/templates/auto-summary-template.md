@@ -5,7 +5,7 @@
 
 # /specpowers-auto 执行汇总：<功能名>（Round <N>）
 
-- **执行模式**：无人值守（澄清 → init → explore → propose → apply → codex-review → [archive]）
+- **执行模式**：无人值守（澄清 → init → explore → propose → apply → specpowers-review → [archive]）
 - **需求澄清**：<ceiling = full（直通全流程）/ ceiling = explore（停靠，待用户裁决 <N> 项）>；遗留 <N> 项（详见 `.specpowers/auto_clarifications/<feature>.md`）
 - **需求迭代轮次**：第 <N> 轮（归档前同一需求多轮迭代，轮次不设上限；与 review 复审轮次相互独立；Round 0 为未收敛草案轮时在此注明）
 - **本轮输入形态**：<新设计文档 <路径> / 原设计文档内容变更 / 口头指令 "<摘要>" / 断点续跑（无新输入）>
@@ -14,7 +14,7 @@
 - **执行结果**：本轮完成（未归档，可继续迭代、`--archive` 或手动归档）/ 本轮完成并归档（显式 `--archive` 收口）/ explore 停靠（方案待定，等待输入：带 `--instruction "<方案结论>"` 或补充文档重入）/ 硬阻断停下（第 <M> 步）
 - **设计文档**：<当前有效设计文档路径>
 - **审查基点**：<base_commit SHA>（首轮记录，跨轮不变，记录于 `.specpowers/auto_base.json`）
-- **审查方式**：codex-review 技能 / 降级自审 checklist（二选一，降级时注明原因）
+- **审查方式**：specpowers-review 技能（内置）/ 降级自审 checklist（二选一，降级时注明原因）
 
 ## 一、各阶段产物路径
 
@@ -24,7 +24,7 @@
 | explore | 设计文档 | `docs/specpowers/design/...`（迭代轮含「## 迭代历史」） |
 | propose | proposal/spec/tasks 三件套 | `openspec/changes/<feature>/`（proposal 含数据流契约；spec 迭代轮为增量修订；tasks 迭代轮按 Round 分节） |
 | apply | 代码 + 测试 | <涉及目录> |
-| codex-review | 审查记录 | <落盘路径，如有> |
+| specpowers-review | 审查记录 | <落盘路径，如有> |
 | archive | 归档结果 | `openspec/specs/<capability>/spec.md`（本轮归档时填写；未归档写「本轮未归档」） |
 
 ## 二、实际修改 / 新增文件清单（本轮）
@@ -81,7 +81,7 @@
 
 - **需求澄清遗留项**：<场景为推导所得需人工确认 / 次要要素按默认策略补齐 / 保守改写的笼统预期 / 采信的歧义点，逐条列出并指向澄清报告条目号；无则写「无」>
 - **外部依赖未就绪项**：<未就绪的外部接口及采用的降级策略（如 Remote 降级：返回空 + warn 日志 + 完整异常堆栈），接口就绪后仅需替换的层次>
-- **降级审查标注**：<若 codex-review 不可用，此处标注「本次为降级审查」及原因>
+- **降级审查标注**：<若 specpowers-review 调用异常走了降级自审，此处标注「本次为降级审查」及原因>
 - **2 轮后仍遗留问题**：<复审轮次上限内未收敛的 blocking 问题，交人工裁决；带 blocking 遗留时 `--archive` 收口会被拦截>
 - **功能名变更**：<迭代轮设计文档功能名与锁定 slug 不一致时在此注明>
 - **其他**：<归档校验「只转人工、不打回」记录的问题等>

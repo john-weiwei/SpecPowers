@@ -878,7 +878,7 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     label = "auto 模式" if entry == "auto" else "人工模式"
     print(f"迭代轮已开启（{label}）：Round {new_round}，feature '{feature}' 锁定不变，stage → propose")
     if entry == "auto":
-        print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ propose → apply → codex-review")
+        print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ propose → apply → specpowers-review")
     else:
         print("迭代轮已开启（人工模式重入）：按 prompts/propose.md 迭代轮小节增量修订三件套"
               "（方案变更时先按 explore.md 迭代轮小节更新设计文档与 proposal）；"
