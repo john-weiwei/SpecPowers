@@ -1,0 +1,24 @@
+.claude-plugin/marketplace.json
+  s_50575c4494b02e::t_26750bd1b3f437 13
+tests/test_manifest_consistency.py
+  s_50575c4494b02e::t_fe80aa32dbda4e 12-18
+  s_50575c4494b02e::t_318d255c22f439 59,64-68
+  s_50575c4494b02e::t_ed2d593bf6f4fa 133,137-147
+  s_50575c4494b02e::t_846014d3b78973 69-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8d88a9dd887b7d16ee87254f71208fddadd50a30",
+  "prompts": {},
+  "sessions": {
+    "s_50575c4494b02e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_7056da2f-dd32-4393-9c73-c68f4d649f4f",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
