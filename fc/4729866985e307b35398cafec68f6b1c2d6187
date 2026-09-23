@@ -1,0 +1,49 @@
+README.md
+  s_50575c4494b02e::t_e4cd55b9119113 7
+  s_50575c4494b02e::t_f503cc575ac455 123
+  s_50575c4494b02e::t_249340c589cae4 48
+  s_50575c4494b02e::t_6c19d19ddf118f 53,107
+  s_50575c4494b02e::t_5906a7c49d3208 103
+plugins/specpowers/.claude-plugin/plugin.json
+  s_50575c4494b02e::t_0f9942aa7b4aaa 3
+tests/test_manifest_consistency.py
+  s_50575c4494b02e::t_d455c98a883e4d 172-180
+  s_50575c4494b02e::t_c436a83795824f 22-23
+.codebuddy-plugin/marketplace.json
+  s_50575c4494b02e::t_5faf35b6fd858d 16
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_50575c4494b02e::t_ef3a65bbbdc00a 4
+  s_50575c4494b02e::t_a0bd997491d676 107
+plugins/specpowers/.codex-plugin/plugin.json
+  s_50575c4494b02e::t_08088b68531e5c 17
+  s_50575c4494b02e::t_5c6dbf2c86dcc8 3
+  s_50575c4494b02e::t_e73b0d267cb00a 36-37
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_50575c4494b02e::t_00724d9947add1 3
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_50575c4494b02e::t_bece074d6ff886 3
+pyproject.toml
+  s_50575c4494b02e::t_d226eaaf814d98 3
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_50575c4494b02e::t_445c8ea931dde1 3
+marketplace.json
+  s_50575c4494b02e::t_7a4d303fa33f29 13
+docs/claude-codex-marketplace-plan.md
+  s_50575c4494b02e::t_4affba22ffbf5c 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fc4729866985e307b35398cafec68f6b1c2d6187",
+  "prompts": {},
+  "sessions": {
+    "s_50575c4494b02e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_7056da2f-dd32-4393-9c73-c68f4d649f4f",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
