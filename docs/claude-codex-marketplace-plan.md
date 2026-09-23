@@ -1,7 +1,7 @@
 # Claude Code / Codex 插件市场安装支持优化方案
 
 > 作者：SpecPowers Team 2026-09-23（ZCode / GLM-5.3）
-> 状态：方案定稿，待实施
+> 状态：P0 + P1 已实施（v2.2.0，2026-09-23）；P2（portable plugin.json / 官方市场收录）待排期
 
 ## 一、结论摘要
 

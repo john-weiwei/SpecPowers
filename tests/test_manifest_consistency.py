@@ -19,6 +19,8 @@
     - 市场清单必须带 owner（WorkBuddy 市场规范必需字段）
     - plugin.json 不注册 hooks（hooks.json 使用 ${CLAUDE_PLUGIN_ROOT}，
       WorkBuddy 官方变量为 ${CODEBUDDY_PLUGIN_ROOT}，兼容性实测前不启用）
+  - Codex 宿主清单注册 hooks（Codex 已支持插件 hooks，与 Claude 同一事件 schema，
+    hook 命令收到兼容的 ${CLAUDE_PLUGIN_ROOT} 变量；需用户信任审核后运行）
 
 作者：SpecPowers Team 2026-09-20（ZCode / GLM-5.3）
 """
@@ -164,6 +166,15 @@ def test_codebuddy_plugin_has_no_hooks():
     assert "hooks" not in manifest, (
         "WorkBuddy 清单注册了 hooks——若 ${CLAUDE_PLUGIN_ROOT} 兼容性已实测通过，"
         "可移除本用例并补充 hooks 字段（./hooks/hooks.json）"
+    )
+
+
+def test_codex_plugin_has_hooks():
+    """Codex 已支持插件 hooks：宿主清单注册 ./hooks/hooks.json（信任审核后生效）。"""
+    manifest = _load_json("plugins/specpowers/.codex-plugin/plugin.json")
+    assert manifest.get("hooks") == "./hooks/hooks.json", (
+        "Codex 清单应注册 hooks（./hooks/hooks.json）——Codex 兼容 ${CLAUDE_PLUGIN_ROOT}，"
+        "未信任时自动跳过，注册无副作用"
     )
 
 

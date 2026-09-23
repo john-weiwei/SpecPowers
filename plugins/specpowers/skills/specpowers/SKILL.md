@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.1.0
+version: 2.2.0
 ---
 
 # SpecPowers 桥接插件
@@ -104,7 +104,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 %PLUGIN_ROOT%\scripts\specpowers_cli\bin\specpowers.bat <subcommand> [--root <path>] [options]
 ```
 
-> `PLUGIN_ROOT` 在 ZCode 为 `${ZCODE_PLUGIN_ROOT}`、Claude Code 为 `${CLAUDE_PLUGIN_ROOT}`、Codex 为 `${CODEX_PLUGIN_ROOT}`，按当前运行环境替换。
+> `PLUGIN_ROOT` 在 ZCode 为 `${ZCODE_PLUGIN_ROOT}`、Claude Code 为 `${CLAUDE_PLUGIN_ROOT}`、Codex 为 `${PLUGIN_ROOT}`（并兼容 `${CLAUDE_PLUGIN_ROOT}`），按当前运行环境替换。
 
 **自动读取契约强制**：每个阶段开始前，Dispatcher 自动校验本阶段必读上游产物是否存在。缺必读 → 拒绝开工。v2.0.0 防架空链：propose 从 explore 进入时校验设计文档已登记（`record-design-doc`）；apply 入口校验 proposal 含「## 数据流契约」段头。
 
