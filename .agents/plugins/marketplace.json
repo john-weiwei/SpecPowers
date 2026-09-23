@@ -1,0 +1,24 @@
+{
+  "name": "specpowers-marketplace",
+  "interface": {
+    "displayName": "SpecPowers"
+  },
+  "plugins": [
+    {
+      "name": "specpowers",
+      "source": {
+        "source": "local",
+        "path": "./plugins/specpowers"
+      },
+      "interface": {
+        "displayName": "SpecPowers",
+        "shortDescription": "spec 驱动开发五阶段流水线编排插件（OpenSpec + superpowers 桥接）"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

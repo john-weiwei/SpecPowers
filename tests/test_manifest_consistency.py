@@ -1,16 +1,24 @@
-"""清单一致性测试 —— 6 份清单 + 包版本 + pyproject 版本同步校验。
+"""清单一致性测试 —— 8 份清单 + 包版本 + pyproject 版本同步校验。
 
 覆盖发布时需人工同步的全部版本源：
   - 4 份宿主 plugin.json（zcode / claude / codex / codebuddy）
-  - 2 份市场 marketplace.json（仓库根 / .codebuddy-plugin）
+  - 4 份市场 marketplace.json（仓库根 / .claude-plugin / .agents/plugins / .codebuddy-plugin）
   - specpowers_cli.__version__
   - pyproject.toml 的 project.version
 
-另锁定 WorkBuddy（codebuddy）首版清单策略：
-  - 市场清单必须带 owner（WorkBuddy 市场规范必需字段）
-  - plugin.json 不注册 hooks（hooks.json 使用 ${CLAUDE_PLUGIN_ROOT}，
-    WorkBuddy 官方变量为 ${CODEBUDDY_PLUGIN_ROOT}，兼容性实测前不启用，
-    与 Codex 版无 hooks 的先例一致）
+版本单源化策略（v2.2.0 起）：
+  - 新增两份市场清单（.claude-plugin / .agents/plugins）不写 version
+    （Claude 官方明确总以插件内 plugin.json 的 version 为准，双写易漂移且不告警）
+  - 旧市场清单（仓库根 / .codebuddy-plugin）保留 version，写了就必须与 plugin.json 一致
+
+另锁定各市场/宿主规范必需字段：
+  - Claude 市场：顶层必须带 owner，source 为 ./ 开头的相对路径（Claude 市场规范）
+  - Codex 市场：插件条目必须带 policy.installation / policy.authentication / category，
+    source.path 为 ./ 开头、相对市场根（Codex 市场规范）
+  - WorkBuddy（codebuddy）首版清单策略：
+    - 市场清单必须带 owner（WorkBuddy 市场规范必需字段）
+    - plugin.json 不注册 hooks（hooks.json 使用 ${CLAUDE_PLUGIN_ROOT}，
+      WorkBuddy 官方变量为 ${CODEBUDDY_PLUGIN_ROOT}，兼容性实测前不启用）
 
 作者：SpecPowers Team 2026-09-20（ZCode / GLM-5.3）
 """
@@ -31,10 +39,18 @@ PLUGIN_MANIFESTS = [
     "plugins/specpowers/.codebuddy-plugin/plugin.json",
 ]
 
-# 2 份市场清单（仓库级）
+# 4 份市场清单（仓库级；各平台只识别自己约定路径）
 MARKETPLACE_MANIFESTS = [
     "marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".agents/plugins/marketplace.json",
     ".codebuddy-plugin/marketplace.json",
+]
+
+# 版本单源化的新市场清单（不写 version，以插件内 plugin.json 为准）
+VERSIONLESS_MARKETPLACE_MANIFESTS = [
+    ".claude-plugin/marketplace.json",
+    ".agents/plugins/marketplace.json",
 ]
 
 
@@ -52,7 +68,7 @@ def _pyproject_version():
 
 
 def test_all_manifests_exist():
-    """6 份清单文件必须全部存在。"""
+    """8 份清单文件必须全部存在。"""
     for rel in PLUGIN_MANIFESTS + MARKETPLACE_MANIFESTS:
         assert (REPO_ROOT / rel).is_file(), f"清单缺失：{rel}"
 
@@ -68,13 +84,72 @@ def test_plugin_manifests_consistent():
 
 
 def test_marketplace_manifests_consistent():
-    """2 份市场清单的插件条目必须与 plugin.json 的 name/version 一致。"""
+    """4 份市场清单的插件条目 name 必须与 plugin.json 一致；写了 version 则必须一致。"""
     plugin_manifest = _load_json(PLUGIN_MANIFESTS[0])
     for rel in MARKETPLACE_MANIFESTS:
         marketplace = _load_json(rel)
         entry = marketplace["plugins"][0]
         assert entry["name"] == plugin_manifest["name"], f"{rel} 插件名与 plugin.json 不一致"
-        assert entry["version"] == plugin_manifest["version"], f"{rel} 插件版本与 plugin.json 不一致"
+        if "version" in entry:
+            assert entry["version"] == plugin_manifest["version"], (
+                f"{rel} 插件版本与 plugin.json 不一致"
+            )
+
+
+def test_versionless_marketplace_manifests():
+    """版本单源化：新市场清单（.claude-plugin / .agents/plugins）不写 version。"""
+    for rel in VERSIONLESS_MARKETPLACE_MANIFESTS:
+        entry = _load_json(rel)["plugins"][0]
+        assert "version" not in entry, (
+            f"{rel} 不应写 version——各平台均以插件内 plugin.json 的 version 为准"
+        )
+
+
+def test_claude_marketplace_has_owner():
+    """Claude 市场规范要求 marketplace.json 顶层必须带 owner 字段。"""
+    marketplace = _load_json(".claude-plugin/marketplace.json")
+    owner = marketplace.get("owner")
+    assert isinstance(owner, dict) and owner.get("name"), (
+        "Claude 市场清单缺少必需的 owner 字段（owner.name）"
+    )
+
+
+def test_claude_marketplace_source_relative():
+    """Claude 市场规范：source 必须为 ./ 开头、相对市场根的相对路径。"""
+    entry = _load_json(".claude-plugin/marketplace.json")["plugins"][0]
+    source = entry["source"]
+    assert isinstance(source, str) and source.startswith("./"), (
+        "Claude 市场清单 source 必须是 ./ 开头的相对路径字符串"
+    )
+    assert ".." not in source, "Claude 市场清单 source 不允许包含 ../"
+
+
+def test_codex_marketplace_policy():
+    """Codex 市场规范：插件条目必带 policy.installation/policy.authentication/category。"""
+    entry = _load_json(".agents/plugins/marketplace.json")["plugins"][0]
+    policy = entry.get("policy", {})
+    assert policy.get("installation") in {
+        "AVAILABLE",
+        "INSTALLED_BY_DEFAULT",
+        "NOT_AVAILABLE",
+    }, "Codex 市场清单缺少合法的 policy.installation"
+    assert policy.get("authentication") in {"ON_INSTALL", "ON_FIRST_USE"}, (
+        "Codex 市场清单缺少合法的 policy.authentication"
+    )
+    assert isinstance(entry.get("category"), str) and entry["category"], (
+        "Codex 市场清单缺少必需的 category"
+    )
+
+
+def test_codex_marketplace_source_path():
+    """Codex 市场规范：source.path 必须为 ./ 开头、相对市场根（而非 .agents/plugins/）。"""
+    entry = _load_json(".agents/plugins/marketplace.json")["plugins"][0]
+    source = entry["source"]
+    assert isinstance(source, dict), "Codex 市场清单 source 应为对象（source/path）"
+    path = source.get("path", "")
+    assert path.startswith("./"), "Codex 市场清单 source.path 必须以 ./ 开头"
+    assert ".." not in path, "Codex 市场清单 source.path 不允许逃出市场根"
+    assert (REPO_ROOT / path).is_dir(), f"Codex 市场清单 source.path 指向的目录不存在：{path}"
 
 
 def test_codebuddy_marketplace_has_owner():

@@ -17,16 +17,20 @@ SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引�
 
 ### 方式一：插件市场（推荐 —— ZCode / Claude Code / Codex / WorkBuddy）
 
-四家的插件结构同构，本仓库已内置四份清单（`.zcode-plugin/`、`.claude-plugin/`、`.codex-plugin/`、`.codebuddy-plugin/`）。把本仓库添加为插件市场源后一行安装：
+四家的插件结构同构，本仓库已内置四份宿主清单（插件目录内 `.zcode-plugin/`、`.claude-plugin/`、`.codex-plugin/`、`.codebuddy-plugin/`）与四份市场入口清单（仓库根 `marketplace.json`、`.claude-plugin/marketplace.json`、`.agents/plugins/marketplace.json`、`.codebuddy-plugin/marketplace.json`）。把本仓库添加为插件市场源后安装：
 
 ```bash
-# ZCode / Claude Code
+# ZCode
 /plugin marketplace add https://github.com/john-weiwei/SpecPowers
 /plugin install specpowers
 
-# Codex CLI
-codex plugin marketplace add https://github.com/john-weiwei/SpecPowers
-codex plugin install specpowers
+# Claude Code
+/plugin marketplace add https://github.com/john-weiwei/SpecPowers
+/plugin install specpowers@specpowers-marketplace
+
+# Codex CLI（GitHub 简写；安装走插件面板，CLI 无 install 子命令）
+codex plugin marketplace add john-weiwei/SpecPowers
+# → 之后在 ChatGPT 桌面端 / Codex 插件面板（Plugins Directory）安装并启用 specpowers
 
 # WorkBuddy
 /plugin marketplace add john-weiwei/SpecPowers
@@ -87,11 +91,10 @@ v2.0.0 完成阶段重命名与流程缩减（六阶段 → 五阶段），**旧
 
 > 若 install 提示"已安装"而未更新，先卸载再装：`/plugin uninstall specpowers` → `/plugin install specpowers`。
 
-Codex CLI 对应：
+Codex CLI 对应（升级市场源后，在插件面板重新安装/刷新 specpowers）：
 
 ```bash
-codex plugin marketplace update specpowers-marketplace
-codex plugin install specpowers
+codex plugin marketplace upgrade specpowers-marketplace
 ```
 
 ### pip 方式（Cursor / Copilot / Windsurf / Cline 等）
@@ -278,11 +281,13 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 
 ```
 specpowers/
-├── marketplace.json             ← 插件市场入口清单（ZCode / Claude Code / Codex）
+├── marketplace.json             ← 插件市场入口清单（ZCode）
+├── .claude-plugin/marketplace.json    ← Claude Code 市场入口清单
+├── .agents/plugins/marketplace.json   ← Codex / ChatGPT 市场入口清单
 ├── .codebuddy-plugin/marketplace.json ← WorkBuddy 市场入口清单
 ├── pyproject.toml               ← 包配置（pip 安装场景）
 ├── plugins/
-│   └── specpowers/              ← 插件根（三平台共用）
+│   └── specpowers/              ← 插件根（四平台共用）
 │       ├── .zcode-plugin/plugin.json     ← ZCode 清单
 │       ├── .claude-plugin/plugin.json    ← Claude Code 清单
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
