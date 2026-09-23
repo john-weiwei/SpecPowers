@@ -288,6 +288,7 @@ specpowers/
 ├── pyproject.toml               ← 包配置（pip 安装场景）
 ├── plugins/
 │   └── specpowers/              ← 插件根（四平台共用）
+│       ├── plugin.json          ← portable 根清单（agent-plugins.org 开放标准，Codex 首选）
 │       ├── .zcode-plugin/plugin.json     ← ZCode 清单
 │       ├── .claude-plugin/plugin.json    ← Claude Code 清单
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
@@ -316,7 +317,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（198 用例；另有 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（206 用例；另有 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

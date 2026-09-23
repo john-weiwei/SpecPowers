@@ -1,0 +1,49 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "specpowers",
+  "version": "2.2.0",
+  "description": "五阶段 spec 驱动开发流水线编排插件：init→explore→propose→apply→archive（propose 一站式生成 proposal/spec/tasks 三件套），叠加结构一致性门禁与实时卡转人工。无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通，自动裁决确认/门禁节点）。桥接 OpenSpec CLI + superpowers 插件，需预装。",
+  "author": {
+    "name": "SpecPowers Team",
+    "url": "https://github.com/john-weiwei/SpecPowers"
+  },
+  "homepage": "https://github.com/john-weiwei/SpecPowers",
+  "repository": "https://github.com/john-weiwei/SpecPowers",
+  "license": "MIT",
+  "keywords": [
+    "spec-driven",
+    "pipeline",
+    "openspec",
+    "structure-gate",
+    "superpowers"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "SpecPowers",
+        "shortDescription": "Five-stage spec-driven development pipeline on top of OpenSpec + superpowers, with structure-consistency gates and unattended auto mode.",
+        "category": "Developer Tools"
+      },
+      "requirements": {
+        "_detect": "SessionStart hook 自动检测依赖（hooks/hooks.json 默认发现，需信任审核后运行，未信任时自动跳过）。skills/ 目录默认自动发现，无需声明。",
+        "commands": [
+          {
+            "name": "openspec",
+            "check": "openspec --version",
+            "requiredFor": ["archive"],
+            "optional": false,
+            "installHint": "npm install -g @funneler/openspec"
+          }
+        ],
+        "plugins": [
+          {
+            "name": "superpowers",
+            "requiredFor": ["propose", "apply"],
+            "optional": true,
+            "installHint": "/plugin install superpowers"
+          }
+        ]
+      }
+    }
+  }
+}

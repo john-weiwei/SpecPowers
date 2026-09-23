@@ -1,7 +1,10 @@
-"""清单一致性测试 —— 8 份清单 + 包版本 + pyproject 版本同步校验。
+"""清单一致性测试 —— 9 份清单 + 包版本 + pyproject 版本同步校验。
 
 覆盖发布时需人工同步的全部版本源：
   - 4 份宿主 plugin.json（zcode / claude / codex / codebuddy）
+  - 1 份 portable 根清单（plugins/specpowers/plugin.json，
+    agent-plugins.org 开放标准，Codex 新格式首选；顶层 additionalProperties
+    为 false，自定义字段只能下沉 extensions 命名空间）
   - 4 份市场 marketplace.json（仓库根 / .claude-plugin / .agents/plugins / .codebuddy-plugin）
   - specpowers_cli.__version__
   - pyproject.toml 的 project.version
@@ -56,6 +59,24 @@ VERSIONLESS_MARKETPLACE_MANIFESTS = [
 ]
 
 
+# portable 根清单（agent-plugins.org 标准；Codex 检测到它后忽略 .codex-plugin/ 兼容回退）
+PORTABLE_MANIFEST = "plugins/specpowers/plugin.json"
+
+# portable 清单顶层允许的字段（schema 顶层 additionalProperties: false）
+PORTABLE_ALLOWED_FIELDS = {
+    "$schema",
+    "name",
+    "version",
+    "description",
+    "author",
+    "homepage",
+    "repository",
+    "license",
+    "keywords",
+    "extensions",
+}
+
+
 def _load_json(rel_path):
     """读取仓库内 JSON 文件并解析为 dict。"""
     return json.loads((REPO_ROOT / rel_path).read_text(encoding="utf-8"))
@@ -70,14 +91,14 @@ def _pyproject_version():
 
 
 def test_all_manifests_exist():
-    """8 份清单文件必须全部存在。"""
-    for rel in PLUGIN_MANIFESTS + MARKETPLACE_MANIFESTS:
+    """9 份清单文件必须全部存在。"""
+    for rel in PLUGIN_MANIFESTS + MARKETPLACE_MANIFESTS + [PORTABLE_MANIFEST]:
         assert (REPO_ROOT / rel).is_file(), f"清单缺失：{rel}"
 
 
 def test_plugin_manifests_consistent():
-    """4 份宿主 plugin.json 的 name/version 必须一致。"""
-    pairs = [(rel, _load_json(rel)) for rel in PLUGIN_MANIFESTS]
+    """4 份宿主 plugin.json + portable 根清单的 name/version 必须一致。"""
+    pairs = [(rel, _load_json(rel)) for rel in PLUGIN_MANIFESTS + [PORTABLE_MANIFEST]]
     first_name = pairs[0][1]["name"]
     first_version = pairs[0][1]["version"]
     for rel, manifest in pairs:
@@ -166,6 +187,29 @@ def test_codebuddy_plugin_has_no_hooks():
     assert "hooks" not in manifest, (
         "WorkBuddy 清单注册了 hooks——若 ${CLAUDE_PLUGIN_ROOT} 兼容性已实测通过，"
         "可移除本用例并补充 hooks 字段（./hooks/hooks.json）"
+    )
+
+
+def test_portable_manifest_schema_fields():
+    """portable 清单顶层字段必须落在 schema 允许集合内（additionalProperties: false）。"""
+    manifest = _load_json(PORTABLE_MANIFEST)
+    assert manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", (
+        "portable 清单 $schema 必须指向 agent-plugins.org 1.0.0 官方 schema"
+    )
+    extra = set(manifest) - PORTABLE_ALLOWED_FIELDS
+    assert not extra, f"portable 清单出现 schema 外顶层字段（会被拒载）：{sorted(extra)}"
+
+
+def test_portable_manifest_openai_extension():
+    """portable 清单的 OpenAI 扩展：interface 展示元数据 + requirements 依赖声明。"""
+    extension = _load_json(PORTABLE_MANIFEST)["extensions"]["com.openai"]
+    interface = extension.get("interface", {})
+    assert interface.get("displayName"), "com.openai 扩展缺少 interface.displayName"
+    assert interface.get("shortDescription"), "com.openai 扩展缺少 interface.shortDescription"
+    assert interface.get("category"), "com.openai 扩展缺少 interface.category"
+    assert "requirements" in extension, (
+        "根清单含 inline extensions.com.openai 时 Codex 会整体忽略 .codex-plugin/ 回退，"
+        "依赖声明必须随迁至扩展内"
     )
 
 
