@@ -1,0 +1,32 @@
+tests/test_manifest_consistency.py
+  s_50575c4494b02e::t_e6d8ebbe2bf9dc 62-79
+  s_50575c4494b02e::t_f2b4f4ac054e78 94-95,100-101
+  s_50575c4494b02e::t_a14353b3177ced 1,5-7
+  s_50575c4494b02e::t_753582e7e69e59 193-215
+README.md
+  s_50575c4494b02e::t_a21adacb896a8b 320
+  s_50575c4494b02e::t_46d3401f8549dc 291
+plugins/specpowers/plugin.json
+  s_50575c4494b02e::t_649b3d77e504eb 1-49
+docs/marketplace-submission.md
+  s_50575c4494b02e::t_9ee7b80a97db2a 26
+  s_50575c4494b02e::t_7a527ff39047f4 1-25,27-77
+docs/claude-codex-marketplace-plan.md
+  s_50575c4494b02e::t_8a45c7c79ba2cd 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e91ab1276db992bc6e7e3df56b21527813f9da51",
+  "prompts": {},
+  "sessions": {
+    "s_50575c4494b02e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_7056da2f-dd32-4393-9c73-c68f4d649f4f",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
