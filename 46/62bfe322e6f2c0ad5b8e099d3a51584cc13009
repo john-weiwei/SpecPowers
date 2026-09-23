@@ -1,0 +1,30 @@
+README.md
+  s_50575c4494b02e::t_aa3b3c27e37910 94,97
+  s_50575c4494b02e::t_99bb76c86bba90 284-286
+  s_50575c4494b02e::t_9684bb07704c83 20,23,27-33
+  s_50575c4494b02e::t_67a7f54f42eaa3 290
+tests/test_manifest_consistency.py
+  s_50575c4494b02e::t_d558f0e9871e24 1,5,9-21,42,45-46,50-55,71,87,93-152
+docs/claude-codex-marketplace-plan.md
+  s_50575c4494b02e::t_87e231b56472f6 1-182
+.agents/plugins/marketplace.json
+  s_50575c4494b02e::t_9b17f2c2022cf0 1-24
+.claude-plugin/marketplace.json
+  s_50575c4494b02e::t_c9b72d16f12ee4 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4662bfe322e6f2c0ad5b8e099d3a51584cc13009",
+  "prompts": {},
+  "sessions": {
+    "s_50575c4494b02e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_7056da2f-dd32-4393-9c73-c68f4d649f4f",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
