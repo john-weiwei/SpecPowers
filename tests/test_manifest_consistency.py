@@ -9,9 +9,13 @@
   - specpowers_cli.__version__
   - pyproject.toml 的 project.version
 
-版本单源化策略（v2.2.0 起）：
-  - 新增两份市场清单（.claude-plugin / .agents/plugins）不写 version
-    （Claude 官方明确总以插件内 plugin.json 的 version 为准，双写易漂移且不告警）
+版本策略（v2.2.0 起）：
+  - .agents/plugins/marketplace.json（仅 Codex 读）不写 version，
+    Codex 从插件内 plugin.json 读版本
+  - .claude-plugin/marketplace.json 必须写 version：当前 ZCode 解析市场清单
+    优先读 .claude-plugin/marketplace.json，且靠「条目 version vs 安装记录
+    version」检测插件更新——条目缺 version 会导致更新永远检测不到
+    （Claude 侧无碍：version 是其官方可选字段，且 Claude 总以 plugin.json 为准）
   - 旧市场清单（仓库根 / .codebuddy-plugin）保留 version，写了就必须与 plugin.json 一致
 
 另锁定各市场/宿主规范必需字段：
@@ -52,10 +56,16 @@ MARKETPLACE_MANIFESTS = [
     ".codebuddy-plugin/marketplace.json",
 ]
 
-# 版本单源化的新市场清单（不写 version，以插件内 plugin.json 为准）
+# 不写 version 的市场清单（仅 Codex 读；Codex 从插件内 plugin.json 读版本）
 VERSIONLESS_MARKETPLACE_MANIFESTS = [
-    ".claude-plugin/marketplace.json",
     ".agents/plugins/marketplace.json",
+]
+
+# ZCode 解析市场清单优先读 .claude-plugin/marketplace.json（根 marketplace.json 为兜底），
+# 且靠条目 version 检测更新——两份必须都带 version
+ZCODE_VISIBLE_MARKETPLACE_MANIFESTS = [
+    "marketplace.json",
+    ".claude-plugin/marketplace.json",
 ]
 
 
@@ -120,11 +130,21 @@ def test_marketplace_manifests_consistent():
 
 
 def test_versionless_marketplace_manifests():
-    """版本单源化：新市场清单（.claude-plugin / .agents/plugins）不写 version。"""
+    """版本策略：.agents/plugins（仅 Codex 读）不写 version，Codex 从 plugin.json 读。"""
     for rel in VERSIONLESS_MARKETPLACE_MANIFESTS:
         entry = _load_json(rel)["plugins"][0]
         assert "version" not in entry, (
-            f"{rel} 不应写 version——各平台均以插件内 plugin.json 的 version 为准"
+            f"{rel} 不应写 version——Codex 从插件内 plugin.json 读版本"
+        )
+
+
+def test_zcode_visible_marketplaces_carry_version():
+    """ZCode 更新检测依赖市场条目 version（.claude-plugin 优先、根清单兜底），缺失则更新永远检测不到。"""
+    plugin_manifest = _load_json(PLUGIN_MANIFESTS[0])
+    for rel in ZCODE_VISIBLE_MARKETPLACE_MANIFESTS:
+        entry = _load_json(rel)["plugins"][0]
+        assert entry.get("version") == plugin_manifest["version"], (
+            f"{rel} 条目必须携带与 plugin.json 一致的 version——ZCode 靠它检测插件更新"
         )
 
 
