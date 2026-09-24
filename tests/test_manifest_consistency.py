@@ -29,6 +29,17 @@
   - Codex 宿主清单注册 hooks（Codex 已支持插件 hooks，与 Claude 同一事件 schema，
     hook 命令收到兼容的 ${CLAUDE_PLUGIN_ROOT} 变量；需用户信任审核后运行）
 
+图标策略（v2.2.0 起）：
+  - ZCode 市场页图标读市场条目 icon（绝对 URL，官方市场同款做法）——
+    ZCode 可见两份市场清单（仓库根 / .claude-plugin）条目必须带 icon 且一致，
+    URL 用 jsDelivr CDN（GitHub raw 国内经常不可达，会退化成裂图）
+  - Codex 市场条目白名单（name/source/policy/category）无 icon——Codex 端图标走
+    portable plugin.json 的 extensions.com.openai.interface.composerIcon
+    （Codex 官方规范：相对插件根路径，必须指向插件包内真实文件）
+  - WorkBuddy 市场条目 icon 支持未实测，保守不写（实测后可放开）
+  - 图标源文件 plugins/specpowers/assets/icon.png 由 scripts/gen_icon.py 生成，
+    替换图标只需重跑脚本并推送（jsDelivr URL 随 @main 引用自动指向新文件）
+
 作者：SpecPowers Team 2026-09-20（ZCode / GLM-5.3）
 """
 
@@ -71,6 +82,16 @@ ZCODE_VISIBLE_MARKETPLACE_MANIFESTS = [
 
 # portable 根清单（agent-plugins.org 标准；Codex 检测到它后忽略 .codex-plugin/ 兼容回退）
 PORTABLE_MANIFEST = "plugins/specpowers/plugin.json"
+
+# 图标源文件（scripts/gen_icon.py 生成）与市场条目引用的 CDN URL
+ICON_REL_PATH = "plugins/specpowers/assets/icon.png"
+ICON_CDN_URL = (
+    "https://cdn.jsdelivr.net/gh/john-weiwei/SpecPowers@main/"
+    "plugins/specpowers/assets/icon.png"
+)
+
+# PNG 文件魔数（前 8 字节），用于校验图标确为 PNG 而非空文件或文本
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 # portable 清单顶层允许的字段（schema 顶层 additionalProperties: false）
 PORTABLE_ALLOWED_FIELDS = {
@@ -239,6 +260,57 @@ def test_codex_plugin_has_hooks():
     assert manifest.get("hooks") == "./hooks/hooks.json", (
         "Codex 清单应注册 hooks（./hooks/hooks.json）——Codex 兼容 ${CLAUDE_PLUGIN_ROOT}，"
         "未信任时自动跳过，注册无副作用"
+    )
+
+
+def _assert_png(rel_path):
+    """校验仓库内指定路径存在且为 PNG 文件（魔数校验）。"""
+    path = REPO_ROOT / rel_path
+    assert path.is_file(), f"图标文件缺失：{rel_path}"
+    with path.open("rb") as fp:
+        assert fp.read(len(PNG_MAGIC)) == PNG_MAGIC, f"图标不是合法 PNG 文件：{rel_path}"
+
+
+def test_icon_asset_exists():
+    """图标源文件必须存在且为 PNG（scripts/gen_icon.py 可重新生成）。"""
+    _assert_png(ICON_REL_PATH)
+
+
+def test_marketplace_icon_field():
+    """ZCode 市场页图标读条目 icon：ZCode 可见两份市场清单必须带一致的 jsDelivr URL。"""
+    for rel in ZCODE_VISIBLE_MARKETPLACE_MANIFESTS:
+        entry = _load_json(rel)["plugins"][0]
+        icon = entry.get("icon")
+        assert icon == ICON_CDN_URL, (
+            f"{rel} 条目 icon 必须为统一的 jsDelivr CDN URL——"
+            f"ZCode 市场页靠该字段渲染插件图标，缺失或不一致会退化成默认灰块"
+        )
+    # URL 必须真实指向仓库内图标文件，且 URL 换成 GitHub raw 也能反解回同一文件
+    assert ICON_REL_PATH in ICON_CDN_URL, "icon URL 必须能反解回仓库内图标路径"
+    _assert_png(ICON_REL_PATH)
+
+
+def test_portable_manifest_composer_icon():
+    """Codex 端图标走 plugin.json 的 interface.composerIcon（相对插件根的真实文件）。"""
+    interface = _load_json(PORTABLE_MANIFEST)["extensions"]["com.openai"]["interface"]
+    assert interface.get("composerIcon") == "./assets/icon.png", (
+        "portable 清单 extensions.com.openai.interface 缺少 composerIcon——"
+        "Codex 市场条目无 icon 字段，图标只能经插件清单声明"
+    )
+    _assert_png(ICON_REL_PATH)
+
+
+def test_codex_and_codebuddy_marketplace_no_entry_icon():
+    """策略锁定：Codex 市场条目白名单无 icon；WorkBuddy 未实测保守不写。"""
+    entry = _load_json(".agents/plugins/marketplace.json")["plugins"][0]
+    assert "icon" not in entry, (
+        "Codex 市场条目白名单（name/source/policy/category）不含 icon——"
+        "图标应写在 plugin.json 的 interface.composerIcon"
+    )
+    codebuddy_entry = _load_json(".codebuddy-plugin/marketplace.json")["plugins"][0]
+    assert "icon" not in codebuddy_entry, (
+        "WorkBuddy 市场条目 icon 支持未实测，首版保守不写"
+        "（实测支持后可移除本断言并补 icon 字段）"
     )
 
 

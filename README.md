@@ -285,6 +285,7 @@ specpowers/
 ├── .claude-plugin/marketplace.json    ← Claude Code 市场入口清单
 ├── .agents/plugins/marketplace.json   ← Codex / ChatGPT 市场入口清单
 ├── .codebuddy-plugin/marketplace.json ← WorkBuddy 市场入口清单
+├── scripts/gen_icon.py          ← 插件图标生成脚本（输出 plugins/specpowers/assets/icon.png）
 ├── pyproject.toml               ← 包配置（pip 安装场景）
 ├── plugins/
 │   └── specpowers/              ← 插件根（四平台共用）
@@ -293,6 +294,7 @@ specpowers/
 │       ├── .claude-plugin/plugin.json    ← Claude Code 清单
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
 │       ├── .codebuddy-plugin/plugin.json ← WorkBuddy 清单
+│       ├── assets/icon.png      ← 插件图标（市场条目 icon URL / Codex composerIcon 共用）
 │       ├── commands/            ← 9 个 slash 命令（带 specpowers- 前缀防撞名）
 │       │   ├── specpowers-init.md
 │       │   ├── specpowers-explore.md
@@ -317,7 +319,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（206 用例；另有 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（211 用例；另有 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

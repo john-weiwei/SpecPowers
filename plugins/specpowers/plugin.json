@@ -22,7 +22,8 @@
       "interface": {
         "displayName": "SpecPowers",
         "shortDescription": "Five-stage spec-driven development pipeline on top of OpenSpec + superpowers, with structure-consistency gates and unattended auto mode.",
-        "category": "Developer Tools"
+        "category": "Developer Tools",
+        "composerIcon": "./assets/icon.png"
       },
       "requirements": {
         "_detect": "SessionStart hook 自动检测依赖（hooks/hooks.json 默认发现，需信任审核后运行，未信任时自动跳过）。skills/ 目录默认自动发现，无需声明。",
