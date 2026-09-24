@@ -1,0 +1,35 @@
+scripts/gen_icon.py
+  s_35b2ce07927864::t_0dc2a083431725 1,17-18,24-28,40-44,91-92,132,161-164,167,169-174
+  s_35b2ce07927864::t_820e4020a4ffeb 2-16,19,22-23,29-39,45-90,93-131,133-160,165-166
+  s_35b2ce07927864::t_4b9368ca833aaa 20-21
+  s_35b2ce07927864::t_822986d24dda46 168
+README.md
+  s_35b2ce07927864::t_c4422cc58c7fe9 322
+  s_35b2ce07927864::t_7b854b97554589 288,297
+plugins/specpowers/plugin.json
+  s_35b2ce07927864::t_00b0767947650c 25-26
+tests/test_manifest_consistency.py
+  s_35b2ce07927864::t_f8395906ef3198 86-95
+  s_35b2ce07927864::t_ba067d9c571fb0 266-316
+  s_35b2ce07927864::t_8fdbfe00a96bd0 32-42
+.claude-plugin/marketplace.json
+  s_35b2ce07927864::t_942edfed1237e1 17
+marketplace.json
+  s_35b2ce07927864::t_5c93beaa3e062b 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a947b454804b649700aa5e1aa620468f2af6de1d",
+  "prompts": {},
+  "sessions": {
+    "s_35b2ce07927864": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_5e4fa7ea-0a06-47cd-af5e-81dbbb334993",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
