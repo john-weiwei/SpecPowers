@@ -34,8 +34,10 @@
     ZCode 可见两份市场清单（仓库根 / .claude-plugin）条目必须带 icon 且一致，
     URL 用 jsDelivr CDN（GitHub raw 国内经常不可达，会退化成裂图）
   - Codex 市场条目白名单（name/source/policy/category）无 icon——Codex 端图标走
-    portable plugin.json 的 extensions.com.openai.interface.composerIcon
-    （Codex 官方规范：相对插件根路径，必须指向插件包内真实文件）
+    plugin.json 的 interface 块（composerIcon/logo/brandColor，官方规范要求指向
+    插件包内真实文件）；portable 根清单（extensions.com.openai.interface，新版
+    Codex 首选）与 .codex-plugin/ 回退清单（顶层 interface，旧版 Codex）双份同步，
+    两边图标字段必须一致
   - WorkBuddy 市场条目 icon 支持未实测，保守不写（实测后可放开）
   - 图标源文件 plugins/specpowers/assets/icon.png 由 scripts/gen_icon.py 生成，
     替换图标只需重跑脚本并推送（jsDelivr URL 随 @main 引用自动指向新文件）
@@ -291,13 +293,31 @@ def test_marketplace_icon_field():
 
 
 def test_portable_manifest_composer_icon():
-    """Codex 端图标走 plugin.json 的 interface.composerIcon（相对插件根的真实文件）。"""
+    """Codex 端图标走 plugin.json 的 interface：composerIcon/logo 必须指向包内真实 PNG，brandColor 为合法 hex。"""
     interface = _load_json(PORTABLE_MANIFEST)["extensions"]["com.openai"]["interface"]
     assert interface.get("composerIcon") == "./assets/icon.png", (
         "portable 清单 extensions.com.openai.interface 缺少 composerIcon——"
         "Codex 市场条目无 icon 字段，图标只能经插件清单声明"
     )
+    assert interface.get("logo") == "./assets/icon.png", (
+        "portable 清单 interface.logo 应与 composerIcon 复用同一图标文件"
+    )
+    brand = interface.get("brandColor", "")
+    assert re.fullmatch(r"#[0-9a-fA-F]{6}", brand), (
+        f"portable 清单 interface.brandColor 必须为 #RRGGBB 格式，当前为：{brand}"
+    )
     _assert_png(ICON_REL_PATH)
+
+
+def test_codex_plugin_interface_block():
+    """Codex 双清单同步：.codex-plugin/ 回退清单顶层 interface 的图标字段必须与 portable 扩展内一致。"""
+    fallback = _load_json("plugins/specpowers/.codex-plugin/plugin.json").get("interface", {})
+    portable = _load_json(PORTABLE_MANIFEST)["extensions"]["com.openai"]["interface"]
+    for field in ("composerIcon", "logo", "brandColor"):
+        assert fallback.get(field) == portable.get(field), (
+            f"`.codex-plugin/plugin.json` 的 interface.{field} 与 portable 清单不一致——"
+            "旧版 Codex 读回退清单，缺图标字段会导致市场无图标"
+        )
 
 
 def test_codex_and_codebuddy_marketplace_no_entry_icon():

@@ -1,6 +1,6 @@
 {
   "name": "specpowers",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "五阶段 spec 驱动开发流水线编排插件：init→explore→propose→apply→archive（propose 一站式生成 proposal/spec/tasks 三件套），叠加结构一致性门禁与实时卡转人工。无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通，自动裁决确认/门禁节点）。explore 探索用内置 specpowers-explore 技能、review 审查用内置 specpowers-review 技能（均随插件分发）；桥接 OpenSpec CLI + superpowers 插件（propose/apply），需预装。",
   "author": {
     "name": "SpecPowers Team"

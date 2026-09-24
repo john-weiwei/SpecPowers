@@ -10,7 +10,7 @@
       "name": "specpowers",
       "source": "./plugins/specpowers",
       "description": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的五阶段流水线编排插件（init→explore→propose→apply→archive，propose 一站式生成三件套），含无人值守 auto 模式（/specpowers-auto 以设计文档为权威输入全流程直通）。需预装 OpenSpec CLI（archive 必需）+ superpowers 插件（propose/apply 必需）。",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "author": {
         "name": "SpecPowers Team"
       },

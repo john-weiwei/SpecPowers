@@ -10,7 +10,7 @@
         "en": "A bridging plugin that layers structure-consistency gates and real-time human-handoff on top of OpenSpec and superpowers, with a five-stage pipeline (init→explore→propose→apply→archive) and an unattended auto mode.",
         "zh-CN": "在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工的五阶段流水线编排插件，含无人值守 auto 模式。"
       },
-      "version": "2.2.0",
+      "version": "2.2.1",
       "author": {
         "name": "SpecPowers Team"
       },
