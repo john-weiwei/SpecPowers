@@ -1,0 +1,178 @@
+plugins/specpowers/scripts/specpowers_cli/bin/specpowers.bat
+  s_d97c37e3da955e::t_4b158b23b431c4 10-13
+.claude-plugin/marketplace.json
+  s_7da082f45c341a::t_bf2dc99d090d69 12-13
+tests/test_dispatcher.py
+  s_d97c37e3da955e::t_e73f5bc5cb4175 483,499,505,525,550,574,583
+  s_d97c37e3da955e::t_01603c62ff6185 5,45,232
+  s_d97c37e3da955e::t_4e63ed7a009892 24-25,27,527-549,551-573,575-582,584-588
+marketplace.json
+  s_7da082f45c341a::t_bf2dc99d090d69 8,13
+docs/GETTING-STARTED.md
+  s_7da082f45c341a::t_a7ae1d5516d06e 222,224,232
+  s_7da082f45c341a::t_0056368cf46c63 328
+  s_7da082f45c341a::t_cae7ccc26b3ca7 197-198
+  s_7da082f45c341a::t_b9f22fb46fcfc5 126
+  s_7da082f45c341a::t_bf2dc99d090d69 10,45,51,56,61,103,106,110,199,223,233
+tests/test_baseline_scanner.py
+  s_d97c37e3da955e::t_aa8835474aaab0 10,14-26,79-118
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_d97c37e3da955e::t_e73f5bc5cb4175 20,23,524,1028,1038-1040
+  s_d97c37e3da955e::t_728b3791a33e64 602-604,606-608
+  s_d97c37e3da955e::t_c88270ebb40d7e 507-519
+  s_d97c37e3da955e::t_01603c62ff6185 370,397,399,405,453,460,479,578,659,675,719,766
+tests/test_archive_auditor.py
+  s_d97c37e3da955e::t_4e63ed7a009892 22-25
+tests/test_merge_check.py
+  s_d97c37e3da955e::t_44e37e97e0eca1 13,17-24
+plugins/specpowers/plugin.json
+  s_7da082f45c341a::t_bf2dc99d090d69 4-5
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_7da082f45c341a::t_bf2dc99d090d69 3
+tests/test_auto_iteration.py
+  s_d97c37e3da955e::t_e73f5bc5cb4175 206,236,257,272,287,304,330,368,392,411,435,452,459,485,489,508,525,537,552,569
+  s_d97c37e3da955e::t_4e63ed7a009892 23-26
+tests/conftest.py
+  s_d97c37e3da955e::t_1889ad6295e719 1-30
+tests/test_lock.py
+  s_d97c37e3da955e::t_228950b4c1dece 1,3-9,14,16,22-42,46,57,59,61-63,70,82,86-130
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/baseline_scanner.py
+  s_d97c37e3da955e::t_622dc247313a93 64-69,78
+  s_d97c37e3da955e::t_ac8fb2beee4d56 120-121,128,130
+  s_d97c37e3da955e::t_c8c20ef2f46908 162-164,166,172-177,181-196
+  s_d97c37e3da955e::t_782cc6b5e4eb6d 6
+  s_d97c37e3da955e::t_e3b46a64445167 22,26,28
+plugins/specpowers/commands/specpowers-auto.md
+  s_d97c37e3da955e::t_4a754444210725 21-22
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_d97c37e3da955e::t_4a754444210725 18-19
+plugins/specpowers/commands/specpowers-archive.md
+  s_d97c37e3da955e::t_d5734702776623 21
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_7da082f45c341a::t_a37b252f2d1781 204-205
+  s_d97c37e3da955e::t_4a754444210725 44,248,250,254,256,261,272
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_7da082f45c341a::t_bf2dc99d090d69 4,122-123
+.codebuddy-plugin/marketplace.json
+  s_7da082f45c341a::t_bf2dc99d090d69 11,16
+tests/test_resume_probe.py
+  s_7da082f45c341a::t_ebc240953d5a6b 63
+  s_7da082f45c341a::t_abd8cd9795dd63 1-62,64-130
+plugins/specpowers/scripts/specpowers_cli/bin/specpowers
+  s_7da082f45c341a::t_4731606104aeba 23-26
+  s_d97c37e3da955e::t_e492b2ccf35f13 12-15
+plugins/specpowers/.codex-plugin/plugin.json
+  s_7da082f45c341a::t_bf2dc99d090d69 3
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_d97c37e3da955e::t_e73f5bc5cb4175 128,139,153,166,172,179,185,253,276,289,310,318,395-397,452-469,472,539-540
+  s_7da082f45c341a::t_a813e86f1009bb 35,40-41
+  s_7da082f45c341a::t_3fe80cf2fb7f7b 337-364,389-394
+  s_7da082f45c341a::t_39e074cd6688cc 517
+  s_7da082f45c341a::t_2f830095f82e6e 398-410
+  s_d97c37e3da955e::t_3b646f067354f7 48
+docs/marketplace-submission.md
+  s_d97c37e3da955e::t_27359c485dd6e7 15,19-20,26
+plugins/specpowers/scripts/specpowers_cli/bridge/adapters/openspec.py
+  s_d97c37e3da955e::t_01603c62ff6185 68-71,217-220,233
+plugins/specpowers/.claude-plugin/plugin.json
+  s_7da082f45c341a::t_bf2dc99d090d69 3
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_7da082f45c341a::t_bf2dc99d090d69 3
+plugins/specpowers/scripts/specpowers_cli/bridge/core/lock.py
+  s_d97c37e3da955e::t_0ba10e4aa3d667 79-86,89-101,104-112,118-121,123-145,147-148,157-158,161-167
+  s_d97c37e3da955e::t_6764faa638ac29 257-260,262
+  s_d97c37e3da955e::t_7d5b82779b1df3 295-319,329
+  s_d97c37e3da955e::t_c9c449486c11bd 357
+  s_d97c37e3da955e::t_01603c62ff6185 122,146,195
+README.md
+  s_7da082f45c341a::t_8cfbb9d014e19d 203
+  s_7da082f45c341a::t_1dc4d14a86a6f5 140,142,150
+  s_7da082f45c341a::t_195c9ede2571b2 14
+  s_7da082f45c341a::t_4b82a62e763129 282
+  s_7da082f45c341a::t_ccb16b63a70964 92
+  s_7da082f45c341a::t_bf2dc99d090d69 7,15,62,68,73,78,141,151,204,264,267,271,283
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/resume_probe.py
+  s_7da082f45c341a::t_bf7d44f409ed55 1-103
+plugins/specpowers/skills/specpowers/prompts/apply.md
+  s_d97c37e3da955e::t_4a754444210725 21-22
+  s_7da082f45c341a::t_33911d021b5c12 60,62,68-85,90-91,96
+plugins/specpowers/hooks/check-deps
+  s_7da082f45c341a::t_943c7de94762fa 138-139
+  s_d97c37e3da955e::t_3d51ace492745b 17-20,28-29,31-35,41-44,46-52
+  s_7da082f45c341a::t_466f55bd794d54 112-137,140-144
+tests/test_facade.py
+  s_7da082f45c341a::t_863127f2599d63 142-266
+  s_d97c37e3da955e::t_4e63ed7a009892 22-23,25
+plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py
+  s_d97c37e3da955e::t_01603c62ff6185 110,120
+plugins/specpowers/skills/specpowers-review/readme.md
+  s_d97c37e3da955e::t_0aacb97d071a3e 155
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/mode_controller.py
+  s_d97c37e3da955e::t_ea9f963fe3fbe3 1
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_7da082f45c341a::t_bf2dc99d090d69 3
+pyproject.toml
+  s_7da082f45c341a::t_bf2dc99d090d69 3,49-54
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/structure_gate.py
+  s_7da082f45c341a::t_f63c0123577a93 111-137,139-173
+  s_7da082f45c341a::t_7d67c54e6bf92c 10-13,16,22-24
+  s_d97c37e3da955e::t_74329ccea948cc 100-102
+  s_7da082f45c341a::t_1aba50d34a2053 138
+  s_d97c37e3da955e::t_1265a79271d9de 58,69-80
+  s_7da082f45c341a::t_0355481c167f99 25
+plugins/specpowers/hooks/run-hook.cmd
+  s_d97c37e3da955e::t_3b063a850f76c0 10-14,25-26,28-33,38-49
+plugins/specpowers/scripts/specpowers_cli/bridge/core/git_util.py
+  s_d97c37e3da955e::t_020b6feb3086a6 85,88-91
+  s_d97c37e3da955e::t_77799a082bd92a 6
+  s_7da082f45c341a::t_b7fd1dbd61c8f5 170-190
+tests/test_git_util.py
+  s_7da082f45c341a::t_85c77851829898 149
+  s_d97c37e3da955e::t_7cf1e59aab8d39 17,21,23-28
+  s_7da082f45c341a::t_825a8462331c70 121-148,150-169
+LICENSE
+  s_d97c37e3da955e::t_4228890556e57b 1-21
+plugins/specpowers/commands/specpowers-baseline.md
+  s_d97c37e3da955e::t_4a754444210725 21
+tests/test_execution_mode.py
+  s_d97c37e3da955e::t_4e63ed7a009892 159-162
+tests/test_platform.py
+  s_d97c37e3da955e::t_c1eb1c6681dcf7 4,38,41
+tests/test_manifest_consistency.py
+  s_d97c37e3da955e::t_abc27161928a06 343-455
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_7da082f45c341a::t_aaa049b04acdf1 393
+  s_7da082f45c341a::t_3def8079e3edb8 214,220
+  s_7da082f45c341a::t_6f78109ac2b0ce 267
+  s_7da082f45c341a::t_39510ba87adb8f 350
+tests/_gitrepo.py
+  s_d97c37e3da955e::t_7dbe03a67f6bfa 1-59
+tests/test_structure_gate.py
+  s_7da082f45c341a::t_0c345bb136aa71 9-10,13-18
+  s_d97c37e3da955e::t_39ff510a8351db 183-215
+  s_7da082f45c341a::t_b0b17f3a21ef51 216-305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b8b1d39669fa883e63df3d4ee6acad988b3cba35",
+  "prompts": {},
+  "sessions": {
+    "s_7da082f45c341a": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_f0b61d38-1e34-4bc2-b0cb-e612aaf716bf",
+        "model": "account:bigmodel-start-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_d97c37e3da955e": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_8fd4570d-dd3e-4d5a-9236-3c220769853f",
+        "model": "account:bigmodel-start-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
