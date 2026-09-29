@@ -12,18 +12,18 @@
 
 ## 二、前置条件（提交前必须完成）
 
-1. `git push origin main` 推送全部 v2.2.0 提交
+1. `git push origin main` 推送全部 v2.2.2 提交
 2. 打 tag 并推送（本仓库发版惯例，pip 安装命令也引用 tag）：
 
    ```bash
-   git tag -a v2.2.0 -m "v2.2.0：Claude Code / Codex 插件市场安装修复 + portable 根清单 + 收录准备"
-   git push origin v2.2.0
+   git tag -a v2.2.2 -m "v2.2.2：质量加固（编码链路/结构门禁/init 幂等/锁加固/清单一致性）"
+   git push origin v2.2.2
    ```
 
 3. 提交前自检（任一环境跑一次即可）：
    - Claude CLI：仓库根 `claude plugin validate .`
    - Codex CLI：`codex plugin marketplace add <仓库本地路径>` 后 `codex plugin marketplace list` 冒烟
-4. 本地全量测试通过：`python -m pytest tests/`（当前 206 用例）
+4. 本地全量测试通过：`python -m pytest tests/`（当前 242 用例）
 
 ## 三、Claude 官方市场（claude-plugins-official）
 

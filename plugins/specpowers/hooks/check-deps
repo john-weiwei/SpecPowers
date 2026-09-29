@@ -14,6 +14,10 @@
 
 set -euo pipefail
 
+# HOME 兜底：set -u 下 HOME 未定义会让脚本以非零退出，违背「永远 exit 0」
+# 承诺（叠加 run-hook.cmd 的退出码透传时故障不可见）；Windows 侧回退 USERPROFILE
+home="${HOME:-${USERPROFILE:-}}"
+
 # ── 依赖检测 ──────────────────────────────────────────────────
 
 check_openspec() {
@@ -21,20 +25,31 @@ check_openspec() {
     if command -v openspec >/dev/null 2>&1; then
         return 0
     fi
-    # 回退 npx（--no-install 避免远程拉取卡住）
+    # 回退 npx（--no-install 避免远程拉取卡住）；npx 冷启动较慢，限时 15s
+    # 防挂起，timeout 命令不可用时退回直接探测
     if command -v npx >/dev/null 2>&1; then
-        npx --no-install openspec --version >/dev/null 2>&1 && return 0
+        if command -v timeout >/dev/null 2>&1; then
+            timeout 15 npx --no-install openspec --version >/dev/null 2>&1 && return 0
+        else
+            npx --no-install openspec --version >/dev/null 2>&1 && return 0
+        fi
     fi
     return 1
 }
 
 check_superpowers() {
-    # superpowers 插件安装后，skill 目录会落在各平台的插件缓存里
-    # 任一路径命中即视为已装（用户可能在 ZCode/Claude/Codex 任一平台装了）
+    # superpowers 插件安装后，skill 目录会落在各平台的插件缓存里。
+    # 缓存实际按「marketplace 目录/插件名」两级组织（如 cache/claude-plugins-official/
+    # superpowers/6.4.1、cache/superpowers-dev/superpowers/6.4.1），固定写死单一
+    # vendor 目录会对已正确安装的机器常驻误报——用 glob 覆盖任意 marketplace 层
     local candidates=(
-        "${HOME}/.zcode/cli/plugins/cache/zcode-plugins-official/superpowers"
-        "${HOME}/.claude/plugins/cache/superpowers"
-        "${HOME}/.codex/plugins/cache/superpowers"
+        "${home}/.zcode/cli/plugins/cache"/*/*/superpowers
+        "${home}/.zcode/cli/plugins/cache"/*/superpowers
+        "${home}/.zcode/cli/plugins/cache/superpowers"
+        "${home}/.claude/plugins/cache"/*/superpowers
+        "${home}/.claude/plugins/cache/superpowers"
+        "${home}/.codex/plugins/cache"/*/superpowers
+        "${home}/.codex/plugins/cache/superpowers"
     )
     for base in "${candidates[@]}"; do
         # glob superpowers/<version>/skills/ —— 任一版本存在即可
@@ -94,6 +109,39 @@ escape_for_json() {
 # ── 主流程 ────────────────────────────────────────────────────
 
 message_raw="$(build_message)"
+
+# ── 活跃需求探测（ambient resume，v2.3.0，借鉴 Comet resume-probe）──
+# 调 bridge 只读子命令 resume-probe 探测未完成的特性流水线：有活跃状态才
+# 在首条回复提示续跑，零活跃零噪音。任何失败静默跳过，绝不阻断会话启动。
+plugin_root="${ZCODE_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"
+resume_msg=""
+probe_cli="$plugin_root/scripts/specpowers_cli/bin/specpowers"
+if [ -n "$plugin_root" ] && [ -f "$probe_cli" ]; then
+    # 项目根：hook 工作目录向上找 .git（目录或 worktree 文件均认）；非项目目录跳过
+    probe_dir="$PWD"
+    project_root=""
+    while [ -n "$probe_dir" ] && [ "$probe_dir" != "/" ]; do
+        if [ -e "$probe_dir/.git" ]; then
+            project_root="$probe_dir"
+            break
+        fi
+        probe_dir="$(dirname "$probe_dir")"
+    done
+    if [ -n "$project_root" ]; then
+        # bin 包装自带 PYTHONPATH 兜底与 PYTHONUTF8=1；失败/空输出均静默
+        resume_msg="$(bash "$probe_cli" resume-probe --root "$project_root" 2>/dev/null || true)"
+    fi
+fi
+
+# 探测有输出才追加独立提示块（真实换行由 escape_for_json 统一转义）
+if [ -n "$resume_msg" ]; then
+    message_raw+="
+<important-reminder>
+📌 SpecPowers 活跃需求探测：
+${resume_msg}
+</important-reminder>"
+fi
+
 message_escaped="$(escape_for_json "$message_raw")"
 
 # 平台分流输出（各平台消费字段不同，避免 Claude 重复消费）

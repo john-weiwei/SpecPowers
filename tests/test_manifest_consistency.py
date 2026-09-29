@@ -340,3 +340,116 @@ def test_package_version_matches_manifests():
     expected = plugin_manifest["version"]
     assert __version__ == expected, "specpowers_cli.__version__ 与 plugin.json version 不一致"
     assert _pyproject_version() == expected, "pyproject.toml version 与 plugin.json version 不一致"
+
+
+# ---- 血肉层一致性（v2.2.2 起）：description/keywords/requirements/文档版本 tag ----
+# 骨架字段（name/version/icon）之上，文案类字段同样会被各端展示或误导用户，
+# 本组断言把「改一处漏一处」的历史漂移（portable description 曾落后一个版本）锁死。
+
+
+def test_plugin_manifests_description_consistent():
+    """5 份 plugin.json（4 宿主 + portable）的 description 必须逐字一致。
+
+    回归：portable 根清单 description 曾与 4 份宿主漂移一个版本
+    （缺 explore/review 内置技能说明），且无任何测试报错。
+    """
+    descriptions = {rel: _load_json(rel)["description"] for rel in PLUGIN_MANIFESTS + [PORTABLE_MANIFEST]}
+    first_rel, first_desc = next(iter(descriptions.items()))
+    for rel, desc in descriptions.items():
+        assert desc == first_desc, f"{rel} 的 description 与 {first_rel} 不一致（漂移）"
+
+
+def test_requirements_declared_consistent():
+    """5 份清单的依赖声明（commands/plugins，剔除各端有意差异的 _detect 文案）必须一致。
+
+    portable 的依赖在 extensions.com.openai.requirements 内，宿主清单在顶层
+    requirements——结构不同但内容必须同源。
+    """
+    portable = _load_json(PORTABLE_MANIFEST)["extensions"]["com.openai"]["requirements"]
+    first_rel = PLUGIN_MANIFESTS[0]
+    first = _load_json(first_rel)["requirements"]
+    for key in ("commands", "plugins"):
+        assert portable[key] == first[key], (
+            f"portable 清单 requirements.{key} 与 {first_rel} 不一致"
+        )
+    for rel in PLUGIN_MANIFESTS[1:]:
+        req = _load_json(rel)["requirements"]
+        for key in ("commands", "plugins"):
+            assert req[key] == first[key], f"{rel} 的 requirements.{key} 与 {first_rel} 不一致"
+    # superpowers 必须标注 optional: true——与市场文案「可选推荐」、README「推荐」同源
+    plugins = {p["name"]: p for p in first["plugins"]}
+    assert plugins.get("superpowers", {}).get("optional") is True, (
+        "superpowers 依赖声明必须 optional: true（缺失时 propose/apply 降级为提示词引导）"
+    )
+
+
+def test_marketplace_entry_description_consistent():
+    """写了 description 的市场清单条目必须互相一致，且不得宣称 superpowers「必需」。"""
+    descriptions = {}
+    for rel in MARKETPLACE_MANIFESTS:
+        entry = _load_json(rel)["plugins"][0]
+        if "description" in entry:
+            descriptions[rel] = entry["description"]
+    assert descriptions, "没有任何市场清单条目带 description"
+    first_rel, first_desc = next(iter(descriptions.items()))
+    for rel, desc in descriptions.items():
+        assert desc == first_desc, f"{rel} 条目 description 与 {first_rel} 不一致"
+        assert "必需）" not in desc.split("superpowers")[-1], (
+            f"{rel} 条目不得宣称 superpowers 必需——requirements 已标注 optional: true"
+        )
+
+
+def test_keywords_consistent():
+    """写了 keywords 的清单（5 份 plugin.json + 3 份市场条目）关键词必须一致。"""
+    all_keywords = {}
+    for rel in PLUGIN_MANIFESTS + [PORTABLE_MANIFEST] + MARKETPLACE_MANIFESTS:
+        entry = _load_json(rel)
+        entry = entry["plugins"][0] if "plugins" in entry else entry
+        if "keywords" in entry:
+            all_keywords[rel] = entry["keywords"]
+    assert all_keywords, "没有任何清单带 keywords"
+    first_rel, first_kw = next(iter(all_keywords.items()))
+    for rel, kw in all_keywords.items():
+        assert kw == first_kw, f"{rel} 的 keywords 与 {first_rel} 不一致"
+
+
+def test_docs_pinned_install_tag_matches_version():
+    """README/GETTING-STARTED 的 pip 安装命令 pin @vX.Y.Z tag——升版漏改用户会永远装旧版。"""
+    version = _load_json(PLUGIN_MANIFESTS[0])["version"]
+    for doc in ("README.md", "docs/GETTING-STARTED.md"):
+        content = (REPO_ROOT / doc).read_text(encoding="utf-8")
+        tags = re.findall(r"SpecPowers\.git@(v[\d.]+)", content)
+        assert tags, f"{doc} 未找到 pip 安装 tag"
+        for tag in tags:
+            assert tag == f"v{version}", f"{doc} 安装 tag {tag} 与清单 version v{version} 不一致"
+        badges = re.findall(r"badge/version-([\d.]+)-blue", content)
+        for badge in badges:
+            assert badge == version, f"{doc} 版本徽章 {badge} 与清单 version {version} 不一致"
+
+
+def test_skill_md_version_matches():
+    """skills/specpowers/SKILL.md frontmatter 的 version 必须与清单 version 一致。"""
+    content = (REPO_ROOT / "plugins/specpowers/skills/specpowers/SKILL.md").read_text(encoding="utf-8")
+    match = re.search(r"^version:\s*([\d.]+)\s*$", content, re.MULTILINE)
+    assert match, "SKILL.md frontmatter 缺少 version 字段"
+    assert match.group(1) == _load_json(PLUGIN_MANIFESTS[0])["version"], (
+        "SKILL.md version 与 plugin.json version 不一致"
+    )
+
+
+def test_documented_case_count_matches():
+    """README/GETTING-STARTED 宣称的测试用例数必须与实际用例数一致（防文档漂移）。"""
+    actual = sum(
+        1
+        for base in ("tests", "plugins/specpowers/skills/specpowers-review/scripts/tests")
+        for p in (REPO_ROOT / base).rglob("test_*.py")
+        for line in p.read_text(encoding="utf-8").splitlines()
+        if re.match(r"\s*def test_\w+\(", line)
+    )
+    for doc in ("README.md", "docs/GETTING-STARTED.md"):
+        content = (REPO_ROOT / doc).read_text(encoding="utf-8")
+        match = re.search(r"(\d+)\s*(?:个测试用例|用例)", content)
+        assert match, f"{doc} 未找到「N 个测试用例/N 用例」声明"
+        assert int(match.group(1)) == actual, (
+            f"{doc} 宣称 {match.group(1)} 用例，实际 {actual}——测试增减后须同步文档"
+        )

@@ -13,7 +13,6 @@
 作者：005819 | 协作：GLM-5.2
 """
 
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -157,28 +156,10 @@ def test_reset_state_clears_execution_mode(tmp_path: Path):
 # ---------- facade record-execution-mode 子命令端到端 ----------
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库。
+    """在 pytest tmp_path 下创建带提交的临时 git 仓库（会话级模板复制，约 10ms）。"""
+    from tests._gitrepo import create_git_repo
 
-    tmp_path 由 pytest 自动管理，测试结束自动清理，无需手动删除。
-    """
-    root = tmp_path / "exec-mode-repo"
-    root.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    (root / "README.md").write_text("# Test", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "initial"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    return root
+    return create_git_repo(tmp_path / "exec-mode-repo")
 
 
 def test_facade_record_execution_mode_success(tmp_path: Path):
@@ -219,6 +200,3 @@ def test_facade_record_execution_mode_fast_rejects_subagent(tmp_path: Path):
     assert load_state(root)["execution_mode"] == ""
 
 
-if __name__ == "__main__":
-    import sys
-    sys.exit(pytest.main([__file__, "-v"]))

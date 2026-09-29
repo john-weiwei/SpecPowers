@@ -19,28 +19,10 @@ from specpowers_cli.bridge.core.fs_state import load_state
 
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库。
+    """在 pytest tmp_path 下创建带提交的临时 git 仓库（会话级模板复制，约 10ms）。"""
+    from tests._gitrepo import create_git_repo
 
-    tmp_path 由 pytest 自动管理，测试结束自动清理，无需手动删除。
-    """
-    root = tmp_path / "facade-repo"
-    root.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    (root / "README.md").write_text("# Test", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "init"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    return root
+    return create_git_repo(tmp_path / "facade-repo")
 
 
 def _seed_ready_state(root: Path) -> None:
@@ -156,4 +138,129 @@ def test_gate_accepts_normal_ref_base(tmp_path):
         cwd=str(root), capture_output=True, check=True,
     )
     rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+
+
+# ---- gate scope 修改范围比对 + resume-probe 子命令（v2.3.0）----
+
+def _seed_propose_state(root: Path, feature: str) -> None:
+    """把 state 推到 propose 并锁定 feature（gate scope 比对的前置）。"""
+    from specpowers_cli.bridge.core.fs_state import DEFAULT_STATE, save_state
+    state = dict(DEFAULT_STATE)
+    state["stage"] = "propose"
+    state["feature"] = feature
+    save_state(root, state)
+
+
+def _seed_tasks_with_scope(root: Path, feature: str, scope_decl: str | None) -> None:
+    """构造 change 目录与 tasks.md（scope_decl=None 表示不写声明行）。"""
+    change_dir = root / "openspec" / "changes" / feature
+    change_dir.mkdir(parents=True)
+    comment = "<!--\n推荐：conductor\n修改范围：%s\n-->" % scope_decl if scope_decl else "<!--\n推荐：conductor\n-->"
+    (change_dir / "tasks.md").write_text(comment, encoding="utf-8")
+
+
+def test_gate_scope_out_of_scope(tmp_path, capsys):
+    """声明 README.md 而实际改动含 placeholder → scope=out_of_scope 列出越界文件。"""
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    _seed_tasks_with_scope(root, "demo", "README.md")
+    (root / "placeholder_0.md").write_text("out of scope change", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["scope"]["status"] == "out_of_scope"
+    assert "placeholder_0.md" in out["scope"]["out_of_scope"]
+    assert out["scope"]["declared"] == ["README.md"]
+
+
+def test_gate_scope_pass(tmp_path, capsys):
+    """改动全部落在声明范围内 → scope=pass。"""
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    _seed_tasks_with_scope(root, "demo", "placeholder_0.md, openspec/, .specpowers/")
+    (root / "placeholder_0.md").write_text("in scope change", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["scope"]["status"] == "pass"
+
+
+def test_gate_scope_undeclared(tmp_path, capsys):
+    """tasks.md 存在但缺修改范围声明 → scope=undeclared（旧产物兼容）。"""
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    _seed_tasks_with_scope(root, "demo", None)
+    (root / "placeholder_0.md").write_text("changed", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["scope"]["status"] == "undeclared"
+    assert out["scope"]["out_of_scope"] == []
+
+
+def test_gate_scope_omitted_without_tasks_md(tmp_path, capsys):
+    """无 tasks.md（fast/CI 场景）→ 输出 JSON 不带 scope 键（旧消费者兼容）。"""
+    import json
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    (root / "CHANGE.md").write_text("# x", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=str(root), capture_output=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "second"],
+        cwd=str(root), capture_output=True, check=True,
+    )
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert "scope" not in out
+
+
+def test_resume_probe_subcommand_silent_on_fresh(tmp_path, capsys):
+    """resume-probe 在无活跃状态的项目 exit 0 且输出空（零噪音）。"""
+    root = _create_temp_git_repo(tmp_path)
+    rc = main(["resume-probe", "--root", str(root)])
+    assert rc == 0
+    assert capsys.readouterr().out.strip() == ""
+
+
+def test_resume_probe_subcommand_reports_active_pipeline(tmp_path, capsys):
+    """resume-probe 在活跃流水线输出续跑提示（hook 注入的内容源）。"""
+    _seed_propose_state(tmp_path, "demo")
+    (tmp_path / "openspec" / "changes" / "demo").mkdir(parents=True)
+    (tmp_path / "openspec" / "changes" / "demo" / "tasks.md").write_text("# t", encoding="utf-8")
+
+    rc = main(["resume-probe", "--root", str(tmp_path)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "demo" in out
+    assert "/specpowers-propose" in out
+
+
+def test_resume_probe_survives_corrupt_state(tmp_path, capsys):
+    """state.json 损坏时 resume-probe 仍 exit 0（探测绝不阻断）。"""
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir()
+    (root / ".specpowers" / "state.json").write_text("{broken", encoding="utf-8")
+    rc = main(["resume-probe", "--root", str(root)])
     assert rc == 0

@@ -1,6 +1,6 @@
 [project]
 name = "specpowers"
-version = "2.2.1"
+version = "2.3.0"
 description = "SpecPowers — a bridging plugin for spec-driven development. Orchestrates OpenSpec and superpowers with structure gates and pipeline automation."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,7 +46,12 @@ build-backend = "hatchling.build"
 packages = ["plugins/specpowers/scripts/specpowers_cli"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# tests/ 为根测试套件；插件内 specpowers-review 的自测（24 用例，含中文乱码
+# 回归、Windows 重试）必须纳入收集——testpaths 只写 tests/ 时它永远不进自动化
+testpaths = [
+    "tests",
+    "plugins/specpowers/skills/specpowers-review/scripts/tests",
+]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = ["-v", "--tb=short"]

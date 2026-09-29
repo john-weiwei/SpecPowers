@@ -18,7 +18,8 @@ Dispatcher 自动校验：
 - Full 模式：`openspec/changes/<feature>/tasks.md` 必须存在
 - Fast 模式：代码变更必须存在（`git diff --stat HEAD` 有输出）
 - constitution.md + baseline.json 必须存在
-- **Fast 模式额外**：delta spec 含 3-5 条 Scenario
+
+> 认知层自查（Dispatcher 不校验）：Fast 模式 delta spec 应含 3-5 条 Scenario（场景边界见 fast_mode.md）。
 
 ## 执行步骤
 
@@ -56,25 +57,43 @@ tasks.md 推荐：conductor（顺序执行）
   - 确定性层会校验：执行方式合法 + fast 模式 worktree/subagent 禁用兜底
   - 校验失败（如 fast 选了 subagent）会非 0 退出并给出原因，须据此让用户重选
 
-### 第三步：结构门禁（三态判定）
+### 第三步：结构门禁（三态判定：结构基线 + 修改范围）
 
-运行确定性层提取信号：
+运行确定性层提取信号（v2.3.0 起输出附 `scope` 修改范围比对结果）：
 
 ```bash
 python -m specpowers_cli.bridge.facade gate --base HEAD~1 --root .
 ```
 
+输出示例：
+
+```json
+{"signals": [], "base": "HEAD~1", "diff_lines": 42,
+ "scope": {"declared": ["src/order", "tests/order"], "out_of_scope": ["src/payment/x.java"], "status": "out_of_scope"}}
+```
+
+`scope` 字段说明（来自 tasks.md 顶部注释块「修改范围：」声明，propose 生成；仅 full 模式有效——fast 模式或无 feature 时输出 JSON 不带 scope 键，不做范围比对）：
+
+| scope.status | 含义 | 处理 |
+|--------------|------|------|
+| `pass` | 实际改动全部落在声明范围内 | 无需处理 |
+| `out_of_scope` | 存在越界改动（`out_of_scope` 列出越界文件） | **转人工**：列出越界文件请用户裁决（放行改动并建议 propose 更新声明 / 回退越界改动） |
+| `undeclared` | tasks.md 缺「修改范围：」声明（v2.2 旧产物兼容） | 提示用户可重入 /specpowers-propose 补声明，本轮跳过范围比对 |
+
+> - 越界判定是确定性路径前缀比对，但"越界是否可接受"由人裁决——agent 不得以"顺手改了相关代码"为由静默放行越界文件
+> - 流水线工件（`openspec/`、`.specpowers/`、`docs/specpowers/`）已由确定性层豁免，不判越界
+
 获得信号列表后，agent 进行**三态判定**：
 
 | 判定 | 条件 | 行为 |
 |------|------|------|
-| ✅ **通过** | 无信号 / 信号可解释 | 继续执行 |
-| ⚠️ **转人工** | 有信号但不确定是否需要关注 | 提示用户处理挂起的结构问题，继续执行 |
+| ✅ **通过** | 无结构信号（或信号可解释）且 scope 无越界 | 继续执行 |
+| ⚠️ **转人工** | scope=out_of_scope / scope=undeclared / 结构信号不确定 | 提示用户处理挂起的结构或范围问题，继续执行 |
 | ❌ **打回** | 明显结构违规 | 拒绝继续，要求修复后重试 |
 
 **判定消息格式**：
 ```
-[门禁：<通过/转人工/打回>] 信号：[<信号列表>] 证据：[<git diff 变更说明>]
+[门禁：<通过/转人工/打回>] 信号：[<信号列表>] 范围：[<scope 结论：pass / 越界文件清单 / 未声明>] 证据：[<git diff 变更说明>]
 ```
 
 ### 第四步：能力池调度

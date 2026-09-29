@@ -3,7 +3,7 @@
 CRITICAL: All git operations MUST use this module. Never call subprocess.run directly.
 - Parameters are passed as lists (never string concatenation / shell=True).
 - Timeouts are tiered: lightweight ops 30s, range queries 120s.
-- All git output uses text=True, capture_output=True.
+- All git output uses capture_output=True with explicit UTF-8 decoding.
 """
 
 import os
@@ -82,9 +82,13 @@ def run_git(args: list[str], timeout: int = LIGHT_TIMEOUT, cwd: Path | None = No
     try:
         result = subprocess.run(
             cmd,
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True, timeout=timeout,
             cwd=str(cwd) if cwd else None,
             env=env,
+            # 显式 UTF-8 解码：git 输出恒为 UTF-8 字节（LANG 已设 en_US.UTF-8），
+            # 不指定时 Windows 按 locale（cp936）strict 解码，中文分支名/路径会抛
+            # UnicodeDecodeError 导致所有 stage 前置检查不可用
+            encoding="utf-8", errors="replace",
         )
     except subprocess.TimeoutExpired:
         from specpowers_cli.bridge.core.errors import FatalError
@@ -161,6 +165,27 @@ def diff_stat(root: Path, base: str | None = None) -> str:
         return run_git(["diff", "--stat", base, "HEAD"], timeout=RANGE_TIMEOUT, cwd=root)
     else:
         return run_git(["diff", "--stat", "HEAD"], timeout=RANGE_TIMEOUT, cwd=root)
+
+
+def diff_name_only(root: Path, base: str | None = None) -> list[str]:
+    """Return changed file paths (name-only), working tree vs HEAD or base..HEAD.
+
+    供任务级修改范围比对（structure_gate.evaluate_scope）使用，与 diff_stat 的
+    口径保持一致（均为 git diff，不含 untracked 新文件——与结构门禁同一盲区）。
+    显式 core.quotepath=off：中文路径默认会被转义成 \\xxx 八进制串导致前缀
+    匹配失效。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    args = ["-c", "core.quotepath=off", "diff", "--name-only"]
+    if base:
+        args += [base, "HEAD"]
+    else:
+        args.append("HEAD")
+    output = run_git(args, timeout=RANGE_TIMEOUT, cwd=root)
+    if not output:
+        return []
+    return [line.strip().strip('"') for line in output.split("\n") if line.strip()]
 
 
 def ls_tree_head(root: Path) -> list[str]:

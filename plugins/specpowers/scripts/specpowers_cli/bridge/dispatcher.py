@@ -15,14 +15,12 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from specpowers_cli.bridge.core.errors import (
-    FatalError, StateError, ArtifactMissingError,
-    ArchiveDuplicateError, RecoverableError,
+    FatalError, StateError, ArtifactMissingError, ArchiveDuplicateError,
 )
 from specpowers_cli.bridge.core.fs_state import (
-    load_state, save_state, init_state, reset_state, delete_state, atomic_write_json,
+    load_state, save_state, init_state, reset_state, atomic_write_json,
 )
 from specpowers_cli.bridge.core.lock import acquire_lock, release_lock, force_unlock
 from specpowers_cli.bridge.core.git_util import is_git_repo, has_commits, is_detached_head, git_ref_of
@@ -41,9 +39,6 @@ VALID_TRANSITIONS: dict[str, list[str | None]] = {
     "apply": ["propose", "ready"],
     "archive": ["apply"],
 }
-
-STAGE_NAMES = ["init", "ready", "explore", "propose", "apply", "archive"]
-
 
 def _validate_transition(from_stage: str, to_stage: str):
     """Validate state machine transition."""
@@ -372,7 +367,7 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
             if not diff2.strip():
                 raise FatalError(
                     "No code changes detected. "
-                    "Complete your coding before running /specpowers.apply"
+                    "Complete your coding before running /specpowers-apply"
                 )
 
 
@@ -399,15 +394,15 @@ def _check_design_doc_registered(root: Path) -> None:
             "explore 阶段的设计文档未登记（state.design_doc 为空）。"
             "这是 propose 从 explore 进入的硬依赖——说明 explore 探索未完成"
             "（specpowers-explore 可能被跳过）。"
-            "请回到 /specpowers.explore 调用内置 specpowers-explore 技能完成需求探索，"
+            "请回到 /specpowers-explore 调用内置 specpowers-explore 技能完成需求探索，"
             "设计文档落盘 docs/specpowers/design/ 后调 "
-            "`facade record-design-doc <设计文档路径>` 登记，再进入 /specpowers.propose"
+            "`facade record-design-doc <设计文档路径>` 登记，再进入 /specpowers-propose"
         )
 
     if not Path(design_doc).is_file():
         raise ArtifactMissingError(
             f"登记的设计文档 '{design_doc}' 不存在。"
-            "请确认文件未被移动/删除，或回 /specpowers.explore 重新探索并登记"
+            "请确认文件未被移动/删除，或回 /specpowers-explore 重新探索并登记"
         )
 
 
@@ -455,14 +450,14 @@ def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list
         if from_stage == "propose":
             fallback_hint = (
                 "（你正在从 propose 刚进入 apply，说明上一轮 propose 未承接 explore "
-                "设计文档的数据流结论，需回 /specpowers.propose 补全 proposal 后再继续）"
+                "设计文档的数据流结论，需回 /specpowers-propose 补全 proposal 后再继续）"
             )
         raise ArtifactMissingError(
             f"proposal.md 缺少「## 数据流契约」小节。"
             f"这是 apply 阶段的硬依赖——说明 explore 探索结论未被 propose 承接"
             f"（探索可能被跳过或 proposal 凭空生成）。"
             f"{fallback_hint}"
-            f"请回到 /specpowers.propose 基于 explore 设计文档重新生成 proposal.md"
+            f"请回到 /specpowers-propose 基于 explore 设计文档重新生成 proposal.md"
             f"并补全「## 数据流契约」小节"
             f"（涉及跨链路字段则按字段卡片逐个详述，纯本地特性则声明「本特性无跨链路字段」）。"
         )
@@ -481,13 +476,12 @@ def _check_init_conflict(root: Path):
             raise StateError(
                 f"Current feature '{feature}' is in progress (stage: {state.get('stage')}). "
                 f"Use --force to discard and rebuild constitution, "
-                f"or /specpowers.reset to start fresh."
+                f"or /specpowers-reset to start fresh."
             )
 
 
 def is_ci_mode() -> bool:
     """Check if running in CI mode."""
-    import os
     return os.environ.get("SPECPOWERS_CI", "").strip() == "1"
 
 
@@ -510,11 +504,24 @@ def _handle_init(root: Path, extra: dict) -> int:
     force = extra.get("force", False)
     state = load_state(root)
 
+    # 幂等放行：已归档的空转状态（stage=ready 且无 feature）重复 init 不报错、
+    # 不重建。auto.md 第 2 步承诺 /specpowers-init 幂等执行，而 auto 判定 fresh
+    # 的常见起点恰是 stage=ready——无幂等语义时无人值守流程必然撞
+    # _check_init_conflict 的 StateError，或被迫 --force 重建团队已评审的 constitution
+    if (
+        not force
+        and state.get("stage") == "ready"
+        and not (state.get("feature") or "").strip()
+        and (root / ".specpowers" / "baseline.json").exists()
+    ):
+        print("Init skipped (idempotent): no feature in progress and baseline already exists.")
+        return 0
+
     if not force and state.get("stage") != "init":
         _check_init_conflict(root)
 
     _log_verbose("Running baseline scanner...")
-    from specpowers_cli.bridge.modules.baseline_scanner import scan, load_baseline
+    from specpowers_cli.bridge.modules.baseline_scanner import scan
 
     baseline_path = root / ".specpowers" / "baseline.json"
     if baseline_path.exists() and not force:
@@ -568,7 +575,7 @@ def _handle_explore(root: Path, extra: dict) -> int:
     print("Agent should now: invoke the built-in specpowers-explore skill to explore the requirement, "
           "write the design doc under docs/specpowers/design/ "
           "(incl. data-flow conclusions), register it via "
-          f"`facade record-design-doc <path>`, then continue to /specpowers.propose")
+          f"`facade record-design-doc <path>`, then continue to /specpowers-propose")
     return 0
 
 
@@ -592,10 +599,13 @@ def _handle_propose(root: Path, extra: dict) -> int:
     if from_stage == "apply":
         fallback_count = state.get("fallback_count", 0)
         if fallback_count >= 1:
+            # 文案必须与真实语义一致：归档/reset 均不清除计次（reset_state 显式保留），
+            # 新 feature 不恢复额度——原提示「先 archive 再开新 feature」会误导用户
+            # 做完归档后依然被拦
             raise StateError(
-                "回退次数已达上限：整个 state 生命周期最多 1 次 apply→propose 回退。"
-                "请先完成当前流程（archive）或重置（reset 不清除计次），"
-                "再开启新的 feature。"
+                "回退次数已达上限：整个 state 生命周期最多 1 次 apply→propose 回退"
+                "（归档/reset 均不清除计次，新 feature 不恢复额度）。"
+                "如确需再次回退，请手动编辑 .specpowers/state.json 将 fallback_count 置 0。"
             )
         state["fallback_count"] = fallback_count + 1
 
@@ -646,7 +656,7 @@ def _handle_fast(root: Path, extra: dict) -> int:
     baseline_path = root / ".specpowers" / "baseline.json"
     if not baseline_path.exists():
         raise FatalError(
-            "Baseline not found. Run /specpowers.init first."
+            "Baseline not found. Run /specpowers-init first."
         )
 
     # Feature 锁定：优先复用已有 feature，仅空时才 normalize
@@ -662,7 +672,7 @@ def _handle_fast(root: Path, extra: dict) -> int:
     save_state(root, state)
 
     print(f"Fast mode activated for feature: {feature}")
-    print("Agent will now: run small-judgment → confirmation → user codes → /specpowers.apply")
+    print("Agent will now: run small-judgment → confirmation → user codes → /specpowers-apply")
     return 0
 
 
@@ -706,7 +716,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
     if feature and is_feature_archived(root, feature):
         raise ArchiveDuplicateError(
             f"Feature '{feature}' already has an archive commit. "
-            f"Run: git pull && /specpowers.reset to sync."
+            f"Run: git pull && /specpowers-reset to sync."
         )
 
     _check_prerequisites(root)
@@ -753,7 +763,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
         print(f"  - change 快照：openspec/changes/archive/{archived_as}/")
         if auto_base_removed:
             print(f"  - auto 基线：.specpowers/auto_base.json 已清理（归档即新需求）")
-        print(f"准备下一轮开发：/specpowers.explore | .propose | .fast")
+        print(f"准备下一轮开发：/specpowers-explore | /specpowers-propose | /specpowers-fast")
         return 0
 
     # feature 为空：不应发生（archive 要求 state 有 feature），兜底报错
@@ -1015,7 +1025,7 @@ STAGE_HANDLERS = {
 }
 
 
-def route(stage: str, mode: str, root: Path, extra: dict | None = None) -> int:
+def route(stage: str, root: Path, extra: dict | None = None) -> int:
     """Route a stage command to its handler.
 
     This is the main entry point for all stage operations.
@@ -1024,9 +1034,10 @@ def route(stage: str, mode: str, root: Path, extra: dict | None = None) -> int:
     Args:
         stage: Stage name (init, explore, propose, fast, apply, archive, baseline, reset,
                auto-new-round, auto-clarify, iterate, record-design-doc)
-        mode: Operation mode (full or fast)
         root: Project root path
-        extra: Additional parameters (requirement, force, force_merge_check, etc.)
+        extra: Additional parameters (requirement, force, force_merge_check, etc.).
+               执行模式（full/fast）由 handler 从 state 读取，不在路由层传参
+               （原签名的 mode 形参从未被函数体使用，属误导性死参数，已移除）。
 
     Returns:
         Exit code (0 = success)

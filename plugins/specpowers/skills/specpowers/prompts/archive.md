@@ -15,8 +15,8 @@ python -m specpowers_cli.bridge.facade archive [--force-merge-check] --root .
 Dispatcher 自动校验：
 - 合法 from_stage：`apply`
 - 重复归档检查：该 feature 已有 archive commit → 拒绝 + 提示 `git pull && /specpowers-reset`
-- 代码变更存在（`git diff --stat HEAD` 有输出或已有 commit）
-- 实时门禁已通过
+
+> 认知层自查（Dispatcher 不复查）：代码变更确实存在（`git diff --stat HEAD` 有输出或已有 commit）、实时门禁三态已通过。
 
 ## 三职责收尾
 

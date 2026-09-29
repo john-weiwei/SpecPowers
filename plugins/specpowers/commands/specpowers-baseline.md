@@ -18,4 +18,4 @@ python -m specpowers_cli.bridge.facade baseline --root .
 
 This re-scans the project and overwrites `.specpowers/baseline.json`. Prompt the user to review and commit the updated baseline for team sharing.
 
-Use cases: team member added new top-level directories, introduced new dependency types, or baseline is stale (automatic drift warning already shown).
+Use cases: team member added new top-level directories, introduced new dependency types, or baseline is stale (long time since the last refresh).

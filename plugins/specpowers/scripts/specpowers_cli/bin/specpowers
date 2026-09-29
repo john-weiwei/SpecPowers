@@ -9,6 +9,10 @@
 #
 set -euo pipefail
 
+# 输出编码：强制 Python 侧 UTF-8。本脚本由 agent 以管道方式调用（按 UTF-8 解码），
+# 不设置时 Windows 下 Python 按 locale（cp936）编码 stdout，输出 ⚠/✓ 等字符会崩溃
+export PYTHONUTF8=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 插件布局：scripts/specpowers_cli/bin/specpowers
 #   bin/ 上两级 = scripts/specpowers_cli/（包根）
@@ -16,7 +20,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EMBEDDED_PKG_PARENT="$SCRIPT_DIR/../.."
 
 PYTHON="${SPECPOWERS_PYTHON:-python3}"
-command -v "$PYTHON" >/dev/null 2>&1 || PYTHON="python"
+# python3 候选可能是 Windows 商店 stub（command -v 命中但执行即失败，exit 49），
+# 仅凭 command -v 判存会一路带着假解释器跑到底；用最小指令验证是真解释器，
+# 不合格再回退 python（回退后同样验证，双假则交由分支执行自然失败）
+command -v "$PYTHON" >/dev/null 2>&1 && "$PYTHON" -c "print(1)" >/dev/null 2>&1 || PYTHON="python"
 
 # 1. 尝试用已安装的包运行（pip install 场景）
 if "$PYTHON" -c "import specpowers_cli" >/dev/null 2>&1; then

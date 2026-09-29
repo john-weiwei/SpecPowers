@@ -65,7 +65,10 @@ def _try_openspec(cmd: list[str], cwd: Path) -> bool:
     """
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=15, cwd=str(cwd),
+            # 显式 UTF-8：openspec（node）输出恒为 UTF-8，不指定时 Windows 按
+            # cp936 strict 解码，输出含中文会抛 UnicodeDecodeError 且不被捕获
+            cmd, capture_output=True, timeout=15, cwd=str(cwd),
+            encoding="utf-8", errors="replace",
         )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -211,7 +214,10 @@ def archive_change(root: Path, change_name: str, skip_validation: bool = False) 
 
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=120, cwd=str(root),
+            # 显式 UTF-8：openspec（node）输出恒为 UTF-8，中文 Windows 下不指定
+            # encoding 会按 cp936 strict 解码崩溃
+            cmd, capture_output=True, timeout=120, cwd=str(root),
+            encoding="utf-8", errors="replace",
         )
     except subprocess.TimeoutExpired:
         raise FatalError(
@@ -224,7 +230,7 @@ def archive_change(root: Path, change_name: str, skip_validation: bool = False) 
         raise FatalError(
             f"openspec archive 失败（exit {result.returncode}）：\n{stderr}\n"
             f"临时 change 目录已保留：openspec/changes/{change_name}/，"
-            f"可排查后重试 /specpowers.archive。"
+            f"可排查后重试 /specpowers-archive。"
         )
 
     # 解析 JSON 结果

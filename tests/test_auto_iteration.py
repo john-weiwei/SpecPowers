@@ -20,25 +20,10 @@ from specpowers_cli.bridge.core.errors import StateError
 
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库。"""
-    root = tmp_path / "auto-iter-repo"
-    root.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    (root / "README.md").write_text("# Test", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "initial"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    return root
+    """在 pytest tmp_path 下创建带提交的临时 git 仓库（会话级模板复制，约 10ms）。"""
+    from tests._gitrepo import create_git_repo
+
+    return create_git_repo(tmp_path / "auto-iter-repo")
 
 
 def _write_auto_base(root: Path, data: dict) -> None:
@@ -218,7 +203,7 @@ def test_auto_new_round_increments_and_locks_feature(tmp_path):
     _seed_active_auto_feature(root, iteration_count=1)
 
     new_doc = _make_design_doc(tmp_path, name="design-v2.md")
-    assert route("auto-new-round", "full", root, extra={
+    assert route("auto-new-round", root, extra={
         "design_doc": str(new_doc), "instruction": "补充失败场景",
     }) == 0
 
@@ -248,7 +233,7 @@ def test_auto_new_round_migrates_legacy_base(tmp_path):
     legacy["design_doc"] = "old-design.md"
     _write_auto_base(root, legacy)
 
-    assert route("auto-new-round", "full", root, extra={"instruction": "第二轮"}) == 0
+    assert route("auto-new-round", root, extra={"instruction": "第二轮"}) == 0
 
     base = _read_auto_base(root)
     assert [r["round"] for r in base["rounds"]] == [1, 2]
@@ -269,7 +254,7 @@ def test_auto_new_round_requires_auto_base(tmp_path):
     save_state(root, state)
 
     with pytest.raises(StateError):
-        route("auto-new-round", "full", root, extra={})
+        route("auto-new-round", root, extra={})
 
 
 def test_auto_new_round_requires_active_feature(tmp_path):
@@ -284,7 +269,7 @@ def test_auto_new_round_requires_active_feature(tmp_path):
     _write_auto_base(root, {"base_commit": "x"})
 
     with pytest.raises(StateError):
-        route("auto-new-round", "full", root, extra={})
+        route("auto-new-round", root, extra={})
 
 
 def test_auto_new_round_rejected_when_archived(tmp_path):
@@ -299,7 +284,7 @@ def test_auto_new_round_rejected_when_archived(tmp_path):
     )
 
     with pytest.raises(StateError):
-        route("auto-new-round", "full", root, extra={})
+        route("auto-new-round", root, extra={})
 
 
 # ---- feature 显式锁定（--feature）----
@@ -316,7 +301,7 @@ def test_explore_explicit_feature_lock(tmp_path):
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
 
-    assert route("explore", "full", root, extra={
+    assert route("explore", root, extra={
         "requirement": "全新需求措辞",
         "feature": "locked-feat",
     }) == 0
@@ -342,7 +327,7 @@ def test_propose_explicit_feature_overrides_existing(tmp_path):
     state["design_doc"] = str(design_doc)
     save_state(root, state)
 
-    assert route("propose", "full", root, extra={
+    assert route("propose", root, extra={
         "requirement": "需求描述",
         "feature": "locked-feat",
     }) == 0
@@ -380,7 +365,7 @@ def test_archive_cleans_auto_base_and_resets_iteration(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    assert route("archive", "full", root, extra={}) == 0
+    assert route("archive", root, extra={}) == 0
 
     assert not (root / ".specpowers" / "auto_base.json").exists()
     state = load_state(root)
@@ -404,7 +389,7 @@ def test_iterate_without_auto_base_succeeds(tmp_path):
     state["execution_mode"] = "conductor"
     save_state(root, state)
 
-    assert route("iterate", "full", root, extra={"instruction": "补充失败场景"}) == 0
+    assert route("iterate", root, extra={"instruction": "补充失败场景"}) == 0
 
     state = load_state(root)
     assert state["stage"] == "propose"
@@ -423,7 +408,7 @@ def test_iterate_with_auto_base_updates_rounds(tmp_path):
     root = _create_temp_git_repo(tmp_path)
     _seed_active_auto_feature(root, iteration_count=1)
 
-    assert route("iterate", "full", root, extra={"instruction": "调整范围"}) == 0
+    assert route("iterate", root, extra={"instruction": "调整范围"}) == 0
 
     assert load_state(root)["iteration_count"] == 2
     base = _read_auto_base(root)
@@ -447,7 +432,7 @@ def test_iterate_rejected_when_archived(tmp_path):
     )
 
     with pytest.raises(StateError):
-        route("iterate", "full", root, extra={})
+        route("iterate", root, extra={})
 
 
 def test_iterate_does_not_consume_fallback_count(tmp_path):
@@ -464,14 +449,14 @@ def test_iterate_does_not_consume_fallback_count(tmp_path):
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
     # 先消耗唯一一次 fallback（apply→propose；from apply 不校验设计文档/proposal）
-    assert route("propose", "full", root, extra={"requirement": "升级完整流程"}) == 0
+    assert route("propose", root, extra={"requirement": "升级完整流程"}) == 0
     assert load_state(root)["fallback_count"] == 1
 
     # 推回 apply 后走 iterate（不是 fallback）→ 放行且 fallback_count 不变
     state = load_state(root)
     state["stage"] = "apply"
     save_state(root, state)
-    assert route("iterate", "full", root, extra={}) == 0
+    assert route("iterate", root, extra={}) == 0
     assert load_state(root)["fallback_count"] == 1
     assert load_state(root)["stage"] == "propose"
 
@@ -497,11 +482,11 @@ def test_propose_self_loop_after_iterate_continues_round(tmp_path):
     from specpowers_cli.bridge.core.fs_state import load_state
 
     root = _seed_manual_iteration_repo(tmp_path)
-    assert route("iterate", "full", root, extra={"instruction": "补充失败场景"}) == 0
+    assert route("iterate", root, extra={"instruction": "补充失败场景"}) == 0
     assert load_state(root)["iteration_count"] == 1
 
     # 迭代轮中重跑 propose：自环幂等放行（续作修订，不是新一轮，也不占 fallback 额度）
-    assert route("propose", "full", root, extra={"requirement": "补充失败场景"}) == 0
+    assert route("propose", root, extra={"requirement": "补充失败场景"}) == 0
 
     state = load_state(root)
     assert state["stage"] == "propose"
@@ -520,7 +505,7 @@ def test_propose_self_loop_idempotent_without_iteration(tmp_path):
     state["stage"] = "propose"
     save_state(root, state)
 
-    assert route("propose", "full", root, extra={"requirement": "重新生成"}) == 0
+    assert route("propose", root, extra={"requirement": "重新生成"}) == 0
 
     state = load_state(root)
     assert state["stage"] == "propose"
@@ -537,7 +522,7 @@ def test_auto_clarify_registers_ceiling_and_refresh(tmp_path):
     root = _create_temp_git_repo(tmp_path)
     _seed_active_auto_feature(root, iteration_count=0, stage="ready")
 
-    assert route("auto-clarify", "full", root, extra={
+    assert route("auto-clarify", root, extra={
         "ceiling": "explore",
         "report": ".specpowers/auto_clarifications/auto-feat.md",
     }) == 0
@@ -549,7 +534,7 @@ def test_auto_clarify_registers_ceiling_and_refresh(tmp_path):
     assert len(base["rounds"]) == 1
 
     # 刷新语义：再次登记覆盖旧结论（迭代轮 ceiling 上调落盘凭据）
-    assert route("auto-clarify", "full", root, extra={"ceiling": "full"}) == 0
+    assert route("auto-clarify", root, extra={"ceiling": "full"}) == 0
     clar = _read_auto_base(root)["clarification"]
     assert clar["ceiling"] == "full"
     assert clar["report_path"] == ""
@@ -564,7 +549,7 @@ def test_auto_clarify_rejects_invalid_ceiling(tmp_path):
     _seed_active_auto_feature(root)
 
     with pytest.raises(FatalError):
-        route("auto-clarify", "full", root, extra={"ceiling": "galaxy"})
+        route("auto-clarify", root, extra={"ceiling": "galaxy"})
     assert "clarification" not in _read_auto_base(root)
 
 
@@ -581,7 +566,7 @@ def test_auto_clarify_requires_auto_base(tmp_path):
     save_state(root, state)
 
     with pytest.raises(StateError):
-        route("auto-clarify", "full", root, extra={"ceiling": "full"})
+        route("auto-clarify", root, extra={"ceiling": "full"})
 
 
 def test_auto_status_resume_reports_pending_input_when_parked(tmp_path):

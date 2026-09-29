@@ -2,14 +2,13 @@
 
 回归覆盖：
 - fast 命令的 transition 校验（原 bug：_validate_transition(stage, "fast") 因
-  VALID_TRANSITIONS 无 "fast" 键而拒绝所有合法调用，导致 /specpowers.fast 不可用）
+  VALID_TRANSITIONS 无 "fast" 键而拒绝所有合法调用，导致 /specpowers-fast 不可用）
 - reset 保留 fallback_count
 - normalize_feature 中文/英文/边界
 
 作者：005819 | 协作：GLM-5.2
 """
 
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -22,28 +21,10 @@ from specpowers_cli.bridge.core.git_util import is_detached_head
 
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库。
+    """在 pytest tmp_path 下创建带提交的临时 git 仓库（会话级模板复制，约 10ms）。"""
+    from tests._gitrepo import create_git_repo
 
-    tmp_path 由 pytest 自动管理，测试结束自动清理，无需手动删除。
-    """
-    root = tmp_path / "dispatcher-repo"
-    root.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    (root / "README.md").write_text("# Test", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-q", "-m", "initial"],
-        cwd=str(root), capture_output=True, check=True,
-    )
-    return root
+    return create_git_repo(tmp_path / "dispatcher-repo")
 
 
 # ---- fast 命令 transition 回归 ----
@@ -61,7 +42,7 @@ def test_validate_transition_ready_to_fast_would_raise():
     """回归：原实现 _validate_transition('ready', 'fast') 会抛 StateError。
 
     因为 VALID_TRANSITIONS['fast'] 不存在 → 返回 [] → ready 不在空列表里 → 抛错。
-    这导致 /specpowers.fast 从 ready 状态根本无法启动。
+    这导致 /specpowers-fast 从 ready 状态根本无法启动。
     修复后 _handle_fast 不再调 _validate_transition(..., 'fast')，而是显式校验
     stage in ['ready']。此测试确认旧的错误调用方式确实会抛错，证明 bug 存在性。
     """
@@ -248,7 +229,7 @@ def test_apply_contract_hint_from_propose_path(tmp_path):
 
     # 错误提示应包含回 propose 补全的语境引导
     err_msg = str(exc_info.value)
-    assert "从 propose 刚进入 apply" in err_msg or "回 /specpowers.propose" in err_msg
+    assert "从 propose 刚进入 apply" in err_msg or "回 /specpowers-propose" in err_msg
 
 
 def test_apply_contract_hint_absent_without_context(tmp_path):
@@ -499,7 +480,7 @@ def test_fallback_from_apply_increments_count(tmp_path):
     root = _create_temp_git_repo(tmp_path)
     _seed_apply_stage(root)
 
-    rc = route("propose", "full", root, extra={"requirement": "回退补规格"})
+    rc = route("propose", root, extra={"requirement": "回退补规格"})
     assert rc == 0
     assert load_state(root)["fallback_count"] == 1
     assert load_state(root)["stage"] == "propose"
@@ -515,13 +496,13 @@ def test_second_fallback_rejected(tmp_path):
     _seed_apply_stage(root)
 
     # 第一次回退成功
-    assert route("propose", "full", root, extra={"requirement": "回退补规格"}) == 0
+    assert route("propose", root, extra={"requirement": "回退补规格"}) == 0
     # 推回 apply 后再次回退 → 拒绝
     state = load_state(root)
     state["stage"] = "apply"
     save_state(root, state)
     with pytest.raises(StateError):
-        route("propose", "full", root, extra={"requirement": "再次回退"})
+        route("propose", root, extra={"requirement": "再次回退"})
 
 
 def test_propose_from_explore_not_counted(tmp_path):
@@ -541,5 +522,67 @@ def test_propose_from_explore_not_counted(tmp_path):
     state["design_doc"] = str(design_doc)
     save_state(root, state)
 
-    assert route("propose", "full", root, extra={"requirement": "正常流程"}) == 0
+    assert route("propose", root, extra={"requirement": "正常流程"}) == 0
     assert load_state(root)["fallback_count"] == 0
+
+
+# ---- init 幂等语义（回归：auto.md 第 2 步承诺 /specpowers-init 幂等执行）----
+
+def test_init_idempotent_on_archived_state(tmp_path):
+    """stage=ready 且无 feature 且 baseline 已存在 → init 幂等跳过，不重建、不报错。
+
+    auto 判定 fresh 的常见起点恰是 stage=ready（上一需求已归档），
+    原实现在此场景抛 StateError，或迫使 agent 用 --force 重建团队已评审的 constitution。
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
+
+    root = _create_temp_git_repo(tmp_path)
+    state = dict(DEFAULT_STATE)
+    state["stage"] = "ready"
+    state["feature"] = ""
+    save_state(root, state)
+    baseline = root / ".specpowers" / "baseline.json"
+    baseline.parent.mkdir(parents=True, exist_ok=True)
+    baseline.write_text('{"git_ref": "preset"}', encoding="utf-8")
+    before = baseline.read_text(encoding="utf-8")
+
+    rc = route("init", root, extra={})
+
+    assert rc == 0
+    # baseline 未被重建（幂等跳过，不触发 scan）
+    assert baseline.read_text(encoding="utf-8") == before
+    # state 保持 ready 空转，未被重置动作污染
+    after = load_state(root)
+    assert after["stage"] == "ready"
+    assert after["feature"] == ""
+
+
+def test_init_on_ready_with_active_feature_still_rejected(tmp_path):
+    """stage=ready 但 feature 非空（异常残留）→ 幂等不适用，仍走冲突拦截。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.fs_state import load_state, save_state, DEFAULT_STATE
+
+    root = _create_temp_git_repo(tmp_path)
+    state = dict(DEFAULT_STATE)
+    state["stage"] = "ready"
+    state["feature"] = "leftover-feature"
+    save_state(root, state)
+    (root / ".specpowers" / "baseline.json").write_text('{"git_ref": "x"}', encoding="utf-8")
+
+    with pytest.raises(StateError):
+        route("init", root, extra={})
+
+
+def test_init_from_fresh_state_still_scans(tmp_path):
+    """全新 state（stage=init，无 baseline）→ 正常执行扫描，baseline 落盘。"""
+    from specpowers_cli.bridge.dispatcher import route
+
+    root = _create_temp_git_repo(tmp_path)
+
+    rc = route("init", root, extra={})
+
+    assert rc == 0
+    assert (root / ".specpowers" / "baseline.json").exists()
+    from specpowers_cli.bridge.core.fs_state import load_state
+    assert load_state(root)["stage"] == "ready"

@@ -6,9 +6,16 @@
 3. src/ 下新架构层（new_src_pattern）
 4. set 去重（多文件同名信号只报一次）
 5. 空 baseline / 空 diff 短路
+
+v2.3.0 追加：任务级修改范围比对（parse_scope_declaration / evaluate_scope）。
 """
 
-from specpowers_cli.bridge.modules.structure_gate import extract_signals
+from specpowers_cli.bridge.modules.structure_gate import (
+    SCOPE_EXEMPT_PREFIXES,
+    evaluate_scope,
+    extract_signals,
+    parse_scope_declaration,
+)
 
 
 def _baseline(top_dirs=None, deps=None, src_patterns=None):
@@ -173,3 +180,126 @@ def test_summary_line_with_violation_not_polluted():
     signals = extract_signals(diff, _baseline(top_dirs=["src"]))
     # 只应有真实信号 new_top_dir:newdir，不应有汇总行产生的噪声
     assert signals == ["new_top_dir:newdir"], f"汇总行污染了信号: {signals}"
+
+
+def test_rename_brace_form_reconstructs_full_path():
+    """回归：git rename 折叠写法 src/{old => new}/f.py 必须还原完整新路径。
+
+    原实现取 "=>" 之后丢掉花括号前的公共前缀，"src/{api => controller}/u.py"
+    被解析成 "controller/u.py"：
+    1. 顶层目录判定为 "controller"（不在 top_dirs）→ 误报 new_top_dir:controller
+    2. parts[0] != "src" → src 层信号漏检
+    """
+    # 前缀 src 在 top_dirs 内、新段 controller 在 src_patterns 内 → 不应有任何信号
+    diff = "src/{api => controller}/user.py | 12 ++++\n"
+    signals = extract_signals(diff, _baseline(
+        top_dirs=["src"], src_patterns=["controller"]
+    ))
+    assert signals == [], f"rename 折叠路径解析错误: {signals}"
+
+    # 反向：新段是未知架构层 → 应报 new_src_pattern（验证 src 前缀被正确还原后
+    # src 层检查生效），且不应产生 new_top_dir
+    diff2 = "src/{api => repository}/user.py | 12 ++++\n"
+    signals2 = extract_signals(diff2, _baseline(
+        top_dirs=["src"], src_patterns=["controller"]
+    ))
+    assert signals2 == ["new_src_pattern:repository"], \
+        f"rename 折叠路径 src 层判定失效: {signals2}"
+
+
+def test_rename_plain_form_still_works():
+    """无公共前后缀的整体 rename（old => new）保持原有解析行为。"""
+    diff = "old_dir/file.py => new_dir/file.py | 5 +\n"
+    signals = extract_signals(diff, _baseline(top_dirs=["src"]))
+    # 新路径 new_dir/file.py：new_dir 不在 top_dirs → 报 new_top_dir:new_dir
+    assert "new_top_dir:new_dir" in signals
+
+
+# ---- 任务级修改范围比对（v2.3.0）----
+
+def test_parse_scope_declaration_basic():
+    """注释块内「修改范围:」声明行正确解析（英文冒号 + 尾斜杠归一化）。"""
+    md = "<!--\n推荐：conductor\n修改范围：src/order/, tests/order\n-->"
+    assert parse_scope_declaration(md) == ["src/order", "tests/order"]
+
+
+def test_parse_scope_declaration_mixed_separators_and_quotes():
+    """逗号/中文逗号/分号/顿号/空白混排 + 引号包裹均正确切分。"""
+    md = '<!-- 修改范围:"src/a", src/b；c.txt、d.py e.py -->'
+    assert parse_scope_declaration(md) == ["src/a", "src/b", "c.txt", "d.py", "e.py"]
+
+
+def test_parse_scope_declaration_backslash_normalized():
+    """Windows 反斜杠路径归一化为正斜杠（跨平台比对一致）。"""
+    md = "<!-- 修改范围：src\\order\\dto -->"
+    assert parse_scope_declaration(md) == ["src/order/dto"]
+
+
+def test_parse_scope_declaration_ignores_body_mentions():
+    """回归：正文（注释块外）出现「修改范围：」字样不得误匹配为声明。
+
+    任务描述里常见"修改范围:xx 模块"表述，只在 HTML 注释块内解析。
+    """
+    md = (
+        "<!-- 推荐：conductor -->\n"
+        "### Task 1: x\n"
+        "- 实现内容：修改范围：src/x（此行在正文，不是声明）\n"
+    )
+    assert parse_scope_declaration(md) == []
+
+
+def test_parse_scope_declaration_missing_returns_empty():
+    """无注释块 / 注释块内无声明行 → 空列表（对应 gate 输出 undeclared）。"""
+    assert parse_scope_declaration("no comment at all") == []
+    assert parse_scope_declaration("<!-- 推荐：conductor -->") == []
+
+
+def test_evaluate_scope_pass():
+    """全部改动落在声明范围内 → pass。"""
+    r = evaluate_scope(
+        ["src/order/a.java", "tests/order/t.py"], ["src/order", "tests/order"]
+    )
+    assert r["status"] == "pass"
+    assert r["out_of_scope"] == []
+    assert r["declared"] == ["src/order", "tests/order"]
+
+
+def test_evaluate_scope_out_of_scope():
+    """越界文件被检出并排序去重。"""
+    r = evaluate_scope(
+        ["src/payment/b.java", "src/order/a.java", "src/payment/a.java"],
+        ["src/order"],
+    )
+    assert r["status"] == "out_of_scope"
+    assert r["out_of_scope"] == ["src/payment/a.java", "src/payment/b.java"]
+
+
+def test_evaluate_scope_prefix_boundary():
+    """路径分量边界：声明 src/order 不得吞掉 src/orders_x（前缀误匹配）。"""
+    r = evaluate_scope(["src/orders_x/b.java"], ["src/order"])
+    assert r["out_of_scope"] == ["src/orders_x/b.java"]
+
+
+def test_evaluate_scope_exempt_prefixes():
+    """流水线工件（openspec/、.specpowers/、docs/specpowers/）永不判越界。"""
+    files = [
+        "openspec/changes/x/tasks.md",
+        ".specpowers/state.json",
+        "docs/specpowers/design/a.md",
+    ]
+    r = evaluate_scope(files, [])
+    assert r["status"] == "pass"
+    assert set(SCOPE_EXEMPT_PREFIXES) == {"openspec/", ".specpowers/", "docs/specpowers/"}
+
+
+def test_evaluate_scope_exact_file_declaration():
+    """声明为具体文件时精确匹配该文件，其余照常越界。"""
+    r = evaluate_scope(["README.md", "src/x.py"], ["README.md"])
+    assert r["out_of_scope"] == ["src/x.py"]
+
+
+def test_evaluate_scope_directory_declaration_matches_children_only():
+    """目录声明匹配子路径与目录自身，不匹配同名前缀的他路径。"""
+    declared = ["src/a"]
+    assert evaluate_scope(["src/a/b.py", "src/a"], declared)["status"] == "pass"
+    assert evaluate_scope(["src/ab/c.py"], declared)["status"] == "out_of_scope"

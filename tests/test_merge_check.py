@@ -10,36 +10,18 @@ from specpowers_cli.bridge.core.git_util import git_ref_of
 
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建一个带两次提交的临时 git 仓库。
+    """在 pytest tmp_path 下创建带两次提交的临时 git 仓库（模板复制 + 两次追加提交）。
 
     tmp_path 由 pytest 自动管理，测试结束后自动清理，无需手动删除。
     """
-    root = tmp_path / "test-repo"
-    root.mkdir()
+    from tests._gitrepo import create_git_repo, commit_all
 
-    subprocess.run(["git", "init"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True
-    )
-
-    (root / "file.txt").write_text("commit 1")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "initial"],
-        cwd=str(root), capture_output=True, check=True
-    )
-
-    (root / "file.txt").write_text("commit 2")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "second"],
-        cwd=str(root), capture_output=True, check=True
-    )
+    root = create_git_repo(tmp_path / "test-repo")
+    # 保持原语义：两次提交之间 file.txt 内容变化（第二次提交相对首次有 diff）
+    (root / "file.txt").write_text("commit 1", encoding="utf-8")
+    commit_all(root, "initial")
+    (root / "file.txt").write_text("commit 2", encoding="utf-8")
+    commit_all(root, "second")
 
     return root
 

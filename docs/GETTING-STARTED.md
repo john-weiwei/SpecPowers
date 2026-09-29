@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.2.1-blue)]()
+[![Version](https://img.shields.io/badge/version-2.3.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -42,23 +42,23 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 插件内嵌 `specpowers_cli` bridge 包（仅依赖 Python ≥ 3.11 标准库）。装好插件即可直接用 `/specpowers-init` 开始（pip 方式才需要先跑安装器命令 `specpowers init`，见下）。
 
-### 方式二：pip（Cursor / Copilot / Windsurf / Cline / Aider 等无插件市场的工具）
+### 方式二：pip（Cursor / Copilot / Windsurf 等无插件市场的工具）
 
 这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（自动生成对应 rules 文件）：
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.2.1
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.2.1
+# → SpecPowers CLI v2.3.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
 specpowers init                        # 自动检测 AI agent
-specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/cline/codex/zcode/claude
+specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/codex/zcode/claude
 ```
 
 **运行依赖**：Python ≥ 3.11（仅 stdlib，零 pip 依赖）、Git ≥ 2.30。
@@ -100,14 +100,14 @@ Codex CLI 对应（升级市场源后，在插件面板重新安装/刷新 specp
 codex plugin marketplace upgrade specpowers-marketplace
 ```
 
-### pip 方式（Cursor / Copilot / Windsurf / Cline 等）
+### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.2.1
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.2.1
+# → SpecPowers CLI v2.3.0
 
 # 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
 cd my-project
@@ -123,7 +123,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 用内置 specpowers-explore 技能、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
-**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑命令；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
 
 手动确认（可选）：
 ```bash
@@ -194,9 +194,9 @@ init ─▶ ready ─┬─ explore → propose → apply → archive → ready
 |------|------|--------|------|
 | `/specpowers-init` | — | 内联生成项目原则（质量/测试/UX/性能，插件自包含），同时扫描顶层目录、依赖清单、源码目录规律 → 结构基线 | `.specpowers/constitution.md` + `.specpowers/baseline.json` |
 | `/specpowers-explore "需求"` | init | 调内置 `specpowers-explore` 技能静默探索项目 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（含数据流结论）→ `record-design-doc` 登记；未归档重入=同需求方案变更迭代轮（经确认开轮，设计文档覆盖更新 + 迭代历史） | `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`（探索设计文档） |
-| `/specpowers-propose "需求"` | explore（或 ready） | 一站式生成 OpenSpec change 三件套：从设计文档提炼 proposal.md（含「## 数据流契约」）→ OpenSpec 场景格式 spec.md → superpowers `writing-plans` 瘦身 tasks.md（声明执行方式推荐：conductor / worktree / subagent / TDD）；未归档重入=同需求迭代轮（经确认开轮，spec 增量修订、tasks 分轮演进） | `openspec/changes/<feature>/proposal.md` + `specs/<capability>/spec.md` + `tasks.md` |
-| `/specpowers-apply` | propose（或 ready+fast） | ① 提示用户选择执行方式（conductor/worktree/subagent/TDD）；② 结构门禁：比对 git diff 与 baseline.json，三态判定（通过/转人工/打回）；③ 调用 superpowers 能力池执行编码 | 代码变更 |
-| `/specpowers-archive` | apply | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<feature>/spec.md`（主规格）+ `openspec/changes/archive/`（快照） |
+| `/specpowers-propose "需求"` | explore（或 ready） | 一站式生成 OpenSpec change 三件套：从设计文档提炼 proposal.md（含「## 数据流契约」）→ OpenSpec 场景格式 spec.md → superpowers `writing-plans` 瘦身 tasks.md（声明执行方式推荐 + 修改范围声明：conductor / worktree / subagent / TDD）；未归档重入=同需求迭代轮（经确认开轮，spec 增量修订、tasks 分轮演进） | `openspec/changes/<feature>/proposal.md` + `specs/<capability>/spec.md` + `tasks.md` |
+| `/specpowers-apply` | propose（或 ready+fast） | ① 提示用户选择执行方式（conductor/worktree/subagent/TDD）；② 结构门禁：结构基线比对（git diff vs baseline.json，三态判定）+ 修改范围比对（实际改动 vs tasks.md 声明，越界转人工）；③ 调用 superpowers 能力池执行编码 | 代码变更 |
+| `/specpowers-archive` | apply | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<capability>/spec.md`（主规格，fast 模式下 capability = feature）+ `openspec/changes/archive/`（快照） |
 | `/specpowers-fast "需求"` | init | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 explore/propose，直接编码 → apply → archive | 验收清单 3-5 条 |
 | `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后先做**需求澄清**（五维检查 → 推进深度上限：方案未定等缺陷不停摆，停靠 explore 产出未收敛草案待补结论），再依次驱动 init → explore → propose → apply → specpowers-review（内置审查技能），**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口，`--archive` 先过收口前置检查）；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（澄清结论/产物清单/审查结论/编译测试/遗留风险） |
 | `/specpowers-baseline` | — | 手动刷新结构基线，重新扫描项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json` | 更新 `baseline.json` |
@@ -219,13 +219,17 @@ apply 是流水线的**执行核心**，组合了两件事：
 
 **1. 结构门禁（SpecPowers 独有）**
 
-比对 `git diff` 与 `baseline.json`，发现 AI 代码"无中生有"建目录/加依赖时，三态判定：
+apply 启动时比对 `git diff`，两道检查：
+
+- **结构基线比对**：与 `baseline.json` 对照，发现 AI 代码"无中生有"建目录/加依赖时，三态判定：
 
 | 判定 | 触发条件 | 行为 |
 |------|---------|------|
 | ✅ 通过 | 改动在已知结构内 | 继续执行 |
 | ⚠️ 转人工 | 新建目录/新依赖类型/新模式 | 标记，archive 时人工确认 |
 | ❌ 打回 | 明显结构违规 | 拒绝继续 |
+
+- **修改范围比对**（v2.3.0）：propose 在 tasks.md 声明「修改范围：」路径前缀，门禁将实际改动与之做前缀比对，越界文件**转人工**裁决（放行并更新声明 / 回退改动）——把"转人工"从"新结构"细化到"越界改动"；流水线工件（`openspec/`、`.specpowers/`、`docs/specpowers/`）自动豁免
 
 **2. 能力池调度（superpowers）**
 
@@ -255,7 +259,6 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 | Cursor | pip + `specpowers init --integration cursor` | 自然语言触发（rules 引导） |
 | GitHub Copilot | pip + `specpowers init --integration copilot` | 自然语言触发（rules 引导） |
 | Windsurf | pip + `specpowers init --integration windsurf` | 自然语言触发（rules 引导） |
-| Cline | pip + `specpowers init --integration cline` | 自然语言触发（rules 引导） |
 
 > 插件市场方式享受完整体验（9 个 slash 命令 + SessionStart 依赖检测）；pip 方式生成 rules 文件引导 agent 按流水线执行，功能等价但无原生 slash 命令。
 
@@ -322,7 +325,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（212 用例；另有 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（275 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

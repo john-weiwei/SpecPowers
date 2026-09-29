@@ -1,8 +1,6 @@
-"""Mode controller — fast mode judgment, confirmation, checklist management, execution mode enforcement."""
+"""Mode controller — execution mode validation and persistence."""
 
 from pathlib import Path
-
-SMALL_SIGNALS = ["bugfix", "单文件", "无新场景", "纯配置", "纯文案", "纯重构"]
 
 # build 阶段可选的四种执行方式（对应 build.md 第二步选项）
 # conductor  → superpowers executing-plans（顺序执行，默认）

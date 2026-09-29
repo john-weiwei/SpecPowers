@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.2.1
+version: 2.3.0
 ---
 
 # SpecPowers 桥接插件
@@ -119,8 +119,8 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [--root <path>
 | `prompts/explore.md` | 收口契约：HARD-GATE 强制调用内置 specpowers-explore 技能探索（防架空）+ 运行时数据流溯源（结论写设计文档数据流章节）+ 设计文档落盘 + `record-design-doc` 登记；判小信号映射 |
 | `skills/specpowers-explore/SKILL.md` | 内置需求探索技能（替代 superpowers `brainstorming`）：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`，含架构/组件划分/数据流/接口定义/错误处理）→ 结构化探索结论交付（含跨链路字段线索）；不写流水线产物 |
 | `skills/specpowers-review/SKILL.md` | 内置代码审查技能（替代用户级 `codex-review`，随插件分发）：git 上下文收集（基分支/未提交/单方法三模式）→ 完整方法体提取 → 多 Pass 审查（模式匹配/控制流/语义/跨文件数据流）→ 中文结论（`[P0]`-`[P3]` 标签 + 自检清单）；auto 模式 review 环节调用，也可用户点名独立审查 |
-| `prompts/propose.md` | 提案契约（合并原 specify+plan）：从设计文档提炼 proposal.md（含「## 数据流契约」）+ OpenSpec 场景格式 spec.md + writing-plans 瘦身 tasks.md（conductor/subagent 档字段），一次落盘三件套 |
-| `prompts/apply.md` | 实时门禁三态 + 能力池调度 + 验收清单消费 |
+| `prompts/propose.md` | 提案契约（合并原 specify+plan）：从设计文档提炼 proposal.md（含「## 数据流契约」）+ OpenSpec 场景格式 spec.md + writing-plans 瘦身 tasks.md（声明执行方式推荐 + 修改范围声明行，conductor/subagent 档字段），一次落盘三件套 |
+| `prompts/apply.md` | 实时门禁三态（结构基线信号 + tasks.md 修改范围声明比对）+ 能力池调度 + 验收清单消费 |
 | `prompts/archive.md` | 三职责收尾；合体后校验 |
 | `prompts/fast_mode.md` | 判小 prompt / 确认交互 / 回退 / 清单 |
 | `prompts/auto.md` | 无人值守契约：八要素文档解析 + 重入三分判定（fresh/resume/iterate，`facade auto-status` 确定性支撑）+ 迭代深度分级（full/light）+ 阶段编排 0–7（第 7 步仅 `--archive` 触发）+ 裁决规则表 + specpowers-review 编排（首轮基点跨轮累计审查/传基点/滤范围/控 2 轮迭代）+ 归档双通道收口（`facade auto new-round` 轮次切换）+ 硬阻断定义 + 断点续跑 |

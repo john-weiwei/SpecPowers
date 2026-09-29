@@ -32,17 +32,20 @@ Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.
 
 Internal subcommands (for CI / agent direct use):
     scan [--root <path>]         Run baseline scanner
-    gate [--base <ref>]          Extract structure gate signals
+    gate [--base <ref>]          Extract structure gate signals（v2.3.0 起附 scope 修改范围比对）
     status                       Print current state
     version                      Print version
     record-execution-mode <mode> Record apply execution mode (conductor|worktree|subagent|tdd)
     record-design-doc <path>     Register explore design doc path (propose 前置校验凭据)
+    resume-probe                 Ambient resume 只读探测（SessionStart hook 消费）：
+                                 活跃需求才输出续跑提示，零活跃零噪音，异常降级为空
 
 > v2.0.0 起旧子命令名（constitution/brainstorm/specify/plan/build）已移除，无别名。
 """
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -122,7 +125,7 @@ def _cmd_init(args: list[str], root: Path) -> int:
     if not is_git_repo(root):
         from specpowers_cli.bridge.core.errors import NotGitRepoError
         raise NotGitRepoError(f"'{root}' is not a git repository.")
-    return route("init", "full", root, extra={"force": force})
+    return route("init", root, extra={"force": force})
 
 
 def _cmd_explore(args: list[str], root: Path) -> int:
@@ -133,7 +136,7 @@ def _cmd_explore(args: list[str], root: Path) -> int:
     if not req.strip():
         print("Error: explore requires a requirement description.", file=sys.stderr)
         return 2
-    return route("explore", "full", root, extra={
+    return route("explore", root, extra={
         "requirement": req,
         "feature": opts.get("feature", ""),
     })
@@ -147,7 +150,7 @@ def _cmd_propose(args: list[str], root: Path) -> int:
     if not req.strip():
         print("Error: propose requires a requirement description.", file=sys.stderr)
         return 2
-    return route("propose", "full", root, extra={
+    return route("propose", root, extra={
         "requirement": req,
         "feature": opts.get("feature", ""),
     })
@@ -160,26 +163,26 @@ def _cmd_fast(args: list[str], root: Path) -> int:
     if not req.strip():
         print("Error: fast requires a requirement description.", file=sys.stderr)
         return 2
-    return route("fast", "fast", root, extra={"requirement": req})
+    return route("fast", root, extra={"requirement": req})
 
 
 def _cmd_apply(args: list[str], root: Path) -> int:
     """Handle apply command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("apply", "full", root)
+    return route("apply", root)
 
 
 def _cmd_archive(args: list[str], root: Path) -> int:
     """Handle archive command."""
     from specpowers_cli.bridge.dispatcher import route
     force_merge = "--force-merge-check" in args
-    return route("archive", "full", root, extra={"force_merge_check": force_merge})
+    return route("archive", root, extra={"force_merge_check": force_merge})
 
 
 def _cmd_baseline(args: list[str], root: Path) -> int:
     """Handle baseline command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("baseline", "full", root)
+    return route("baseline", root)
 
 
 def _extract_kv_options(rest: list[str], keys: tuple[str, ...]) -> tuple[dict, list[str]]:
@@ -247,7 +250,7 @@ def _cmd_auto_new_round(args: list[str], root: Path) -> int:
     """
     from specpowers_cli.bridge.dispatcher import route
     opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
-    return route("auto-new-round", "full", root, extra={
+    return route("auto-new-round", root, extra={
         "design_doc": opts.get("design-doc", ""),
         "instruction": opts.get("instruction", ""),
     })
@@ -270,7 +273,7 @@ def _cmd_auto_clarify(args: list[str], root: Path) -> int:
             file=sys.stderr,
         )
         return 2
-    return route("auto-clarify", "full", root, extra={
+    return route("auto-clarify", root, extra={
         "ceiling": ceiling,
         "report": opts.get("report", ""),
     })
@@ -283,7 +286,7 @@ def _cmd_iterate(args: list[str], root: Path) -> int:
     """
     from specpowers_cli.bridge.dispatcher import route
     opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
-    return route("iterate", "full", root, extra={
+    return route("iterate", root, extra={
         "design_doc": opts.get("design-doc", ""),
         "instruction": opts.get("instruction", ""),
     })
@@ -304,7 +307,7 @@ def _cmd_record_design_doc(args: list[str], root: Path) -> int:
             file=sys.stderr,
         )
         return 2
-    return route("record-design-doc", "full", root, extra={
+    return route("record-design-doc", root, extra={
         "design_doc": " ".join(positional),
     })
 
@@ -312,7 +315,7 @@ def _cmd_record_design_doc(args: list[str], root: Path) -> int:
 def _cmd_reset(args: list[str], root: Path) -> int:
     """Handle reset command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("reset", "full", root)
+    return route("reset", root)
 
 
 def _cmd_status(args: list[str], root: Path) -> int:
@@ -331,11 +334,36 @@ def _cmd_scan(args: list[str], root: Path) -> int:
     return 0
 
 
+def _scope_assessment(root: Path, base: str) -> dict | None:
+    """评估任务级修改范围比对；不适用场景返回 None（输出 JSON 不带 scope 键）。
+
+    适用前提：state 的 feature 非空（fast/CI 场景不比对）且该 feature 的
+    tasks.md 存在。声明缺失 → status=undeclared（提示 propose 补声明，
+    非硬阻断，兼容 v2.2 旧产物）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.core.fs_state import load_state
+    from specpowers_cli.bridge.core.git_util import diff_name_only
+    from specpowers_cli.bridge.modules.structure_gate import (
+        evaluate_scope,
+        parse_scope_declaration,
+    )
+    state = load_state(root)
+    feature = (state.get("feature") or "").strip()
+    if not feature:
+        return None
+    tasks_path = root / "openspec" / "changes" / feature / "tasks.md"
+    if not tasks_path.exists():
+        return None
+    declared = parse_scope_declaration(tasks_path.read_text(encoding="utf-8"))
+    if not declared:
+        return {"declared": [], "out_of_scope": [], "status": "undeclared"}
+    return evaluate_scope(diff_name_only(root, base), declared)
+
+
 def _cmd_gate(args: list[str], root: Path) -> int:
     """Handle internal gate command."""
-    import json
-    import re
-
     base = "HEAD~1"
     for i, a in enumerate(args):
         if a == "--base" and i + 1 < len(args):
@@ -358,7 +386,28 @@ def _cmd_gate(args: list[str], root: Path) -> int:
     diff = diff_stat(root, base)
     baseline = load_baseline(root)
     signals = extract_signals(diff, baseline)
-    print(json.dumps({"signals": signals, "base": base, "diff_lines": len(diff.splitlines()) if diff else 0}))
+    result = {"signals": signals, "base": base, "diff_lines": len(diff.splitlines()) if diff else 0}
+    # 任务级修改范围比对（v2.3.0）：不适用时不带 scope 键，保持旧消费者兼容
+    scope = _scope_assessment(root, base)
+    if scope is not None:
+        result["scope"] = scope
+    print(json.dumps(result))
+    return 0
+
+
+def _cmd_resume_probe(args: list[str], root: Path) -> int:
+    """Handle resume-probe command — SessionStart 只读探测活跃需求（零噪音）。
+
+    探测绝不阻断会话启动：任何异常静默降级为空输出（exit 0）。
+    空输出 = 无活跃状态，hook 侧零注入。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.modules.resume_probe import probe_resume
+    try:
+        print(probe_resume(root))
+    except Exception:
+        return 0
     return 0
 
 
@@ -400,8 +449,27 @@ def _cmd_record_execution_mode(args: list[str], root: Path) -> int:
     return 0
 
 
+def _configure_output_streams() -> None:
+    """输出编码兜底：errors="replace" 保证任意字符都不会让流程崩溃。
+
+    管道/agent 捕获场景下 stdout/stderr 按系统 locale（Windows 为 cp936）编码，
+    输出 ⚠/✓ 等非 GBK 字符会抛 UnicodeEncodeError 且发生在状态已落盘之后，
+    调用方会误判失败。bin 包装脚本已设 PYTHONUTF8=1（整体切 UTF-8），
+    此处仅兜 errors，不改 encoding（避免交互 GBK 控制台中文乱码）。
+    作者：005819 | 协作：GLM-5.3
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(errors="replace")
+            except (ValueError, OSError):
+                # 已关闭的流或底层缓冲不支持时静默跳过（不影响主流程）
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point. Returns exit code."""
+    _configure_output_streams()
     if argv is None:
         argv = sys.argv[1:]
 
@@ -421,10 +489,6 @@ def main(argv: list[str] | None = None) -> int:
     # 提取全局选项 --root 并从 rest 中移除，防止其被拼进 requirement
     root_arg, rest = _extract_global_options(rest)
 
-    # Subcommands that don't need project root
-    if subcommand in ("--help", "-h", "help"):
-        print_help()
-        return 0
     if subcommand in ("version", "--version", "-V"):
         return _cmd_version(rest, Path.cwd())
 
@@ -450,6 +514,7 @@ def main(argv: list[str] | None = None) -> int:
         "gate": _cmd_gate,
         "record-execution-mode": _cmd_record_execution_mode,
         "record-design-doc": _cmd_record_design_doc,
+        "resume-probe": _cmd_resume_probe,
         "auto-status": _cmd_auto_status,
         "auto-new-round": _cmd_auto_new_round,
         "auto-clarify": _cmd_auto_clarify,
@@ -471,8 +536,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         if detail:
             print(f"  Detail: {detail}", file=sys.stderr)
-        # Check for verbose mode
-        if os.environ.get("SPECPOWERS_VERBOSE"):
+        # Verbose 模式口径与 dispatcher.is_verbose 一致（仅 "1" 生效）
+        if os.environ.get("SPECPOWERS_VERBOSE", "").strip() == "1":
             import traceback
             traceback.print_exc(file=sys.stderr)
         return exit_code

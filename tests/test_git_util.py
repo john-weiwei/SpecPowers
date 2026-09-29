@@ -14,44 +14,20 @@ from specpowers_cli.bridge.dispatcher import normalize_feature
 
 
 def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库。
+    """在 pytest tmp_path 下创建带两次提交的临时 git 仓库（模板复制 + 一次追加提交）。
 
     tmp_path 由 pytest 自动管理，测试结束自动清理。
     """
-    root = tmp_path / "git-util-repo"
-    root.mkdir()
+    from tests._gitrepo import create_git_repo, commit_all
 
-    subprocess.run(["git", "init"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=str(root), capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=str(root), capture_output=True
-    )
-
-    (root / "README.md").write_text("# Test")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "initial commit"],
-        cwd=str(root), capture_output=True, check=True
-    )
-
-    (root / "src").mkdir(exist_ok=True)
-    (root / "src" / "main.py").write_text("print('hello')")
-    subprocess.run(["git", "add", "-A"], cwd=str(root), capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "add src/main.py"],
-        cwd=str(root), capture_output=True, check=True
-    )
+    root = create_git_repo(tmp_path / "git-util-repo")
+    # 保持原结构语义：第二个提交新增 src/main.py（供 diff_stat HEAD~1 与
+    # ls-tree 目录用例消费），与模板自带的 README 提交共同构成两提交历史
+    (root / "src").mkdir()
+    (root / "src" / "main.py").write_text("print('hello')", encoding="utf-8")
+    commit_all(root, "add src/main.py")
 
     return root
-
-
-def test_init():
-    """Test basic imports and module initialization."""
-    assert True
 
 
 def test_git_exists():
@@ -142,3 +118,52 @@ def test_is_detached_head_detached(tmp_path):
         cwd=str(root), capture_output=True, check=True,
     )
     assert is_detached_head(root) is True
+
+
+# ---- diff_name_only（v2.3.0，任务级修改范围比对依赖）----
+
+def test_diff_name_only_working_tree(tmp_path):
+    """未提交改动（已跟踪文件）相对 HEAD 的文件清单。"""
+    from tests._gitrepo import commit_all
+
+    from specpowers_cli.bridge.core.git_util import diff_name_only
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / "README.md").write_text("# changed", encoding="utf-8")
+    assert diff_name_only(root) == ["README.md"]
+
+
+def test_diff_name_only_base_range(tmp_path):
+    """base..HEAD 提交区间的文件清单（与 diff_stat 同口径）。"""
+    from specpowers_cli.bridge.core.git_util import diff_name_only
+
+    root = _create_temp_git_repo(tmp_path)
+    # _create_temp_git_repo 构造两提交历史：README + src/main.py
+    files = diff_name_only(root, "HEAD~1")
+    assert "src/main.py" in files
+
+
+def test_diff_name_only_chinese_path_not_escaped(tmp_path):
+    """回归：core.quotepath=off 保证中文路径原样输出。
+
+    git 默认 quotepath 会把中文路径转义为反斜杠八进制串并加引号，
+    修改范围前缀比对将全部失效。
+    作者：005819 | 协作：GLM-5.3
+    """
+    from tests._gitrepo import commit_all
+
+    from specpowers_cli.bridge.core.git_util import diff_name_only
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / "src" / "订单服务.java").write_text("class X {}", encoding="utf-8")
+    commit_all(root, "add chinese path")
+    files = diff_name_only(root, "HEAD~1")
+    assert "src/订单服务.java" in files
+
+
+def test_diff_name_only_empty_when_clean(tmp_path):
+    """无改动时返回空列表。"""
+    from specpowers_cli.bridge.core.git_util import diff_name_only
+
+    root = _create_temp_git_repo(tmp_path)
+    assert diff_name_only(root) == []

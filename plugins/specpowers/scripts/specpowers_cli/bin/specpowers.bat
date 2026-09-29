@@ -7,6 +7,10 @@ REM   3. 旧版 init 拷贝的本地包（向后兼容）
 
 setlocal enabledelayedexpansion
 
+REM 输出编码：强制 Python 侧 UTF-8。本脚本由 agent 以管道方式调用（按 UTF-8 解码），
+REM 不设置时 Python 按 locale（cp936）编码 stdout，输出 ⚠/✓ 等字符会崩溃
+set "PYTHONUTF8=1"
+
 set "SCRIPT_DIR=%~dp0"
 REM 去掉末尾反斜杠
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"

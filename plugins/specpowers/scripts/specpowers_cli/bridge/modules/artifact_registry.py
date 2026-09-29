@@ -103,11 +103,6 @@ def required_for(stage: str, mode: str, feature: str = "") -> list[Artifact]:
     Returns:
         必需 artifact 列表，动态产物的 path 已解析为相对路径字符串。
     """
-    from pathlib import PurePosixPath
-    from specpowers_cli.bridge.modules.path_resolver import (
-        resolve_change_proposal, resolve_change_tasks, resolve_change_dir,
-    )
-
     required = []
     for art in MANIFEST:
         if stage in art["consumers"] or "*" in art["consumers"]:

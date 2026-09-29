@@ -33,16 +33,6 @@ class NotGitRepoError(FatalError):
     pass
 
 
-class DetachedHeadError(FatalError):
-    """Git repository is in detached HEAD state with no commits."""
-    pass
-
-
-class EmptyRepoError(FatalError):
-    """Git repository has no commits yet."""
-    pass
-
-
 class LockAcquireError(FatalError):
     """Failed to acquire file lock (another instance may be running)."""
     pass
@@ -58,16 +48,6 @@ class ArtifactMissingError(FatalError):
     pass
 
 
-class BaselineError(RecoverableError):
-    """Baseline is stale or corrupted, but pipeline may continue."""
-    pass
-
-
 class ArchiveDuplicateError(FatalError):
     """Feature already archived — reject duplicate archive."""
-    pass
-
-
-class MergeCheckError(RecoverableError):
-    """Merge check triggered — requires manual review."""
     pass
