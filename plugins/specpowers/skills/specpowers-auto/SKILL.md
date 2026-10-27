@@ -1,12 +1,11 @@
 ---
-description: Full-pipeline unattended mode with requirement clarification + multi-round iteration — five-dimension doc check decides a stage ceiling (full runs to specpowers-review; unresolved-solution docs park at explore with a draft + questions), then auto-drive the stages from a design doc (init→explore→propose→apply→specpowers-review); archiving is NEVER automatic — only via explicit `--archive` (with the closure pre-check) or manual `/specpowers-archive`. Before archive, every re-entry (new doc / same doc / verbal instruction) iterates the SAME change dir; archiving declares a new requirement.
+name: specpowers-auto
+description: 驱动全流程无人值守——设计文档为权威输入直通 review，自动裁决确认与门禁节点，默认不归档
 ---
 
-## User Input
+# specpowers-auto — 无人值守全流程
 
-```text
-$ARGUMENTS
-```
+用户输入经技能 args 参数传入（用户直接 `/` 调用时为原文，模型经 Skill 工具调用时为编排参数）。
 
 支持形态：`<设计文档路径>`（fresh 必填）、`--instruction "<调整描述>"`（迭代轮无文档输入；explore 停靠后重入时作为方案结论答复）、`--archive`（本轮跑完过收口前置检查后追加归档）、`--new-round`（显式开启迭代轮）。任何轮次（fresh/resume/iterate）默认都不归档。
 
@@ -22,3 +21,5 @@ You will:
 5. Archive closure is dual-channel: manual `/specpowers-archive` after any round, or `--archive` on any auto run (pre-check: no unresolved blocking P0-P2). NO round archives by default — fresh, resume, and iterate all stop at specpowers-review; archiving is always an explicit act. After archive the base file is cleaned and `iteration_count` reset — the next auto run is a NEW requirement
 6. Stop only on hard blockers (doc-content defects park at explore instead); on interruption, re-entering `/specpowers-auto` resumes from the breakpoint
 7. Emit the per-round summary report following `templates/auto-summary-template.md` (must include the clarification ceiling + leftovers)
+
+完成后：按汇总模板输出本轮报告；归档建议调用技能 specpowers-archive（用户直接 `/specpowers-archive` 或带 `--archive` 重入 auto，auto 模式下模型直接经 Skill 工具调用）。

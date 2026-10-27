@@ -572,7 +572,8 @@ def _handle_explore(root: Path, extra: dict) -> int:
     save_state(root, state)
 
     print(f"Explore started for feature: {feature}")
-    print("Agent should now: invoke the built-in specpowers-explore skill to explore the requirement, "
+    print("Agent should now: follow prompts/explore.md and complete the inline explore-engine "
+          "procedure to explore the requirement, "
           "write the design doc under docs/specpowers/design/ "
           "(incl. data-flow conclusions), register it via "
           f"`facade record-design-doc <path>`, then continue to /specpowers-propose")
@@ -1010,7 +1011,7 @@ def _handle_record_design_doc(root: Path, extra: dict) -> int:
     if not path.is_file():
         raise FatalError(
             f"设计文档 '{design_doc}' 不存在，拒绝登记。"
-            "请先由 specpowers-explore 技能落盘设计文档后再登记"
+            "请先经 explore 契约（探索引擎细则）落盘设计文档后再登记"
         )
 
     state = load_state(root)

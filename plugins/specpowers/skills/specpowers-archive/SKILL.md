@@ -1,12 +1,11 @@
 ---
-description: Finalize the feature — 3-duties: verify constitution compliance, mark artifacts complete, post-merge structure check
+name: specpowers-archive
+description: 归档收尾——原则核查、产物标记与合体后校验，合并 delta spec 到主规格
 ---
 
-## User Input
+# specpowers-archive — 归档收尾
 
-```text
-$ARGUMENTS
-```
+用户输入经技能 args 参数传入（用户直接 `/` 调用时为原文，模型经 Skill 工具调用时为编排参数；`--force-merge-check` 强制多分支合并校验）。
 
 ## Outline
 
@@ -23,3 +22,5 @@ Load the specpowers skill context, then follow `prompts/archive.md`.
 After archive: stage resets to `ready`, feature name cleared. Ready for next feature.
 
 **Do NOT commit code**: archive only finalizes (openspec archive + state transition), never runs `git add` / `git commit` — committing is left to the user.
+
+完成后：stage 回到 `ready`；建议用户提交代码，下一个需求可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto（按需求形态四选一）。

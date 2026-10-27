@@ -1,198 +1,24 @@
 ---
 name: specpowers-explore
-description: SpecPowers 内置需求探索技能：静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘 → 结构化探索结论，供 explore 阶段收口（propose 阶段承接生成 proposal.md）
-allowed-tools:
-  - Read
-  - Edit
-  - Glob
-  - Grep
-  - Write
-  - Bash
+description: 探索需求——静默项目探索、方案统一维度对比、设计文档落盘登记；未归档重入即同需求迭代轮
 ---
 
-# specpowers-explore — 需求探索技能（SpecPowers 内置）
+# specpowers-explore — 需求探索
 
-> **定位**：流水线 explore 阶段的探索引擎，替代外部 superpowers `brainstorming` 技能。
-> 本技能负责「探索 + 方案对比 + 推荐 + 设计文档落盘」；数据流溯源收口、设计文档补全与登记、跨链路字段追问、与用户交互决策均由调用方契约 `prompts/explore.md` 承担（proposal.md 由下游 propose 阶段从设计文档提炼生成）。
+用户输入经技能 args 参数传入（用户直接 `/` 调用时为需求原文，模型经 Skill 工具调用时为编排参数）。
 
-## 触发方式
+## Outline
 
-| 调用方 | 行为 |
-|--------|------|
-| `prompts/explore.md`（HARD-GATE） | 人工模式 explore 阶段第一步强制调用 |
-| `prompts/auto.md` 阶段编排第 3 步 | auto 模式经 explore 契约间接调用（方案已在设计文档定稿时，探索仅用于核对现有代码事实） |
+Load the specpowers skill context, then follow `prompts/explore.md`.
 
-本技能**不产出 SpecPowers 流水线产物**（proposal.md / spec.md / tasks.md），探索结论以结构化 Markdown 在对话上下文中交付调用方；设计文档是本技能唯一的落盘产物。
+You will:
+1. **Iteration re-entry check first**: read `.specpowers/state.json` — if `stage` is `propose`/`apply` and `feature` is non-empty (unarchived), follow the「重入识别」section of `prompts/explore.md`: confirm with the user to open Round <N+1> via `facade iterate` (approach-change path — design doc updated in place, proposal.md regenerated at the propose stage), then hand off to `/specpowers-propose` for incremental spec/tasks revision
+2. Otherwise (normal flow): 完整执行 `prompts/explore.md` 第一步的**探索引擎细则**（内联于该契约）：静默项目探索 → 2-3 approaches compared on unified dimensions → single recommendation → design doc written under `docs/specpowers/design/`, incl. data-flow conclusions
+3. Interact with the user: clarifying questions, approach trade-offs (use Chinese, AskUserQuestion per `prompts/explore.md`)
+4. **Register the design doc** with the deterministic layer (hard gate for propose):
+   ```bash
+   python -m specpowers_cli.bridge.facade record-design-doc <设计文档路径> --root .
+   ```
+5. Tell user: next step is `/specpowers-propose "<requirement>"` (one-shot proposal.md + spec.md + tasks.md)
 
-## 输入契约
-
-| 输入 | 必需 | 说明 |
-|------|------|------|
-| 需求描述 | ✅ | 由调用方传入（用户原始需求 / auto 模式八要素摘要） |
-| 项目上下文 | 推荐 | constitution.md / baseline.json 要点；调用方未传则本技能自行读取 `.specpowers/` 下两文件 |
-
-## 强制执行流程
-
-```
-步骤1: 静默探索项目上下文（不问用户）
-       - Glob 查找相关文件（Controller/Service/Mapper/DTO 等）
-       - Grep 搜索关键模式（已有的类似功能、相关注解）
-       - Read 读取核心文件（了解项目结构、代码风格、依赖版本）
-       - 读取 .specpowers/constitution.md + baseline.json（如调用方未传）
-       - 总结：技术栈、项目结构、已有模式、相关代码位置
-       ↓
-步骤2: 生成 2-3 个实现方案
-       - 每个方案包含：核心思路、关键权衡、适用场景
-       - 统一维度对比（复杂度/性能影响/兼容性/推荐度），以表格呈现
-       - 明确标注唯一推荐方案及推荐理由
-       ↓
-步骤3: 生成完整设计文档并落盘
-       - 包含：架构设计、组件划分、数据流、接口定义、错误处理
-       - 遵循项目已有模式和命名约定
-       - 基于步骤2的推荐方案展开详细设计
-       - 输出到 docs/specpowers/design/YYYY-MM-DD-{name}-design.md
-       ↓
-步骤4: 自查（静默执行，发现问题直接修复，不暂停）
-       - 占位符扫描：设计文档与探索结论无 TBD/TODO/待定
-       - 一致性检查：方案与设计文档无矛盾
-       - 范围检查：聚焦单一目标，不发散
-       - 歧义检查：需求表述明确无二义
-       ↓
-步骤5: 输出结构化探索结论（对话上下文交付）
-       - 按下方「探索结论输出模板」组装（含设计文档路径）
-       - 含「需用户裁决」标记项时（不可逆决策：选型/架构方向），
-         交由调用方 explore.md 按其「交互决策原则」用 AskUserQuestion 处理
-```
-
-## 关键规则
-
-### 必须做
-
-| 规则 | 说明 |
-|------|------|
-| 先探索再设计 | 必须先读取项目代码，了解现有模式，再出方案 |
-| 方案必须可对比 | 2-3 个方案用统一维度对比（复杂度/性能/兼容性） |
-| 遵循项目约定 | 发现项目用 MapStruct 就不要推 BeanUtils，用 Swagger 就不要推 SpringDoc |
-| 推荐唯一方案 | 不要说"都可以"，必须明确推荐一个并说明理由 |
-| 设计文档写文件 | 不只在对话中展示，必须 Write 到 `docs/specpowers/design/` 落盘 |
-| 探索结论留对话 | 结构化结论完整呈现在对话中，供调用方收口引用 |
-
-### 禁止做
-
-| 禁止 | 说明 |
-|------|------|
-| ❌ 逐个提问 | 全程静默探索，不进入提问循环；需用户决策的事项打「需用户裁决」标记交还调用方 |
-| ❌ 跳过项目探索 | 不能只看需求描述就出方案，必须读代码 |
-| ❌ 引入新依赖 | 除非需求明确要求，否则使用项目已有技术栈 |
-| ❌ 输出占位符 | 设计文档与探索结论中均不允许出现 TBD/TODO/待补充 |
-| ❌ 写流水线产物 | 不写 proposal.md / spec.md / tasks.md——这些归 propose 契约管；设计文档（`docs/specpowers/design/`）是本技能唯一落盘产物 |
-
-## 方案对比表模板
-
-```markdown
-| 维度 | 方案A：{名称} | 方案B：{名称} | 方案C：{名称} |
-|------|--------------|--------------|--------------|
-| 核心思路 | ... | ... | ... |
-| 复杂度 | 低/中/高 | 低/中/高 | 低/中/高 |
-| 性能影响 | ... | ... | ... |
-| 兼容性 | ... | ... | ... |
-| 推荐度 | ⭐/⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-
-**推荐方案X**，理由：{一段话}
-```
-
-## 设计文档模板
-
-```markdown
-# {功能名称} 设计文档
-
-> 日期：YYYY-MM-DD
-> 状态：待确认
-> 推荐方案：{方案编号}
-
-## 项目上下文
-
-{自动探索得出的：技术栈、项目结构、已有模式}
-
-## 需求分析
-
-{需求描述中的核心需求 + 拆解}
-
-## 方案对比
-
-{按上方模板的方案对比表 + 推荐理由}
-
-## 详细设计（基于推荐方案）
-
-### 架构
-{组件关系图/调用链路}
-
-### 组件划分
-{每个组件的职责和接口}
-
-### 数据流
-{数据从输入到输出的完整流转}
-
-### 接口定义
-{关键接口的签名、入参、出参}
-
-### 错误处理
-{异常场景和处理策略}
-
-## 修改范围
-
-| 操作 | 文件路径 | 说明 |
-|------|---------|------|
-| 新增 | path/to/File.java | ... |
-| 修改 | path/to/Existing.java | ... |
-```
-
-## 探索结论输出模板
-
-```markdown
-## 探索结论（specpowers-explore）
-
-### 项目上下文
-
-{自动探索得出的：技术栈、项目结构、已有模式、相关代码位置}
-
-### 方案对比
-
-{按上方模板的方案对比表 + 推荐理由}
-
-### 设计文档
-
-docs/specpowers/design/YYYY-MM-DD-{name}-design.md
-
-### 跨链路字段线索
-
-{探索中发现的疑似跨链路字段（跨服务/跨模块/跨层传递、运行时注入），
-逐个列出字段名 + 线索位置；调用方据此触发数据流溯源追问；
-确认无则写「探索未发现跨链路字段线索」}
-
-### 风险与需用户裁决项
-
-- {风险项：...}
-- [需用户裁决] {不可逆决策项：选型/架构方向，附候选与推荐}
-（无则写「无」）
-```
-
-## 与流水线的衔接
-
-```
-本技能（specpowers-explore）
-  输出：设计文档（磁盘文件 docs/specpowers/design/）+ 对话上下文中的结构化探索结论
-  衔接方式：返回调用方 prompts/explore.md
-      ↓
-explore.md 契约
-  输入：探索结论 + 设计文档
-  职责：跨链路字段数据流溯源（条件触发，结论写入设计文档数据流章节）→ 决策摘要
-  → 设计文档补全 + facade record-design-doc 登记
-  衔接方式：/specpowers-propose 一站式生成三件套
-      ↓
-propose → apply → archive（SpecPowers 流水线后续阶段）
-```
-
-## 配置
-
-设计文档默认输出目录：`docs/specpowers/design/`（如果项目已有约定的设计文档目录，优先使用项目约定）。
+完成后：设计文档已落盘并登记；下一步建议调用技能 specpowers-propose（用户直接 `/specpowers-propose "<需求>"` 调用，auto 模式下模型直接经 Skill 工具调用）。

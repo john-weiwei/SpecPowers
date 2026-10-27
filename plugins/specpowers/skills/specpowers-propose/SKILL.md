@@ -1,16 +1,11 @@
 ---
-description: One-shot generate the OpenSpec change artifacts — proposal.md (from the explore design doc), delta spec.md, and tasks.md (merged former specify + plan stages); re-entering with an unarchived active feature opens a new iteration round of the SAME requirement (spec revised incrementally, tasks evolved per-round)
-handoffs:
-  - label: Build & Execute
-    agent: specpowers-apply
-    prompt: Execute the implementation plan. I want to build...
+name: specpowers-propose
+description: 生成提案——从设计文档一站式产出 proposal/spec/tasks 三件套；未归档重入即迭代轮增量修订
 ---
 
-## User Input
+# specpowers-propose — 提案生成
 
-```text
-$ARGUMENTS
-```
+用户输入经技能 args 参数传入（用户直接 `/` 调用时为需求原文，模型经 Skill 工具调用时为编排参数）。
 
 ## Outline
 
@@ -25,3 +20,5 @@ You will:
 6. Decompose the delta spec into `openspec/changes/<feature>/tasks.md` (superpowers `writing-plans` slimmed: single tasks.md, `### Task N` headings, 场景引用/验收标准/依赖/并行/检查点 fields, 推荐执行方式 comment block at top; **Do NOT auto-commit**)
 7. Self-review: scenario coverage / dependency graph / execution mode fit / cross-link data source backtracking
 8. Tell user: next step is `/specpowers-apply`
+
+完成后：三件套已生成到 `openspec/changes/<feature>/`；下一步建议调用技能 specpowers-apply（用户直接 `/specpowers-apply` 调用，auto 模式下模型直接经 Skill 工具调用）。

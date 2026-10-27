@@ -143,7 +143,7 @@ python -m specpowers_cli.bridge.facade auto clarify --ceiling <full|explore> --r
 | 0 | 前置校验 + HEAD 基点 + 八要素解析落盘 | — |
 | 1 | **需求澄清**：五维检查 → 深度上限 ceiling → `facade auto clarify` 登记 + 澄清报告落盘 | 见「需求澄清（第 1 步）」小节；ceiling=`full` 直通后续，ceiling=`explore` 推进到第 3 步后停靠（读 `refs/auto-explore-halt.md`）；功能名 null → 参数错误硬阻断 |
 | 2 | `/specpowers-init` | **幂等执行**（无论是否已存在都执行，确保状态机推进到 ready）；原则内容从仓库 AGENTS.md 提取编码约束自动填充，不等待用户输入 |
-| 3 | `/specpowers-explore "<基于 <设计文档> 实现 <功能名>（<方案名>）>" --feature <功能名slug>` | 技术方案已在文档定稿 → **跳过方案取舍确认**，探索仅用于核对八要素「核心调用链」的现有代码事实；文档已定全流程 → 拒绝判小。**ceiling=`explore` 时**：探索照常，设计文档按未收敛语义落盘（细节读 `refs/auto-explore-halt.md`），**产出草案后停靠**，不进入第 4 步 |
+| 3 | `/specpowers-explore "<基于 <设计文档> 实现 <功能名>（<方案名>）>" --feature <功能名slug>` | 经 explore 契约（含探索引擎细则，v2.4.0 起内联）执行；技术方案已在文档定稿 → **跳过方案取舍确认**，探索仅用于核对八要素「核心调用链」的现有代码事实；文档已定全流程 → 拒绝判小。**ceiling=`explore` 时**：探索照常，设计文档按未收敛语义落盘（细节读 `refs/auto-explore-halt.md`），**产出草案后停靠**，不进入第 4 步 |
 | 4 | `/specpowers-propose "<基于设计文档生成 <功能名> OpenSpec 提案>" --feature <功能名slug>` | **一站式生成三件套**（proposal.md + spec.md + tasks.md）：场景清单直接取自八要素「必测场景清单」，逐条覆盖，缺一不可；清单缺失（澄清遗留）→ 按已定方案推导场景，标注「推导所得，需人工确认」；任务拆分严格对照八要素「修改范围表」（缺失时按澄清遗留标注「范围以 propose 结论为准」自行拆分），每个任务标注涉及文件路径与验收要点；八要素「修改范围表」同步写为 tasks.md 顶部注释块「修改范围：」声明行（apply 门禁越界比对依据）；数据流契约从设计文档数据流章节逐字段承接 |
 | 5 | `/specpowers-apply` | 执行方式按 tasks.md 顶部推荐自行确认（默认 conductor 顺序执行）；实时门禁三态（含 scope 修改范围比对，越界按裁决规则表处理）与 TDD 照常遵守；「转人工」信号按裁决规则表处理 |
 | 6 | specpowers-review 编排 | **执行前先读 `refs/auto-review.md`**（传基点 / 滤范围 / 控 2 轮迭代修复 / 接口耦合面） |

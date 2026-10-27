@@ -1,16 +1,11 @@
 ---
-description: Optimized mode for small changes — skip explore/propose, go directly to code
-handoffs:
-  - label: Build (After Coding)
-    agent: specpowers-apply
-    prompt: Build and validate the changes. I've completed the coding for...
+name: specpowers-fast
+description: 判定小改动走快速通道——跳过探索与提案直接编码，完成后进 apply 收尾
 ---
 
-## User Input
+# specpowers-fast — 快速通道
 
-```text
-$ARGUMENTS
-```
+用户输入经技能 args 参数传入（用户直接 `/` 调用时为需求原文，模型经 Skill 工具调用时为编排参数）。
 
 ## Outline
 
@@ -23,3 +18,5 @@ You will:
 4. If not small: suggest upgrading to full pipeline (`/specpowers-explore` or `/specpowers-propose`)
 5. Generate 3-5 item acceptance checklist
 6. User completes their own coding, then runs `/specpowers-apply`
+
+完成后：用户自行编码，然后建议调用技能 specpowers-apply（用户直接 `/specpowers-apply` 调用，auto 模式下模型直接经 Skill 工具调用）。
