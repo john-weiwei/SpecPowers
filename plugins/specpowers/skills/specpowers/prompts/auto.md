@@ -11,22 +11,28 @@
 | 参数 | 语义 |
 |------|------|
 | `<设计文档路径>` | 本轮输入的设计文档。**fresh（全新需求）必填**，不存在即参数错误（硬阻断）；迭代轮可选 |
-| `--instruction "<描述>"` | 口头调整描述（如「补充导出失败场景」），迭代轮的无文档输入形态；explore 停靠后重入时作为**方案结论答复**（见「需求澄清」） |
-| `--archive` | 本轮跑完 build + specpowers-review 后**追加执行归档**（先过收口前置检查；收口通道之二，见「归档收口」） |
+| `--instruction "<描述>"` | 口头调整描述（如「补充导出失败场景」），迭代轮的无文档输入形态；explore 停靠后重入时作为**方案结论答复**（见 `refs/auto-explore-halt.md`） |
+| `--archive` | 本轮跑完 build + specpowers-review 后**追加执行归档**（先过收口前置检查；收口通道之二，见 `refs/auto-review.md`「归档收口」） |
 | `--new-round` | 显式声明开启新迭代轮（跳过「无新输入 → resume」判定） |
 
 > **定位**：元编排模式——与 `/specpowers-fast`（判小跳阶段）对偶，`auto` 全阶段无人值守驱动，**任何轮次默认都不归档**（止于 specpowers-review；归档需 `--archive` 或手动 `/specpowers-archive` 显式收口）。
-> **需求澄清（输入质量门禁，方案 docs/auto-clarification-plan.md）**：第 1 步对设计文档做五维检查，
-> 结论不是「跑 / 不跑」的二值门禁，而是**本轮推进深度上限（ceiling）**——文档能支撑到哪一步就推进到哪一步；
-> 支撑不了的深度（方案未定等）自然停靠在 explore，产出未收敛草案等待输入，**零新参数、零门槛**。
-> **多轮迭代（核心语义）**：**需求身份由归档状态唯一决定，与设计文档解耦**——
-> 未归档时无论带什么输入（新文档 / 原文档 / 口头指令）重入，都是**同一需求的新一轮迭代**，
-> 所有调整落在当前 change 目录（当前 spec 文件内）；**归档即新需求**，迭代轮数不设上限，由归档自然收口。
+> **需求澄清（输入质量门禁）**：第 1 步对设计文档做五维检查，结论是**本轮推进深度上限（ceiling）**——文档能支撑到哪一步就推进到哪一步；支撑不了的深度自然停靠在 explore（细节见 `refs/auto-explore-halt.md`）。
+> **多轮迭代（核心语义）**：**需求身份由归档状态唯一决定，与设计文档解耦**——未归档时无论带什么输入重入，都是**同一需求的新一轮迭代**，调整落在当前 change 目录；**归档即新需求**，迭代轮数不设上限。
 > 本契约不新增流水线阶段、不改状态机语义；specpowers-review 不是 specpowers 阶段，而是 build 与 archive 之间编排的**内置技能**（`skills/specpowers-review/`，随插件分发，无需预装）。
 
 ## 无人值守总原则
 
-全程无人工介入：所有需要决策的点基于**设计文档、调整指令与代码事实**自行决策并继续推进。各阶段出现的确认或卡转人工节点（含 build 执行方式确认、门禁「转人工」信号）一律按下方「裁决规则表」自行裁决后继续，**不等待用户输入**；仅当出现「硬阻断」时才停下并报告原因。
+全程无人工介入：所有需要决策的点基于**设计文档、调整指令与代码事实**自行决策并继续推进。各阶段出现的确认或卡转人工节点（含 build 执行方式确认、门禁「转人工」信号）一律按下方**精简裁决原则**自行裁决后继续，**不等待用户输入**；仅当出现「硬阻断」（见文末）时才停下并报告原因。
+
+**精简裁决原则**（覆盖绝大多数节点；完整规则表与记录要求见 `refs/auto-adjudication.md`，原则覆盖不了或拿不准时先读它）：
+
+1. 文档已有结论 → 按文档执行，日志注明出处章节
+2. 文档无结论 / 需求歧义 → 选保守默认项（影响面小、可回退、不改变现有行为的理解），记录备选与采信依据
+3. 门禁「转人工」信号 → 可自愈（改代码/补测试/重编译）→ 自愈后继续；不可自愈 → 按硬阻断处理
+4. 文档已定全流程 → 拒绝判小，不进 fast 判定逻辑
+5. 未列出的交互节点 → 一律选默认项 + 记录后继续（兜底条款）
+
+> 澄清发现的文档级歧义/矛盾/不可测场景在**第 1 步集中前置裁决**，下游阶段直接引用澄清报告条目号，不重复裁决。
 
 ## 第 0 步：重入三分判定（确定性层）
 
@@ -42,7 +48,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 
 1. 校验设计文档：`<设计文档路径>` 必填且文件存在（`design_doc_exists=false` 或未提供 → 参数错误，硬阻断）
 2. 前置校验：依赖就绪（OpenSpec CLI、superpowers）以 SessionStart hook 的检测结果为准（`facade status --root .` 只读 state，不做依赖探测）；specpowers-review 为内置技能随插件分发，无需预装检测（仅当 Skill 调用异常时 → **降级不阻断**，review 改用最小自审 checklist，汇总报告标注「本次为降级审查」）
-3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base.json` 的 `base_commit`（跨轮不变，见 specpowers-review 一节）
+3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base.json` 的 `base_commit`（跨轮不变，见 `refs/auto-review.md`）
 4. 解析八要素（见下节）随基点一并落盘 `parsed` 字段；`rounds` 初始化为空数组（rounds 只记录后续每次迭代轮的开启动作，fresh 首轮不单独记录）
 5. **需求澄清**（见「需求澄清（第 1 步）」小节）：五维检查 → 推进深度上限 ceiling → `facade auto clarify` 登记；功能名 null → 参数错误硬阻断
 6. 进入「阶段编排表」全流程——默认 0–6 止于 specpowers-review，`--archive` 时追加第 7 步归档（ceiling=explore 时推进到第 3 步停靠）
@@ -50,18 +56,18 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 ### 分支 B：`resume`（断点续跑）
 
 1. 读 `.specpowers/auto_base.json`（基点 + 八要素 + clarification）——不重复解析
-2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-reset`
+2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按 `refs/auto-explore-halt.md` 停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-reset`
 3. 读 `state.json` 当前 stage + 各阶段产物存在性（constitution.md → 设计文档 → proposal.md → spec.md → tasks.md → apply 产物）定位断点
 4. 从断点阶段继续，**已完成阶段不重做**；澄清凭 `clarification` 字段**不重做**（字段缺失：旧格式 auto_base.json / 人工流程接管 → 补做全量澄清并登记后继续）
-5. 默认**不归档**，跑完本轮止于 specpowers-review；若用户显式 `--archive` → 跑完后走「归档收口」
+5. 默认**不归档**，跑完本轮止于 specpowers-review；若用户显式 `--archive` → 跑完后走 `refs/auto-review.md`「归档收口」
 
 ### 分支 C：`iterate`（同需求新迭代轮）
 
-按「迭代轮编排」执行。
+按 `refs/auto-iteration.md` 执行四步：受控轮次切换（`facade auto new-round`：stage → propose、feature 锁定不变、`iteration_count += 1`）→ 迭代增量澄清 → 迭代深度判定（full/light，有疑义保守取全量）→ 按深度执行阶段（propose 增量修订三件套 → apply 只执行未完成任务 → review 累计审查）。轻量路径硬底线：再小的调整也必须修订 spec.md 并过 specpowers-review。
 
 ## 八要素文档解析清单
 
-从设计文档解析以下八要素，落盘到 `auto_base.json` 的 `parsed` 字段，供后续各阶段直接引用（兼防长流程上下文压缩丢失）：
+从设计文档解析以下八要素，落盘到 `auto_base.json` 的 `parsed` 字段，供后续各阶段直接引用（兼防长流程上下文压缩丢失；**auto 路径下 propose/apply 优先消费本字段而非重读设计文档全文**）：
 
 | # | 要素 | 用途 |
 |---|------|------|
@@ -83,7 +89,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 
 ## 需求澄清（第 1 步，推进深度上限）
 
-**定位**：流水线的输入质量检查——垃圾进垃圾出的前置防线。结论不是「跑 / 不跑」的二值门禁，而是**本轮推进深度上限（stage ceiling）**：文档能支撑到哪一步，auto 就自动推进到哪一步；支撑不了的深度不硬停等指令，而是停在能力边界并产出**有效的中间产物**。**零门槛原则**：不新增用户参数、不要求用户预判文档质量，用户体验 = 「auto 总是尽量往前跑，跑到该停的地方停，补完即续」。位置在八要素解析落盘之后、init 之前，fresh 全量执行；resume/iterate 行为见各分支说明。
+**定位**：流水线的输入质量检查——垃圾进垃圾出的前置防线。结论是**本轮推进深度上限（stage ceiling）**：文档能支撑到哪一步，auto 就自动推进到哪一步；支撑不了的深度不硬停等指令，而是停在能力边界并产出**有效的中间产物**（停靠细节见 `refs/auto-explore-halt.md`）。零新参数、零门槛。位置在八要素解析落盘之后、init 之前，fresh 全量执行；resume/iterate 行为见各分支说明。
 
 ### 五维检查清单
 
@@ -102,26 +108,10 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 | 澄清结论 | ceiling | 行为 |
 |----------|---------|------|
 | 五维全部通过，或仅有：次要要素缺失 / 场景需推导或保守改写 / 可裁决的歧义与笼统 | `full` | 直通全流程至 specpowers-review（默认不归档，归档需显式收口；留痕不变），全部裁决记录进澄清报告 |
-| 已定方案 null / 关键矛盾不可判 / 边界冲突不可裁 / 不可测场景占比 > 1/2 | `explore` | 推进 init → explore，产出**未收敛设计文档草案**后**自然停靠**，不进入 propose 及以后 |
+| 已定方案 null / 关键矛盾不可判 / 边界冲突不可裁 / 不可测场景占比 > 1/2 | `explore` | 推进 init → explore，产出**未收敛设计文档草案**后**自然停靠**，不进入 propose 及以后（细节读 `refs/auto-explore-halt.md`） |
 | 功能名 null（无法解析出标题级功能描述） | 入口 | 按硬阻断类「参数错误」处理，输出澄清问题清单 |
 
-**设计原则**：方案没定 → 永远不会走到 propose / apply（杜绝垃圾进 apply）；init（提取仓库编码约束）与 explore 探索（核对代码事实）不受文档缺陷影响照常执行——**每段跑过的产物都有效，零浪费**。
-
-### explore 停靠：未收敛草案
-
-ceiling=explore 时，explore 阶段（阶段编排表第 3 步）按其契约的**未收敛语义**落盘（现有机制复用，不新增状态）：
-
-- 探索代码事实照常执行（核对核心调用链等）
-- 探索设计文档标题标注 `[未收敛]`，按缺陷类型组织草案内容：
-  - 方案未定 → 列出 2–3 个候选方向 + 各自 trade-off + 推荐（对齐内置 specpowers-explore 技能的方案对比标准流程），**不做方案取舍**
-  - 关键矛盾 / 边界冲突 → 并列文档内冲突结论 + 代码事实，标注「待用户裁决」
-  - 场景大面积不可测 → 列出不可导出 WHEN 的场景清单，标注「方案粒度不足」
-- 设计文档「数据流」章节照常产出（能确定多少写多少，`未确认项` 列出缺口），保证收敛后 propose 承接的数据流契约语义不变
-- 设计文档照常 `facade record-design-doc` 登记（停靠产物同样是有效凭据）
-
-**停靠输出四要素**（格式对齐硬阻断，语义为「等待输入」而非「异常」）：① 停靠原因 + 待用户裁决问题清单；② 已完成阶段（init / explore）；③ 产物位置（未收敛设计文档 + 澄清报告）；④ 恢复方式：带方案结论重入 `/specpowers-auto --instruction "<结论摘要>"`，或补充设计文档后重入（重入即判 iterate，收敛草案后继续推进后续阶段）；决定放弃需求走 `/specpowers-reset`（清理 change 目录与锁定 feature）。
-
-**轮次语义**：首轮停靠后的重入计为 Round 1（「方案定稿轮」），草案轮记 Round 0；汇总报告注明「Round 0 为未收敛草案轮」。草案 + 定稿合起来视为需求的早期迭代，与「迭代不设上限、归档收口」模型自洽。
+**设计原则**：方案没定 → 永远不会走到 propose / apply（杜绝垃圾进 apply）；init 与 explore 探索不受文档缺陷影响照常执行——**每段跑过的产物都有效，零浪费**。
 
 ### 次要要素默认策略（full 路径继续的依据）
 
@@ -144,53 +134,6 @@ python -m specpowers_cli.bridge.facade auto clarify --ceiling <full|explore> --r
 
   写入 / 刷新 `auto_base.json` 的 `clarification` 字段（ceiling + report_path + checked_at）；resume 凭此不重做澄清，`auto-status` 据此输出 `pending_input` 停靠保护。ceiling 仅可**维持或上调**（explore → full），不下调——上一轮已跑过的深度不因澄清回退。
 
-## 迭代轮编排（分支 C）
-
-### 第 1 步：受控轮次切换（确定性层）
-
-```bash
-python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [--instruction "<描述>"] --root .
-```
-
-确定性层完成：校验未归档 → `stage` 置回 `propose`、**feature 锁定不变**、`iteration_count += 1`、`execution_mode` 清空；`auto_base.json` 追加本轮 `rounds` 记录（旧格式无 `rounds` 字段时自动按 round 1 迁移）。
-
-**feature slug 首轮锁定，归档前不变**：后续 explore/propose 一律携带 `--feature <锁定slug>` 调用，保证同一需求永远落同一 change 目录。功能名变更只记录裁决、不改 change 目录名（汇总报告「遗留风险」注明）。
-
-### 第 2 步：迭代增量澄清（不回退已跑深度）
-
-迭代轮不重做全量五维（上一轮已跑过的深度不回退），按本轮输入形态做**增量澄清**：
-
-| 本轮输入形态 | 澄清范围 |
-|--------------|----------|
-| 新文档 / 文档变更 | 增量五维：① 新旧 `parsed` 冲突点自洽性（维度 2）；② 调整是否触碰硬性边界（维度 5）；③ 新增/变更场景可测性（维度 3）。「已定方案」发生变更 → 升级为全量五维 |
-| 仅口头指令 | 指令澄清：① 指令能否无歧义映射到现有 scenario 增/删/改（对齐下方深度判定的轻量条件）；② 是否触碰硬性边界（维度 5）。**上一轮停靠在 explore（方案待定）时，指令即方案结论** → ceiling 上调 `full`，按方案变更全量路径在草案基础上收敛 |
-
-增量澄清结论（含 ceiling 维持/上调）以 `### Round <N>` 追加进澄清报告，并调 `facade auto clarify` 刷新登记；发现的新歧义/矛盾按「五维检查清单」对应维度处置。
-
-### 第 3 步：迭代深度判定（裁决规则表扩充）
-
-| 输入情况 | 路径 | 重跑范围 |
-|----------|------|----------|
-| 新文档/文档变更，且「已定方案」变了 | 全量 | explore 更新设计文档 → propose → apply → review |
-| 文档变更但方案不变，场景/范围有调整 | 全量 | propose → apply → review |
-| 口头小调整，能无歧义映射到现有 scenario 的增/删/改，不引入新 capability、不碰硬边界 | 轻量 | propose 增量修订三件套 → apply → review |
-| 深度判定有疑义 | **保守取全量** | — |
-
-**轻量路径硬底线**：再小的调整也必须修订 spec.md 并过 specpowers-review；轻量只是跳过 explore，不跳过 spec。
-
-### 第 4 步：按深度执行阶段
-
-各阶段调用方式与人工模式完全一致（先调 facade 确定性层，再按对应 `prompts/<stage>.md` 契约执行认知任务），各阶段**迭代轮语义**以对应契约文件的「迭代轮」小节为准（该语义为 auto 与人工模式通用）：
-
-- explore：方案变了才重跑，设计文档覆盖 + 追加「## 迭代历史」。**注意**：这是认知任务直接落盘更新设计文档，**不调 `facade explore`**（其 from_stage 仅 ready，与迭代轮 stage=propose 冲突；stage 保持 propose 即可，更新后重新 `facade record-design-doc` 刷新登记，propose 的前置校验天然满足）
-- propose：proposal/spec/tasks 三件套**增量修订**（spec 增量修订场景 + tasks 分轮演进 Round N 小节 + 作废留痕）
-- apply：只执行未勾选且未作废的任务
-- specpowers-review：范围 = 首轮基点 → 当前（累计审查，见下）
-
-迭代轮**默认不归档**，跑完止于 specpowers-review；`--archive` 显式收口见「归档收口」。
-
-> **人工模式同一语义**：未归档需求要调整时，重入 `/specpowers-propose`（场景/范围调整）或 `/specpowers-explore`（方案变更），经重入识别确认后调同一个 `facade iterate` 完成轮次切换（不要求 auto_base.json）；轮次切换、feature 锁定、各契约迭代轮小节与本契约完全共用。区别仅在人工模式允许与用户交互确认方案是否变更，不适用无人值守裁决规则表。
-
 ## 阶段编排表（fresh 全流程 0–7，第 7 步仅 `--archive` 显式触发）
 
 按序执行，每个阶段产物落盘并通过该校验后再进入下一阶段：
@@ -198,92 +141,13 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 | 步 | 动作 | 无人值守覆盖点 |
 |----|------|----------------|
 | 0 | 前置校验 + HEAD 基点 + 八要素解析落盘 | — |
-| 1 | **需求澄清**：五维检查 → 深度上限 ceiling → `facade auto clarify` 登记 + 澄清报告落盘 | 见「需求澄清（第 1 步）」小节；ceiling=`full` 直通后续，ceiling=`explore` 推进到第 3 步后停靠；功能名 null → 参数错误硬阻断 |
+| 1 | **需求澄清**：五维检查 → 深度上限 ceiling → `facade auto clarify` 登记 + 澄清报告落盘 | 见「需求澄清（第 1 步）」小节；ceiling=`full` 直通后续，ceiling=`explore` 推进到第 3 步后停靠（读 `refs/auto-explore-halt.md`）；功能名 null → 参数错误硬阻断 |
 | 2 | `/specpowers-init` | **幂等执行**（无论是否已存在都执行，确保状态机推进到 ready）；原则内容从仓库 AGENTS.md 提取编码约束自动填充，不等待用户输入 |
-| 3 | `/specpowers-explore "<基于 <设计文档> 实现 <功能名>（<方案名>）>" --feature <功能名slug>` | 技术方案已在文档定稿 → **跳过方案取舍确认**，探索仅用于核对八要素「核心调用链」的现有代码事实；文档已定全流程 → 拒绝判小。**ceiling=`explore` 时**：探索照常，设计文档按未收敛语义落盘（`[未收敛]` + 候选方向 + 待裁决清单），**产出草案后停靠**，不进入第 4 步 |
+| 3 | `/specpowers-explore "<基于 <设计文档> 实现 <功能名>（<方案名>）>" --feature <功能名slug>` | 技术方案已在文档定稿 → **跳过方案取舍确认**，探索仅用于核对八要素「核心调用链」的现有代码事实；文档已定全流程 → 拒绝判小。**ceiling=`explore` 时**：探索照常，设计文档按未收敛语义落盘（细节读 `refs/auto-explore-halt.md`），**产出草案后停靠**，不进入第 4 步 |
 | 4 | `/specpowers-propose "<基于设计文档生成 <功能名> OpenSpec 提案>" --feature <功能名slug>` | **一站式生成三件套**（proposal.md + spec.md + tasks.md）：场景清单直接取自八要素「必测场景清单」，逐条覆盖，缺一不可；清单缺失（澄清遗留）→ 按已定方案推导场景，标注「推导所得，需人工确认」；任务拆分严格对照八要素「修改范围表」（缺失时按澄清遗留标注「范围以 propose 结论为准」自行拆分），每个任务标注涉及文件路径与验收要点；八要素「修改范围表」同步写为 tasks.md 顶部注释块「修改范围：」声明行（apply 门禁越界比对依据）；数据流契约从设计文档数据流章节逐字段承接 |
 | 5 | `/specpowers-apply` | 执行方式按 tasks.md 顶部推荐自行确认（默认 conductor 顺序执行）；实时门禁三态（含 scope 修改范围比对，越界按裁决规则表处理）与 TDD 照常遵守；「转人工」信号按裁决规则表处理 |
-| 6 | specpowers-review 编排 | 见下节 6a–6d |
-| 7 | `/specpowers-archive` | **仅当显式 `--archive` 时执行**（先过收口前置检查）；默认止于第 6 步（stage 停在 apply，后续可继续迭代或手动 `/specpowers-archive` 归档）；归档校验报告问题 → 按「只转人工、不打回」机制记录后正常收尾，**不重做前序阶段** |
-
-## 裁决规则表（无人值守核心）
-
-各阶段既有契约中要求用户交互的节点，统一按此表裁决：
-
-| 交互节点类型 | 自动裁决策略 | 记录要求 |
-|--------------|--------------|----------|
-| 方案/选项确认（文档已有结论） | 按文档结论执行 | 日志注明文档出处章节 |
-| 方案确认（文档无结论） | 选保守/默认项（影响面小、可回退的选项） | 记录备选项与选择理由 |
-| apply 门禁「转人工」信号 | 可自愈（改代码/补测试/重编译可解决）→ 自愈后继续；不可自愈 → 按硬阻断处理 | 记录信号内容与处置结果 |
-| 判小/升级确认（误入 fast 判定逻辑） | 文档已定全流程 → 拒绝判小，走完整流水线 | — |
-| 执行方式确认（conductor/subagent） | 按 tasks.md 顶部推荐，无推荐则默认 conductor 顺序执行 | — |
-| 需求歧义/多种合理理解 | 回设计文档找依据；文档无依据 → 选不改变现有行为的理解 | 记录歧义点与采信依据 |
-| 次要要素缺失（澄清维度 1） | 按「需求澄清·次要要素默认策略」表执行，流程不限深度 | 记录进澄清报告遗留问题清单 |
-| 澄清发现的文档级歧义/矛盾/不可测场景 | **前置裁决**（第 1 步集中处理，按五维检查清单对应维度处置），下游阶段直接引用澄清报告裁决记录，不重复裁决 | 引用澄清报告条目号 |
-| 迭代深度判定（full/light） | 按「迭代轮编排·第 3 步」判定表；有疑义保守取全量 | 记录本轮输入与深度结论 |
-| 功能名变更（迭代轮文档改了功能名） | 保持锁定 slug 不变，不改 change 目录名 | 记录变更内容，汇总报告「遗留风险」注明 |
-| 未列出的交互节点 | **一律选默认项 + 记录后继续（兜底条款）** | 记录节点内容与所选默认项 |
-
-裁决日志随汇总报告输出（追加写到 `.specpowers/auto_decisions/<feature>.md`），保证「裁决 + 留痕」可审计。
-
-## 第 6 步：specpowers-review 编排（内置技能，随插件分发）
-
-specpowers-review 是内置审查技能（`skills/specpowers-review/`，复刻 Codex 审查逻辑），本契约只做三件事：**传基点、滤范围、控迭代**。审查机制（上下文收集脚本、完整方法体提取、多 Pass、P1/P2 分级）全部由技能自带，本契约不重建。
-
-**基点策略（多轮迭代核心）**：`base_commit` 取自 `auto_base.json`，为**首轮记录的 HEAD，跨轮不变** → 审查范围天然覆盖多轮累计改动，不漏审任何一轮的提交。注意区分两种「轮次」：需求迭代轮次（`iteration_count`，不设上限）与 review 复审轮次（单轮内，上限 2），汇总报告分别呈现。
-
-### 6a. 范围准备
-
-1. 读取 `.specpowers/auto_base.json` 的 `base_commit`（首轮基点）
-2. 确定审查范围 = **基点之后的新增提交 + 工作区未提交改动**（已暂存 + 未暂存 + 未跟踪），即本需求全部轮次的累计改动
-3. 按本轮有效八要素「修改范围表」过滤变更文件清单，生成交给审查的 diff 输入
-
-### 6b. 调用 specpowers-review 技能
-
-通过 Skill 工具调用 specpowers-review 技能，按其 SKILL.md 工作流执行：
-
-- 上下文收集：以基点 SHA 作为 `--base` 传给 `gather_review_context.py`；若脚本当前版本仅支持分支名，**回退**为手动 `git diff <base>..HEAD` + 工作区 diff 收集后再进入审查
-- 变更 > 30 文件或包含 3 层以上嵌套条件的方法 → **必须启用 `--extract-methods`**（完整方法体提取）
-- Pass 1（模式匹配）、Pass 2（控制流追踪）必须执行；diff 涉及 DTO 新增字段 / 新枚举 + 服务层按值过滤 → **自动触发 Pass 4 跨文件数据流追踪**（入口 → 服务层 → 缓存 → SQL 逐环节范围一致性）
-- 输出要求：中文、按 review 指南 §三输出 `[P0]`-`[P3]` 四级标签、含各 Pass 发现与自检清单填写结果
-
-**降级审查（Skill 调用异常时兜底）**：改用最小自审 checklist——① 完整方法体核对（多层嵌套/多 return 方法禁止只看 diff 片段）；② 新增 DTO 字段/枚举的跨文件消费链路核对；③ 对照本轮有效八要素「必测场景清单」逐条确认实现存在；④ 对照「硬性边界」逐条确认未越界；⑤ 编译验证。结果同样按 `[P0]`-`[P3]` 标注。
-
-### 6c. 修复策略
-
-- **仅修复「本需求引入」的问题**：`[P0]`-`[P2]` 逐一修复，保持既有代码风格，修复后重新编译验证
-- 非本需求引入的历史问题：**只记录不修改**
-- 修复不得扩大改动范围，仅限 6a 变更清单内的本需求相关文件；每轮复审前重新核对清单
-
-### 6d. 迭代控制：最多 2 轮
-
-- 轮次上限默认 **2**（本契约内可配置），每轮 = 复审 + 修复 + 重编译
-- 每轮通过条件：无本需求引入的 `[P0]`-`[P2]` 遗留
-- 2 轮后仍有遗留 blocking 问题 → 记入汇总「遗留风险」交人工裁决；若已导致编译不过 → 按硬阻断停下
-
-> 设计依据：两轮构成「发现 → 修复 → 验证」的最小完整闭环。第 3 轮起边际收益趋零（剩余多为设计层问题，同一审查者-修复者继续迭代不产生新信息）；硬上限防止无人值守下「修复引入新问题」的振荡不收敛，并限定 review 对整条流水线的资源占用。
-
-### 接口假设（上游变更时需同步本契约）
-
-本契约对 specpowers-review 的耦合面仅四处，上游技能变更以下任一项时需同步修订本节：
-
-1. 技能名 `specpowers-review`（Skill 工具调用目标）
-2. 脚本 `gather_review_context.py` 及 `--base` / `--extract-methods` 参数
-3. 输出严重度标签 `[P0]`-`[P3]`（6c 修复策略的过滤依据：`[P0]`-`[P2]` 记为 blocking，`[P3]` 只记录）
-4. 中文输出约定（汇总报告可读性约定）
-
-## 归档收口（双通道）
-
-归档是需求生命周期的唯一终结符，两个通道等效：
-
-| 通道 | 触发方式 | 行为 |
-|------|----------|------|
-| 手动 | 迭代轮跑完后用户执行 `/specpowers-archive`（stage 停在 apply，合法入口） | 正常归档流程 |
-| auto 内 | 调 `/specpowers-auto` 带 `--archive`（fresh 首轮 / resume / iterate 均可），本轮跑完 apply + review 后追加第 7 步 | 先过**收口前置检查**再归档 |
-
-**收口前置检查（auto 内归档必经）**：specpowers-review 存在未收敛的 blocking P1/P2 → **停下报告、不执行归档**（归档意味着需求终结，带病归档不合理；人工裁决后可手动 `/specpowers-archive`）。
-
-归档成功后确定性层自动：`iteration_count` 清零 + 清理 `.specpowers/auto_base.json`（`auto_decisions/<feature>.md` 保留作审计历史）→ 下一轮 `/specpowers-auto` 必然判定 fresh，即**新需求**。
+| 6 | specpowers-review 编排 | **执行前先读 `refs/auto-review.md`**（传基点 / 滤范围 / 控 2 轮迭代修复 / 接口耦合面） |
+| 7 | `/specpowers-archive` | **仅当显式 `--archive` 时执行**，收口前置检查与双通道语义见 `refs/auto-review.md`「归档收口」；默认止于第 6 步（stage 停在 apply，后续可继续迭代或手动 `/specpowers-archive` 归档）；归档校验报告问题 → 按「只转人工、不打回」机制记录后正常收尾，**不重做前序阶段** |
 
 ## 硬阻断定义（唯一允许停下的情形）
 
@@ -300,3 +164,14 @@ specpowers-review 是内置审查技能（`skills/specpowers-review/`，复刻 C
 ## 汇总输出
 
 每轮结束（正常收尾、硬阻断停下、explore 停靠等待输入、或本轮跑完未归档）按 `templates/auto-summary-template.md` 输出汇总报告，至少包含：**需求澄清结论**（ceiling = full / explore + 遗留项数，停靠时含待用户裁决问题清单）、**需求迭代轮次与本轮输入形态**（新文档/指令/续跑）、**本轮调整范围**（相比上一轮的变化点）、各阶段产物路径、实际修改/新增文件清单、review 结论与修复清单（含覆盖区间：首轮基点 → 当前 HEAD）、编译与测试结果、裁决日志摘要、遗留风险（澄清遗留项、外部依赖未就绪项、降级审查标注、2 轮后仍遗留问题、功能名变更）。
+
+## 按需加载索引（refs/）
+
+主契约只承载 fresh 首轮主路径；以下场景**先读对应 refs 文件再执行**，不预读：
+
+| 场景 | 文件 |
+|------|------|
+| 分支 C 迭代轮（mode=iterate） | `refs/auto-iteration.md` |
+| 推进到第 6 步 review 编排 / 第 7 步归档收口 | `refs/auto-review.md` |
+| 裁决原则覆盖不了的交互节点 / 记录要求 | `refs/auto-adjudication.md` |
+| ceiling=explore 停靠 / 停靠后重入 | `refs/auto-explore-halt.md` |

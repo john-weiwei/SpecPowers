@@ -252,6 +252,7 @@ def _copy_runtime_files(project_dir: Path, integration: dict):
 # SpecPowers personal runtime (do not commit)
 .specpowers/state.json
 .specpowers/.lock
+.specpowers/reports/
 """
     if gitignore_path.exists():
         # 显式 UTF-8：Windows 默认用 locale 编码（中文系统为 GBK），

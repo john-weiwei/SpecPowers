@@ -82,6 +82,7 @@ python -m specpowers_cli.bridge.facade gate --base HEAD~1 --root .
 
 > - 越界判定是确定性路径前缀比对，但"越界是否可接受"由人裁决——agent 不得以"顺手改了相关代码"为由静默放行越界文件
 > - 流水线工件（`openspec/`、`.specpowers/`、`docs/specpowers/`）已由确定性层豁免，不判越界
+> - **判定留痕**：输出存在结构信号或越界改动时，完整判定 JSON 会落盘到 `.specpowers/reports/gate-<时间戳>.json`，输出 JSON 附 `report` 句柄路径——转人工/打回说明中给用户句柄路径即可，人机按路径回查完整明细，不必把全部明细塞进消息（该目录属个人本机留痕，已在 init 生成的 .gitignore 中排除，无需提交）
 
 获得信号列表后，agent 进行**三态判定**：
 

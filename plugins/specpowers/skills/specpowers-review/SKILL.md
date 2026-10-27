@@ -37,9 +37,11 @@ allowed-tools:
 
 - **基分支模式**：用户提到 PR、分支或"相对 `BASE` 的改动"，或 auto 模式传入基点 SHA。基准默认取仓库默认分支（探测不到时回退 `main`）。
 - **未提交模式**：审查工作区改动（已暂存 + 未暂存 + 未跟踪）。
-- **单方法模式**：用户点名具体方法。**必须执行调用链穿透（指南 §七），严禁只审方法体。**
+- **单方法模式**：用户点名具体方法。**必须执行调用链穿透（先读指南 §七指向的 `references/method-review.md`），严禁只审方法体。**
 
 ### 第二步 — 收集 git 上下文
+
+> **检索工具优先级**：项目已装检索类 MCP（如 codegraph 等代码知识图谱）时，跨文件数据流、调用链与影响面优先用其查询；未装时再用 grep/read 常规手段，避免盲目全库扫描稀释审查注意力。
 
 ```bash
 # 基分支模式（--extract-methods 建议默认启用）
@@ -68,14 +70,15 @@ python scripts/gather_review_context.py --repo 仓库路径 --method "Class#meth
 
 ### 第三步 — 按指南执行多 pass 审查
 
-将 `references/review-guidelines.md` 载入上下文，按其章节执行：
+将 `references/review-guidelines.md` 载入上下文，按其章节执行；**两份细则按触发条件加载，不预读**（省 token）：
+主指南 §6.1 触发条件命中 → 加载 `references/dataflow-tracking.md`（Pass 4 全步骤）；单方法模式 → 加载 `references/method-review.md`（调用链穿透）。
 
 1. **比例原则**（指南 §四）：小改动走快速通道；大变更先分诊（跳过生成代码 / dist / target / lock 等）。
 2. **Pass 1 模式匹配**（必须）→ **Pass 2 控制流追踪**（必须）→ **Pass 3 语义验证**（建议）→
-   **Pass 4 跨文件数据流**（命中触发条件时必须）。
-3. **单方法模式**：以 `--method` 输出为起点，按指南 §七构建调用图并穿透缓存 / DB 触达点；
+   **Pass 4 跨文件数据流**（命中 §6.1 触发条件时必须，细则在 `dataflow-tracking.md`）。
+3. **单方法模式**：以 `--method` 输出为起点，按 `references/method-review.md` 构建调用图并穿透缓存 / DB 触达点；
    默认深度上限 3 层。
-4. **自检清单**（指南 §5.5 / §6.4 / §7.5）必须随报告输出；快速通道可合并为一行"触发条件未命中"说明。
+4. **自检清单**（指南 §5.5 / `dataflow-tracking.md` / `method-review.md` 各自附带）必须随报告输出；快速通道可合并为一行"触发条件未命中"说明。
 
 ### 输出要求
 
@@ -88,7 +91,7 @@ python scripts/gather_review_context.py --repo 仓库路径 --method "Class#meth
 
 - 截断：以"未包含文件清单"为准，用 Read 工具补读；必要时可重跑 `git diff {合并基点}`。
 - 未跟踪文件以完整内容纳入上下文包（受预算约束，超预算列入清单）。
-- 规则细节一律以 `references/review-guidelines.md` 为准；设计动机与历史漏检复盘见 `readme.md`。
+- 规则细节一律以 `references/review-guidelines.md`（含其指向的 `dataflow-tracking.md` / `method-review.md` 细则）为准；设计动机与历史漏检复盘见 `readme.md`，英文原文溯源见 `references/codex-origin.md`。
 
 ## 与流水线的衔接
 
@@ -114,5 +117,6 @@ auto.md 第 6 步编排
 - `scripts/gather_review_context.py` — git 上下文收集（基分支 / 未提交 / 单方法），
   按 diff 对应版本提取方法体，支持 Java / TS / JS / Python / Mapper XML
 - `references/review-guidelines.md` — 审查规则唯一来源（判定标准 / pass 定义 / 自检清单 / 严重度 / 比例原则）
+- `references/dataflow-tracking.md` / `references/method-review.md` — 按需加载细则（Pass 4 跨文件数据流 / 单方法调用链穿透）
 - `scripts/tests/` — 回归测试（`python -m unittest discover -s scripts/tests`，在技能目录下执行）
 - `readme.md` — 使用说明与设计复盘

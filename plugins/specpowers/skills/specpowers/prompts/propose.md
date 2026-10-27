@@ -57,6 +57,7 @@ Dispatcher 自动校验：
 1. 读取 `.specpowers/constitution.md` — 了解项目原则
 2. 如果从 `explore` 进入 — **必然读取 state.json `design_doc` 登记的设计文档**，并**重点读取其中的「数据流」章节与决策摘要**（字段来源/值域是 proposal 数据流契约与 Scenario WHEN/THEN 的输入依据）、capability frontmatter（如有）
 3. 如果从 `ready` 进入（跳过探索）— 仅读取 constitution.md，proposal 的数据流契约按与用户交互确认的结论撰写（纯本地特性声明「本特性无跨链路字段」）
+4. **auto 模式路径**（本阶段由 `/specpowers-auto` 编排进入；判据：`.specpowers/auto_base.json` 存在且对应当前 feature）— 八要素结论（已定方案 / 必测场景清单 / 修改范围表 / 硬性边界）**直接读 `auto_base.json` 的 `parsed` 字段，不全文重读设计文档**（auto 契约第 0 步已解析落盘）；设计文档仅按需回查「数据流」章节与决策摘要（数据流契约的承接依据，先 Grep 定位章节再局部读取）
 
 ### 交互决策原则（AskUserQuestion 使用指引）
 

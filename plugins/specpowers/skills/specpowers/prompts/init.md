@@ -24,9 +24,9 @@ templates/constitution-template.md
 
 （插件安装后位于 skill 目录内，即 `${PLUGIN_ROOT}/skills/specpowers/templates/constitution-template.md`）
 
-该模板采用四类原则骨架（`# Constitution → Core Principles → 开发工作流 → 治理 → 版本脚注行`），Core Principles 固定为四类原则占位。
+该模板采用「四类原则 + 可选实现倾向段」骨架（`# Constitution → Core Principles → 开发工作流 → 治理 → 版本脚注行`），Core Principles 固定为四类原则占位 + 一个可选的「### V. 实现倾向」段（项目无此诉求时整段删除）。
 
-若模板文件缺失（init 时未拷贝），可退化为内联结构：`# <项目名> Constitution` + 四个 `###` 原则小节 + `## 开发工作流` + `## 治理` + 版本脚注行。
+若模板文件缺失（init 时未拷贝），可退化为内联结构：`# <项目名> Constitution` + 四个 `###` 原则小节（按需加可选实现倾向小节）+ `## 开发工作流` + `## 治理` + 版本脚注行。
 
 ### 第二步：扫描项目信号，填充原则
 
@@ -45,6 +45,7 @@ templates/constitution-template.md
 2. **测试原则**（`[TESTING_DESCRIPTION]`）— 测试策略、TDD 偏好、测试分层与覆盖率
 3. **UX 原则**（`[UX_DESCRIPTION]`）— 用户体验标准、交互规范、可访问性、错误提示友好度
 4. **性能原则**（`[PERFORMANCE_DESCRIPTION]`）— 性能指标、资源占用上限、优化策略、监控要求
+5. **实现倾向**（`[IMPLEMENTATION_STANCE]`，**可选**）— 防"怎么写"过度工程的默认取向，按七层阶梯填充：动手前先读真实代码 → YAGNI → 复用本仓库已有 → 标准库 → 平台/框架原生 → 已装依赖 → 一行 → 最小实现，捷径须记「推迟项」。项目无此诉求或用户未提及防过度工程约束时，**整段删除该小节**（保持宪章精简），不填空话
 
 同时填充：
 
@@ -75,7 +76,7 @@ python -m specpowers_cli.bridge.facade baseline --root .
 提示用户：
 
 ```
-✅ .specpowers/constitution.md 已生成（项目原则：质量/测试/UX/性能）
+✅ .specpowers/constitution.md 已生成（项目原则：质量/测试/UX/性能[+ 实现倾向，若保留]）
 ✅ .specpowers/baseline.json 已刷新（constitution_hash 已填充）
 请 review 后提交到 git 供团队共享。
 ```

@@ -2,8 +2,12 @@
 
 本文件是本技能审查规则的**唯一来源**：判定标准、pass 定义、自检清单、严重度与比例原则均以本文件为准，
 SKILL.md 只定义工作流骨架。规则提取自 `codex.app.asar` 的 Codex 审查模式，并在此基础上做了
-控制流（§五）、跨文件数据流（§六）与调用链穿透（§七）增强。
-英文原文见附录 A（仅溯源用，执行时以下方中文规则为准）。**所有审查结论一律使用中文。**
+控制流（§五）、跨文件数据流与调用链穿透增强。**所有审查结论一律使用中文。**
+
+> **按需加载（省 token）**：本主指南只承载全模式通用的核心规则；两份细则按触发条件加载，不预读——
+> §6.1 触发条件命中 → 读 `references/dataflow-tracking.md`（Pass 4 全步骤 + 自检清单）；
+> 单方法模式 → 读 `references/method-review.md`（调用链穿透 + 自检清单）。
+> 英文原文溯源见 `references/codex-origin.md`（仅对照用，执行时不加载）。
 
 ## 一、六条判定标准（决定"报不报"）
 
@@ -25,7 +29,7 @@ SKILL.md 只定义工作流骨架。规则提取自 `codex.app.asar` 的 Codex �
   `--include-worktree` 时含工作区未提交改动。
 - **未提交模式**：审查当前改动（已暂存 + 未暂存 + 未跟踪）。
 - **单方法模式**：审查目标方法及其调用链。无 diff，起点为 `--method` 参数收集的材料
-  （定义候选 / 完整方法体 / 兄弟方法 / 调用方清单），审查者按 §七继续穿透。
+  （定义候选 / 完整方法体 / 兄弟方法 / 调用方清单），**先读 `references/method-review.md`** 再按其步骤穿透。
 
 ## 三、严重度定义
 
@@ -45,7 +49,7 @@ SKILL.md 只定义工作流骨架。规则提取自 `codex.app.asar` 的 Codex �
 diff ≤ 5 文件 且 ≤ 300 行 且无 §6.1 触发信号时：
 
 - 执行 Pass 1 + 轻量 Pass 2（只对含 `return` / 兜底逻辑的方法做 §5.1）；
-- §5.5 / §6.4 自检清单可合并为一行说明（如"§5.5 / §6.4 触发条件未命中，已跳过"）。
+- §5.5 / Pass 4 自检清单可合并为一行说明（如"§5.5 / Pass 4 触发条件未命中，已跳过"）。
 
 ### 4.2 大变更分诊
 
@@ -122,7 +126,7 @@ diff 格式仅展示行级补丁，丢失了嵌套条件、早期返回与下游
 - **Pass 2 控制流追踪**（必须）：§5.1-5.3。约覆盖 15-25%。
 - **Pass 3 语义验证**（建议）：方法签名变更是否在所有调用方同步；字段新增后序列化 /
   DB 映射是否完整；业务规则是否符合需求。
-- **Pass 4 跨文件数据流追踪**（命中 §6.1 触发条件时必须）：见 §六。
+- **Pass 4 跨文件数据流追踪**（命中 §6.1 触发条件时必须）：读 `references/dataflow-tracking.md` 执行。
 
 ### 5.5 Pass 2 自检清单（发布审查结果前必须逐项确认）
 
@@ -146,165 +150,24 @@ diff 格式仅展示行级补丁，丢失了嵌套条件、早期返回与下游
 
 审查报告必须包含此清单的填写结果（勾选或说明跳过原因），不得省略；快速通道按 §4.1 合并说明。
 
-## 六、跨文件数据流追踪（Pass 4）
+## 六、跨文件数据流追踪（Pass 4 触发条件）
 
 单文件 / 单方法审查无法发现跨多文件的**数据流断裂**：新字段或新类型在
 入口 → 服务层 → 数据源 / 缓存 → 存储查询的链路中，被某一中间环节限制了完整传递，
 导致下游永远匹配不到目标数据。
 
-### 6.1 触发条件（命中任一必须执行）
+### 6.1 触发条件（命中任一必须执行 Pass 4）
 
 1. 新增枚举值 / 新类型，且服务层有按该值过滤的逻辑；
 2. 新增过滤条件（内存 filter 或 SQL `WHERE`）；
 3. 新增缓存 / 数据源读取，或修改缓存源；
 4. DTO 新增字段且该字段参与下游匹配逻辑。
 
-### 6.2 执行步骤
-
-**步骤 A — 识别数据流链路**：从入口（Controller / Handler / 入口函数）→ 服务层 →
-数据源（缓存 / Repository）→ 存储查询（SQL / ORM），显式列出每个环节的代码位置
-（文件 + 方法 + 行号）。
-
-**步骤 B — 逐环节检查范围一致性**：
-
-1. 入口层是否正确透传新字段值？
-2. 服务层过滤逻辑是否覆盖新值？
-3. 数据源 / 缓存返回的数据是否包含新值？
-4. 存储查询的 `WHERE` 是否显式排除了新值？
-
-**步骤 C — 定位断裂点**：某环节范围小于上下游时即为瓶颈
-（如存储查询范围 < 服务层过滤范围 → 新类型数据永远进不了缓存）→ P1 阻断。
-
-**步骤 D — 兼容性检查**：SQL 用 `OR xxx IS NULL` 兼容旧数据时，应用层的等值过滤
-是否也对 `NULL` 做了等价处理？典型陷阱：SQL 放行 `NULL` + 应用层 `equals(x)` 把 `NULL` 过滤掉。
-
-### 6.3 触发信号（主动扫描）
-
-- 新增枚举值 + 服务层 `Objects.equals(...)` / `===` 类过滤；
-- 新增 Mapper / ORM 查询方法或修改 `WHERE` 子句；
-- 新增缓存方法或修改缓存源；
-- DTO 新增字段参与 `.filter()` / `if` 判断；
-- SQL 出现 `OR xxx IS NULL` 兼容，且应用层有对应等值过滤。
-
-### 6.4 自检清单（发布审查结果前必须逐项确认）
-
-**数据流链路识别**：
-
-- [ ] 已列出新增字段 / 新值的完整数据流链路（入口 → 服务 → 数据源 → 存储查询）？
-- [ ] 已标注链路中每个环节的代码位置（文件 + 方法 + 行号）？
-
-**范围一致性**：
-
-- [ ] 已检查入口层是否正确透传？
-- [ ] 已检查服务层过滤是否覆盖新值？
-- [ ] 已检查数据源 / 缓存是否包含新值？
-- [ ] 已检查存储查询是否排除新值？
-
-**兼容性**：
-
-- [ ] 已检查存储层 `OR IS NULL` 兼容与应用层等值过滤的一致性？
-- [ ] 已标注"存储层放行但应用层过滤"的不一致？
-
-**断裂点定位**：
-
-- [ ] 已识别范围瓶颈环节？
-- [ ] 已标注瓶颈对功能的影响（P1 / P2）？
+命中后**读 `references/dataflow-tracking.md`**，按其步骤 A-D（链路识别 / 范围一致性 /
+断裂点定位 / 兼容性检查）执行并完成其自检清单；快速通道按 §4.1 合并说明。
 
 ## 七、单方法审查 / 调用链穿透
 
-用户点名具体方法时，审查对象不是 diff 而是方法及其调用链。
-入口方法体往往"看起来正确"，真实缺陷常在被调用方法中：
-缓存 key 缺少动态维度、helper 早返回跳过落库、SQL 缺 `ORDER BY`、跨文件范围瓶颈。
-
-### 7.1 触发与材料收集
-
-- 触发：用户请求形如 `review Class#method`、`审查 XxxSupport#matchXxx`。
-- **优先用脚本收集确定性材料**（避免大仓库 grep 超时试错）：
-  `python scripts/gather_review_context.py --repo 仓库路径 --method "Class#method"`。
-  输出：定义候选（声明目标类的文件优先、测试路径降权）、入口方法完整体、
-  同文件兄弟方法清单、一层调用方清单。
-
-### 7.2 执行步骤
-
-**步骤 A — 定位入口**：以 `--method` 输出为准；必要时 `git grep -n "方法签名关键词" -- "*.java"` 等补充定位，
-Read 入口方法完整体。
-
-**步骤 B — 构建调用图**：扫描入口方法体，提取直接调用（`this.xxx(`、静态工具、mapper / ORM 调用）；
-对每个被调用方法定位定义并 Read 完整体；递归至叶子（框架 / 三方库 / 语言标准库止步）。
-默认深度上限 3 层（§4.3）。
-
-**步骤 C — 强制审查触达点**（每个必须 Read 完整体并应用 Pass 1-4）：
-
-1. **缓存 / 记忆化读写**（示例：`redisTemplate.opsForHash`、`putAll`、`expire`、`CacheManager`；
-   其他语言为对应缓存客户端）：
-   - 缓存 key 是否覆盖输入的**全部动态维度**？遗漏任何随请求 / 配置变化的维度 → 跨请求污染 P0 / P1；
-   - helper 早 `return` 是否跳过缓存写入 → 空结果永不缓存、防穿透成死代码 P2。
-2. **存储查询**（示例：`xxxMapper.selectXxx`、ORM queryBuilder、SQL 迁移脚本）：
-   - 必须定位对应 SQL（Mapper.xml / `@Select` / SQL 文件），检查 `WHERE` / `ORDER BY` / `IN (...)`；
-   - 取首条（`get(0)` / `limit 1` / `head`）时结果集必须有确定性排序，否则胜出者依赖存储行序 P2；
-   - 动态集合过滤与缓存 key 维度是否一致（范围瓶颈，同 §六）。
-3. **跨文件数据流**：DTO / 参数在调用方与 helper 间传递时，逐环节比对范围一致性（§6.2 步骤 A-D）。
-
-**步骤 D — 兄弟 / 同类方法对比**：同文件命名相似方法一并 Read 对比（§5.2）。
-
-**步骤 E — 调用方回溯（建议）**：确认入参是否来自动态生效集合；若是，
-缓存 key 必须包含该集合的稳定指纹，否则 P0 / P1。
-
-### 7.3 与既有 pass 的关系
-
-调用链穿透不是新增独立 pass，而是**把 Pass 1-4 施加到调用图每个节点**；
-入口方法自身快速过 Pass 1 / 2，重点算力放在触达缓存 / DB 的 helper 节点。
-
-### 7.4 输出要求
-
-- 报告以"调用链穿透"章节开头，列出：入口方法 → 调用图节点清单 → 每个缓存 / DB 触达点的审查结论；
-- 不得仅以入口方法体结论收尾；若未穿透，必须在显著位置声明"未执行调用链穿透"。
-
-### 7.5 自检清单（单方法模式发布前必须逐项确认）
-
-- [ ] 已定位入口方法定义并 Read 完整体？
-- [ ] 已构建调用图，列出入口的直接 / 间接被调用方法？
-- [ ] 已对每个缓存读写触达点 Read 完整 helper 并查缓存 key 维度完整性？
-- [ ] 已对每个存储查询触达点定位对应 SQL 并审查 `WHERE` / `ORDER BY` / `IN`？
-- [ ] 已对比同文件兄弟 / 同类方法？
-- [ ] 已回溯调用方确认入参是否动态变化（缓存 key 是否遗漏该维度）？
-- [ ] 报告以"调用链穿透"章节开头，且无仅审入口方法体的结论？
-
----
-
-## 附录 A — Codex 英文原文（溯源用）
-
-### A.1 Review Guidelines（变量 `xe`，逐字收录）
-
-```
-# Review Guidelines
-
-You are acting as a reviewer for a proposed code change made by another engineer.
-
-Review the change and respond in normal Markdown. Do not return JSON, XML, a findings object, or any structured review schema.
-
-Focus on discrete, actionable issues the original author would likely fix if they knew about them. Prefer no issues over speculative or low-signal feedback.
-
-General guidelines for whether to call out an issue:
-
-1. It meaningfully impacts correctness, performance, security, or maintainability.
-2. It is discrete and actionable.
-3. It was introduced by the change under review.
-4. The author would likely fix it once aware.
-5. It does not rely on unstated assumptions about intent.
-6. It identifies the affected behavior clearly rather than speculating broadly.
-
-When you call out an issue, include the relevant file and line or function in prose, explain the scenario where it matters, and keep the explanation concise. Use priority labels such as `[P1]` or `[P2]` only when helpful to communicate severity.
-
-If there are no actionable issues, say that directly and briefly.
-```
-
-### A.2 模式指令（`De` / `Oe`，逐字收录）
-
-```
-Review the code changes against the base branch '{baseBranch}'. The merge base commit for this comparison is {mergeBaseSha}. Run `git diff {mergeBaseSha}` to inspect the changes relative to {baseBranch}. Provide concise, actionable feedback in a normal Markdown response.
-```
-
-```
-Review the current code changes (staged, unstaged, and untracked files) and provide concise, actionable feedback in a normal Markdown response.
-```
+用户点名具体方法时（单方法模式），**先读 `references/method-review.md`**，按其执行步骤
+（定位入口 → 构建调用图 → 强制审查缓存/DB 触达点 → 兄弟对比 → 调用方回溯）穿透审查，
+并完成其自检清单。输出报告必须以"调用链穿透"章节开头；未穿透时必须在显著位置声明。

@@ -63,6 +63,7 @@ dispatcher 自动校验：
 - 重复归档检查：该 feature 已有 archive commit → 拒绝
 - openspec CLI 可用性（Duty 5）：不可用 → **拒绝归档**（强依赖，不降级）
 - delta spec 必须存在（`openspec/changes/<feature>/specs/` 下有 spec.md）
+- **场景覆盖核查**（v2.3.0，确定性，提示不阻断）：delta spec 的每个 `#### Scenario:` 应至少被 tasks.md 一个任务的「场景引用」字段覆盖（规范即验收标尺——OpenSpec 第三原则的归档前兜底）。存在未覆盖场景时输出 `⚠` 与未覆盖清单，agent 应提示用户：回 `/specpowers-propose` 补任务，或确认场景已作废；用户坚持归档则放行（archive 只转人工不打回）。fast 模式 delta 为验收清单（无 `#### Scenario:`），核查自动跳过
 
 ### 第二步：确定性归档（dispatcher 自动完成）
 

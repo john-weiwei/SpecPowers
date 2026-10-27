@@ -730,6 +730,20 @@ def _handle_archive(root: Path, extra: dict) -> int:
     if should_merge_check and mode != "fast":
         print("⚠ Merge check triggered — multi-branch or forced. Agent will run post-merge verification.")
 
+    # 场景覆盖核查（确定性，提示不阻断——archive 只转人工不打回）：
+    # delta spec 每个 Scenario 至少被一个任务引用（规范即验收标尺，OpenSpec 第三原则）
+    from specpowers_cli.bridge.modules.archive_auditor import scenario_coverage
+    coverage = scenario_coverage(root, feature)
+    if coverage["status"] == "partial":
+        print(
+            f"⚠ 场景覆盖核查：{coverage['covered']}/{coverage['total']} 个 spec 场景被任务引用。"
+            "未覆盖场景（建议回 /specpowers-propose 补任务，或确认场景已作废）："
+        )
+        for name in coverage["uncovered"]:
+            print(f"  - {name}")
+    elif coverage["status"] == "no_tasks":
+        print("⚠ tasks.md 缺失，场景覆盖核查跳过（正常产物不应出现，请检查 change 目录）。")
+
     # full + fast 统一：调 openspec archive 归档（产物已是 OpenSpec 格式，无转换）
     if feature:
         from specpowers_cli.bridge.modules.archive_auditor import prepare_openspec_archive

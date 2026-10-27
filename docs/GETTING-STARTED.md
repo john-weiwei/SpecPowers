@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.3.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.3.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,7 +48,7 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.3.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
@@ -103,7 +103,7 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.3.1
 
 # 验证
 specpowers --version
@@ -308,12 +308,13 @@ specpowers/
 │       ├── skills/specpowers/   ← 主编排 skill
 │       │   ├── SKILL.md
 │       │   ├── prompts/         ← 7 个阶段契约（init/explore/propose/apply/archive/fast_mode/auto）
+│       │   │   └── refs/        ← auto 低频细则按需加载（迭代轮/review 编排/裁决表/explore 停靠，省 token）
 │       │   └── templates/       ← constitution/auto 汇总/澄清报告模板
 │       ├── skills/specpowers-explore/  ← 内置需求探索技能（explore 阶段专用）
 │       │   └── SKILL.md
 │       ├── skills/specpowers-review/   ← 内置代码审查技能（auto 模式 review 环节 + 独立审查）
 │       │   ├── SKILL.md
-│       │   ├── references/review-guidelines.md  ← 审查规则唯一来源
+│       │   ├── references/      ← 审查规则（主指南 + Pass 4/单方法两份细则按需加载 + Codex 溯源）
 │       │   ├── scripts/gather_review_context.py ← git 上下文收集（三模式 + 方法体提取）
 │       │   └── scripts/tests/         ← 审查脚本回归测试（unittest）
 │       └── scripts/specpowers_cli/  ← 内嵌 Python bridge 包
@@ -325,7 +326,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（275 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（286 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

@@ -70,3 +70,102 @@ def test_is_feature_archived_empty_and_whitespace():
     # 此函数不依赖 git 仓库，空 feature 在 log_grep_feature 调用前就短路返回
     assert archive_auditor.is_feature_archived(Path("/nonexistent"), "") is False
     assert archive_auditor.is_feature_archived(Path("/nonexistent"), "   ") is False
+
+
+# ---- scenario_coverage：场景覆盖核查（v2.3.0，规范即验收标尺）----
+
+def _make_change(root: Path, feature: str, spec_bodies: dict, tasks_md: str | None):
+    """构造 openspec/changes/<feature>/ 目录：spec_bodies = {capability: spec 正文}。"""
+    change = root / "openspec" / "changes" / feature
+    for capability, body in spec_bodies.items():
+        spec_dir = change / "specs" / capability
+        spec_dir.mkdir(parents=True, exist_ok=True)
+        (spec_dir / "spec.md").write_text(body, encoding="utf-8")
+    if tasks_md is not None:
+        (change / "tasks.md").write_text(tasks_md, encoding="utf-8")
+    return change
+
+
+_SPEC_FULL = """## ADDED Requirements
+
+### Requirement: order-flow
+The system SHALL 处理订单流。
+
+#### Scenario: 正常下单
+- **WHEN** 用户提交有效订单
+- **THEN** 订单创建成功
+
+#### Scenario: 库存不足
+- **WHEN** 商品库存为 0
+- **THEN** 返回库存不足错误
+"""
+
+
+def test_scenario_coverage_full_covered(tmp_path):
+    """每个 Scenario 都被任务「场景引用」行覆盖 → pass。"""
+    tasks = (
+        "### Task 1: 下单\n\n- [ ] 实现内容：x\n"
+        "- 场景引用：正常下单——WHEN 用户提交有效订单 THEN 订单创建成功\n\n"
+        "### Task 2: 库存\n\n- [ ] 实现内容：y\n"
+        "- 场景引用：库存不足——WHEN 商品库存为 0 THEN 返回库存不足错误\n"
+    )
+    _make_change(tmp_path, "order", {"order": _SPEC_FULL}, tasks)
+    result = archive_auditor.scenario_coverage(tmp_path, "order")
+    assert result["status"] == "pass"
+    assert result["total"] == 2 and result["covered"] == 2
+    assert result["uncovered"] == []
+
+
+def test_scenario_coverage_partial(tmp_path):
+    """部分场景未被引用 → partial + 未覆盖清单。"""
+    tasks = (
+        "### Task 1: 下单\n\n- [ ] 实现内容：x\n"
+        "- 场景引用：正常下单——WHEN 用户提交有效订单 THEN 订单创建成功\n"
+    )
+    _make_change(tmp_path, "order", {"order": _SPEC_FULL}, tasks)
+    result = archive_auditor.scenario_coverage(tmp_path, "order")
+    assert result["status"] == "partial"
+    assert result["covered"] == 1 and result["total"] == 2
+    assert result["uncovered"] == ["库存不足"]
+
+
+def test_scenario_coverage_no_scenarios_fast(tmp_path):
+    """fast 模式 delta 为验收清单（无 #### Scenario）→ pass 跳过。"""
+    _make_change(tmp_path, "fast-fix", {"fast-fix": "## 验收清单\n\n- [ ] 编译通过\n"}, "### Task 1: fix\n")
+    result = archive_auditor.scenario_coverage(tmp_path, "fast-fix")
+    assert result["status"] == "pass" and result["total"] == 0
+
+
+def test_scenario_coverage_change_dir_missing(tmp_path):
+    """change 目录不存在（异常前置态）→ pass 跳过，不抛异常。"""
+    result = archive_auditor.scenario_coverage(tmp_path, "ghost")
+    assert result["status"] == "pass"
+
+
+def test_scenario_coverage_tasks_missing(tmp_path):
+    """有场景但 tasks.md 缺失 → no_tasks（异常产物提示，不阻断）。"""
+    _make_change(tmp_path, "order", {"order": _SPEC_FULL}, None)
+    result = archive_auditor.scenario_coverage(tmp_path, "order")
+    assert result["status"] == "no_tasks"
+    assert result["total"] == 2 and result["covered"] == 0
+
+
+def test_scenario_coverage_multi_capability(tmp_path):
+    """多 capability 场景聚合核查。"""
+    spec_b = "## ADDED Requirements\n\n### Requirement: pay\nSHALL 支付。\n\n#### Scenario: 支付成功\n- **WHEN** 余额充足\n- **THEN** 扣款\n"
+    tasks = (
+        "### Task 1: 下单\n\n- 场景引用：正常下单 WHEN 用户提交有效订单 THEN 订单创建成功\n\n"
+        "### Task 2: 支付\n\n- 场景引用：支付成功 WHEN 余额充足 THEN 扣款\n\n"
+        "### Task 3: 库存\n\n- 场景引用：库存不足 WHEN 商品库存为 0 THEN 返回库存不足错误\n"
+    )
+    _make_change(tmp_path, "combo", {"order": _SPEC_FULL, "pay": spec_b}, tasks)
+    result = archive_auditor.scenario_coverage(tmp_path, "combo")
+    assert result["status"] == "pass" and result["total"] == 3
+
+
+def test_scenario_coverage_loose_fallback(tmp_path):
+    """宽松兜底：场景名不在「场景引用」行字段但在 tasks 正文出现 → 算覆盖。"""
+    tasks = "### Task 1: 下单\n\n- [ ] 覆盖「正常下单」与「库存不足」两个场景的完整链路\n"
+    _make_change(tmp_path, "order", {"order": _SPEC_FULL}, tasks)
+    result = archive_auditor.scenario_coverage(tmp_path, "order")
+    assert result["status"] == "pass"

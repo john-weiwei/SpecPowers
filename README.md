@@ -4,14 +4,14 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.3.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.3.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
 - **结构一致性门禁** — AI 写代码不能"无中生有"建目录/加依赖
 - **实时卡转人工** — 遇到不确定性立刻暂停等人工判定，不静默跳过
 
-> 🧪 **质量保障**：275 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
+> 🧪 **质量保障**：286 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
 
 > 📖 **完整指南**：前置依赖详解、四条路径对比、架构、项目结构等完整内容见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)。
 
@@ -65,12 +65,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.3.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.3.0
+# → SpecPowers CLI v2.3.1
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -177,6 +177,10 @@ apply 启动时比对 `git diff`，两道检查：
 
 > 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
 
+### 💡 省 token 建议
+
+各阶段产物**全部落盘**（`state.json` + `openspec/changes/`），阶段间不依赖对话记忆——因此人工模式推荐**每阶段完成即开新会话**再触发下一条命令：长会话中上下文逐轮累积并重复计费，是 token 消耗的主因；新会话只加载当阶段契约，会话启动探测（v2.3.0）会自动提示续跑命令，跨机接管同样支持。`/specpowers-auto` 无人值守模式例外（单会话直通是其设计）。此外，v2.3.1 起契约已分层按需加载（auto 迭代轮 / review 编排等低频细则不再预载入上下文）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，建议同一需求内避免频繁切换模型。
+
 ---
 
 ## 流水线
@@ -221,6 +225,22 @@ init ─▶ ready ─┬─ explore → propose → apply → archive → ready
 | `.specpowers/baseline.json` | ✅ 提交 | 团队共享结构基线 |
 | `.specpowers/state.json` | 🚫 gitignore | 每人流水线独立 |
 | `.specpowers/.lock` | 🚫 gitignore | 仅本机有效 |
+| `.specpowers/reports/` | 🚫 gitignore | 门禁判定报告本机留痕 |
+
+---
+
+## 本插件自身开销（诚实声明）
+
+借鉴这批 harness 开源项目的共同文化：披露插件自身的成本与能力边界，不做单向宣传。
+
+| 开销项 | 说明 |
+|--------|------|
+| SessionStart hook | 每次会话启动运行一次依赖检测（Python 子进程，通常亚秒级；Windows 经 run-hook.cmd 包装略有额外开销） |
+| 上下文占用 | SKILL.md 按需加载；各阶段 prompts 契约仅在该阶段加载，不常驻对话。auto 模式全流程串行多阶段，token 开销显著高于单阶段使用 |
+| 门禁运行成本 | 结构门禁/修改范围比对 = 一次 git diff + 文本解析，毫秒级；真正的成本是**打回/转人工带来的返工轮次**——设计意图是"拦住比返工便宜"，小改动场景可能感到约束 |
+| 测试维护 | 清单/契约一致性用例随版本增长，对插件自身的改动自由度是约束，换取升级安全 |
+
+**门禁覆盖边界**：结构门禁拦的是"无中生有"的**结构变更**（新顶层目录/新依赖类型/新架构层目录）与**越界改动**（超出 tasks.md 修改范围声明），**不拦截**已声明路径内的代码质量缺陷——后者由 specpowers-review 审查与项目自身测试兜底。确定性校验只兜最低底线（如 explore 的设计文档登记只查"已登记"，不查探索质量），实质质量依赖 HARD-GATE 契约引导 + 人工 review 双层。
 
 ---
 
@@ -264,11 +284,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.3.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.3.1
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.3.0
+# → SpecPowers CLI v2.3.1
 
 # 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
 cd my-project
@@ -279,7 +299,8 @@ specpowers init --force
 
 | 版本 | 变更内容 |
 |------|---------|
-| v2.3.0 | 门禁与续跑双增强（借鉴 Comet 的任务级路径门禁与 resume-probe 机制，落地为本仓库确定性实现）：① apply 结构门禁新增**修改范围比对**——propose 在 tasks.md 顶部注释块声明「修改范围：」路径前缀，gate 输出附 scope 比对结果，越界文件转人工（迭代轮取各轮声明并集，声明缺失 undeclared 兼容旧产物，流水线工件豁免）；② **活跃需求探测（ambient resume）**——SessionStart hook 顺带只读探测未完成流水线 / auto 断点 / 未归档 change，首条回复提示续跑命令，零活跃零噪音（bridge 新增只读子命令 resume-probe，探测绝不写状态、异常静默降级）；③ 修复 bin/specpowers 对 Windows 商店 python3 stub 的误判（command -v 命中假解释器导致包装脚本恒败，改用最小指令验证）；gate 命令新增 git_util.diff_name_only（core.quotepath=off 保中文路径） |
+| v2.3.1 | **token 消耗优化（契约分层按需加载，流程与产物零变更）**：① `prompts/auto.md`（30KB→14KB）拆出四份按需加载细则 `prompts/refs/`（迭代轮编排 `auto-iteration.md` / review 编排与归档收口 `auto-review.md` / 完整裁决规则表 `auto-adjudication.md` / explore 停靠 `auto-explore-halt.md`），fresh 主路径只载主契约，主契约保留精简裁决原则与按需加载索引；② review 审查规则唯一来源 `references/review-guidelines.md`（15.6KB→10KB）同样分层——Pass 4 跨文件数据流细则 `dataflow-tracking.md` 命中触发条件才加载、单方法调用链穿透细则 `method-review.md` 仅单方法模式加载、Codex 英文溯源移 `codex-origin.md` 不进执行上下文，review SKILL.md 同步引用；③ 主 SKILL.md（11KB→6KB）瘦身为路由层（合并「三个概念/三个开关」入命令参考、契约文件表一句话化）；④ auto 路径下 propose 优先消费 `auto_base.json` 八要素 `parsed` 字段，不全文重读设计文档（数据流章节仍按需回查）；⑤ 文档新增「省 token 建议」（人工模式推荐阶段间开新会话 + prompt 缓存提示）；⑥ 新增契约分层资源完整性测试（refs/ 与 review references/ 细则防误删 + 主契约引用防断链），README/GETTING-STARTED 用例数同步 286 |
+| v2.3.0 | 门禁与续跑双增强（借鉴 Comet 的任务级路径门禁与 resume-probe 机制，落地为本仓库确定性实现）：① apply 结构门禁新增**修改范围比对**——propose 在 tasks.md 顶部注释块声明「修改范围：」路径前缀，gate 输出附 scope 比对结果，越界文件转人工（迭代轮取各轮声明并集，声明缺失 undeclared 兼容旧产物，流水线工件豁免）；② **活跃需求探测（ambient resume）**——SessionStart hook 顺带只读探测未完成流水线 / auto 断点 / 未归档 change，首条回复提示续跑命令，零活跃零噪音（bridge 新增只读子命令 resume-probe，探测绝不写状态、异常静默降级）；③ 修复 bin/specpowers 对 Windows 商店 python3 stub 的误判（command -v 命中假解释器导致包装脚本恒败，改用最小指令验证）；gate 命令新增 git_util.diff_name_only（core.quotepath=off 保中文路径）；④ **archive 场景覆盖核查**（规范即验收标尺）——归档前确定性校验 delta spec 每个 `#### Scenario:` 至少被一个任务的「场景引用」覆盖（新增 archive_auditor.scenario_coverage，宽松匹配防误报，fast 无场景自动跳过，提示不阻断不打回）；⑤ **gate 判定报告落盘**（借鉴 RTK recall 句柄）——有结构信号或越界改动时完整判定 JSON 落盘 `.specpowers/reports/`，输出附 report 句柄路径，人机按路径回查明细；⑥ constitution 模板新增可选「实现倾向」段（借鉴 Ponytail 七层决策阶梯，防过度工程原则可判定化）；⑦ explore/review 契约新增检索工具优先提示（项目已装 codegraph 类检索 MCP 时优先使用，避免盲目 grep） |
 | v2.2.2 | 质量加固：Windows 中文编码链路（stdout/子进程显式 UTF-8）、结构门禁 src_patterns 深度对齐 + rename 折叠路径解析、init 幂等语义、锁释放竞态加固 + ctypes 句柄声明、run-hook.cmd 退出码透传 + superpowers 探测路径修正、清单 description 漂移修齐 + 11 项一致性断言、补 LICENSE、init 集成矩阵移除 cline/Aider、测试提速（git 仓库模板化）+ 假测试清理 |
 | v2.2.1 | Codex 端图标补全：portable 根清单 interface 补 `logo` 与 `brandColor`（#4F46E5），`.codex-plugin/` 回退清单补齐同构 interface 六字段 |
 | v2.2.0 | Codex 宿主清单注册 SessionStart hooks（依赖自动检测 ZCode / Claude Code / Codex 三端生效，Codex 需信任审核）；SKILL.md 修正 PLUGIN_ROOT 变量名 |

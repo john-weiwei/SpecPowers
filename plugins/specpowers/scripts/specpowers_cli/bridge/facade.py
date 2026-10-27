@@ -391,6 +391,18 @@ def _cmd_gate(args: list[str], root: Path) -> int:
     scope = _scope_assessment(root, base)
     if scope is not None:
         result["scope"] = scope
+    # 判定留痕（借鉴 RTK 的 recall 句柄模式）：有结构信号或越界改动时把完整
+    # 判定 JSON 落盘到 .specpowers/reports/，输出只附 report 句柄路径——
+    # apply 契约与人工裁决按路径回查完整报告，不必把全部明细塞进拒绝消息
+    if signals or (scope is not None and scope.get("status") == "out_of_scope"):
+        from datetime import datetime
+        reports_dir = root / ".specpowers" / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        report_path = reports_dir / f"gate-{datetime.now():%Y%m%d-%H%M%S}.json"
+        report_path.write_text(
+            json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8",
+        )
+        result["report"] = report_path.relative_to(root).as_posix()
     print(json.dumps(result))
     return 0
 

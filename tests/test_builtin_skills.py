@@ -9,7 +9,12 @@ v2.1.0 起 review 审查改用内置 specpowers-review 技能（替代用户级 
   - SKILL.md 中引用的相对资源目录（scripts/、references/）真实存在
   - 4 份宿主 plugin.json 的 requirements.plugins 不含 codex-review（内置化后无需预装）
 
-作者：SpecPowers Team 2026-09-21（ZCode / GLM-5.3）
+v2.3.1 起契约分层按需加载（省 token），追加锁定：
+
+  - 主技能 prompts/refs/ 四份 auto 低频细则与 review references/ 三份细则文件存在且非空
+  - 主契约 auto.md / review-guidelines.md 中引用的细则文件名必须真实存在（防引用失效）
+
+作者：SpecPowers Team 2026-10-23（ZCode / GLM-5.3）
 """
 
 import json
@@ -39,6 +44,21 @@ REVIEW_RESOURCES = [
     "scripts/tests/test_gather_review_context.py",
     "readme.md",
 ]
+
+# v2.3.1 契约分层按需加载：主技能 auto 细则 + review 细则（缺一则按需加载断链）
+ON_DEMAND_CONTRACT_RESOURCES = {
+    "skills/specpowers": [
+        "prompts/refs/auto-iteration.md",
+        "prompts/refs/auto-review.md",
+        "prompts/refs/auto-adjudication.md",
+        "prompts/refs/auto-explore-halt.md",
+    ],
+    "skills/specpowers-review": [
+        "references/dataflow-tracking.md",
+        "references/method-review.md",
+        "references/codex-origin.md",
+    ],
+}
 
 
 def _frontmatter_field(skill_md_text, field):
@@ -85,3 +105,36 @@ def test_manifests_do_not_require_codex_review():
         assert "codex-review" not in names, (
             f"{rel} 仍将 codex-review 列为预装依赖——review 已内置为 specpowers-review，应移除该条目"
         )
+
+
+def test_on_demand_contract_resources_exist():
+    """契约分层按需加载：主技能 refs/ 与 review references/ 细则文件必须存在且非空（防误删断链）。"""
+    for skill_dir, rels in ON_DEMAND_CONTRACT_RESOURCES.items():
+        for rel in rels:
+            path = PLUGIN_ROOT / skill_dir / rel
+            assert path.is_file(), f"按需加载细则缺失：{skill_dir}/{rel}"
+            assert path.stat().st_size > 0, f"按需加载细则为空文件：{skill_dir}/{rel}"
+
+
+def test_on_demand_refs_are_linked_from_contracts():
+    """主契约中引用的细则文件名必须真实存在——拆分重构后防引用失效（agent 读不到细则即断链）。"""
+    # auto.md 主契约引用的 refs/auto-*.md 必须都能在 prompts/refs/ 下找到
+    auto_md = (PLUGIN_ROOT / "skills/specpowers/prompts/auto.md").read_text(encoding="utf-8")
+    refs_dir = PLUGIN_ROOT / "skills/specpowers/prompts/refs"
+    referenced = set(re.findall(r"refs/(auto-[\w-]+\.md)", auto_md))
+    assert referenced, "auto.md 未引用任何 refs/ 细则（按需加载索引缺失）"
+    for name in referenced:
+        assert (refs_dir / name).is_file(), f"auto.md 引用的 refs/{name} 不存在"
+
+    # review-guidelines.md 主指南引用的 references/*.md 细则必须真实存在
+    guidelines = (
+        PLUGIN_ROOT / "skills/specpowers-review/references/review-guidelines.md"
+    ).read_text(encoding="utf-8")
+    review_refs_dir = PLUGIN_ROOT / "skills/specpowers-review/references"
+    referenced_review = set(
+        name for name in re.findall(r"references/([\w-]+\.md)", guidelines)
+        if name != "review-guidelines.md"
+    )
+    assert referenced_review, "review-guidelines.md 未引用任何细则（按需加载指引缺失）"
+    for name in referenced_review:
+        assert (review_refs_dir / name).is_file(), f"review-guidelines.md 引用的 references/{name} 不存在"

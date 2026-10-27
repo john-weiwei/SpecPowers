@@ -236,6 +236,52 @@ def test_gate_scope_omitted_without_tasks_md(tmp_path, capsys):
     assert "scope" not in out
 
 
+def test_gate_report_written_on_signals_or_out_of_scope(tmp_path, capsys):
+    """有结构信号或越界改动时落盘完整判定报告，输出附 report 句柄（RTK recall 式）。"""
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    _seed_tasks_with_scope(root, "demo", "README.md")
+    (root / "placeholder_0.md").write_text("out of scope change", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    # 报告句柄存在且指向真实文件
+    assert "report" in out
+    report_file = root / out["report"]
+    assert report_file.exists()
+    # 报告内容 = 完整判定 JSON（含 scope），相对路径固定在 .specpowers/reports/ 下
+    assert out["report"].startswith(".specpowers/reports/gate-")
+    report = json.loads(report_file.read_text(encoding="utf-8"))
+    assert report["scope"]["status"] == "out_of_scope"
+    assert report["signals"] == out["signals"]
+
+
+def test_gate_report_omitted_when_clean(tmp_path, capsys):
+    """无结构信号且 scope=pass 时不落盘报告（输出 JSON 不带 report 键）。"""
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_propose_state(root, "demo")
+    _seed_tasks_with_scope(root, "demo", "placeholder_0.md")
+    (root / "placeholder_0.md").write_text("in scope change", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert "report" not in out
+    assert out["signals"] == []
+    assert out["scope"]["status"] == "pass"
+
+
 def test_resume_probe_subcommand_silent_on_fresh(tmp_path, capsys):
     """resume-probe 在无活跃状态的项目 exit 0 且输出空（零噪音）。"""
     root = _create_temp_git_repo(tmp_path)

@@ -5,8 +5,10 @@
 - merge_check_detect：合体后校验触发判定
 - change_summary_input：生成 diff --stat 供 agent 撰写归档摘要
 - prepare_openspec_archive：委托 openspec archive 执行归档
+- scenario_coverage：场景覆盖核查（spec Scenario ↔ tasks 场景引用，v2.3.0）
 """
 
+import re
 from pathlib import Path
 
 from specpowers_cli.bridge.core.errors import FatalError
@@ -14,6 +16,11 @@ from specpowers_cli.bridge.core.git_util import (
     log_merges, log_authors_count, log_grep_feature,
     diff_stat,
 )
+
+# delta spec 中 Scenario 标题的匹配模式（OpenSpec delta 格式：#### Scenario: <名>）
+_SCENARIO_HEADING_RE = re.compile(r"^####\s+Scenario:\s*(.+?)\s*$", re.MULTILINE)
+# tasks.md 场景引用行（propose 契约固定字段：- 场景引用：<Scenario 名 + WHEN-THEN 原文摘录>）
+_SCENARIO_REF_RE = re.compile(r"场景引用[:：](.*)")
 
 
 def is_feature_archived(root: Path, feature: str) -> bool:
@@ -58,6 +65,61 @@ def change_summary_input(root: Path, base: str | None = None) -> str:
     The agent uses this to produce a 3-5 sentence description.
     """
     return diff_stat(root, base)
+
+
+def scenario_coverage(root: Path, feature: str) -> dict:
+    """核查 delta spec 的每个 Scenario 是否至少被一个任务的「场景引用」覆盖。
+
+    「规范即验收标尺」（OpenSpec 第三原则）的确定性兜底：propose 契约要求
+    tasks.md 每个 Task 带「场景引用」字段，propose 第七步自审核为提示词层
+    自查，本函数在 archive 归档前把「每个 Scenario 至少被一个任务引用」
+    升级为可校验的结构断言。
+
+    匹配规则（宽松，防误报）：Scenario 名出现在任一「场景引用：」行文本中
+    即算覆盖；引用行没写全名时再查 tasks.md 全文兜底（迭代轮可能把引用写进
+    其他字段或自由措辞）。
+
+    Returns:
+        {"total": int, "covered": int, "uncovered": [str], "status": str}。
+        status 取值：
+        - "pass"      全覆盖（或无 Scenario——fast 模式 delta 为验收清单 /
+                      change 尚无 delta，均跳过校验）
+        - "partial"   存在未覆盖场景（提示不阻断，archive 只转人工不打回）
+        - "no_tasks"  有场景但 tasks.md 缺失（异常产物，同样提示不阻断）
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    change_dir = root / "openspec" / "changes" / feature
+    if not change_dir.exists():
+        return {"total": 0, "covered": 0, "uncovered": [], "status": "pass"}
+
+    # 收集全部 capability 的 delta spec 场景名（change 可含多个 capability）
+    scenarios: list[str] = []
+    for spec_path in sorted(change_dir.glob("specs/*/spec.md")):
+        text = spec_path.read_text(encoding="utf-8")
+        scenarios.extend(m.strip() for m in _SCENARIO_HEADING_RE.findall(text))
+    if not scenarios:
+        return {"total": 0, "covered": 0, "uncovered": [], "status": "pass"}
+
+    tasks_path = change_dir / "tasks.md"
+    if not tasks_path.exists():
+        return {
+            "total": len(scenarios), "covered": 0,
+            "uncovered": list(scenarios), "status": "no_tasks",
+        }
+
+    tasks_text = tasks_path.read_text(encoding="utf-8")
+    ref_lines = [m.group(1) for m in _SCENARIO_REF_RE.finditer(tasks_text)]
+    uncovered = [
+        name for name in scenarios
+        if not any(name in line for line in ref_lines) and name not in tasks_text
+    ]
+    return {
+        "total": len(scenarios),
+        "covered": len(scenarios) - len(uncovered),
+        "uncovered": uncovered,
+        "status": "pass" if not uncovered else "partial",
+    }
 
 
 def prepare_openspec_archive(root: Path, feature: str, state: dict,
