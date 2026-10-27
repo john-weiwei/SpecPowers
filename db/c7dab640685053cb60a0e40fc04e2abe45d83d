@@ -1,0 +1,130 @@
+plugins/specpowers/.claude-plugin/plugin.json
+  s_b7d304f4bfff9b::t_94723912f03186 3
+plugins/specpowers/skills/specpowers/templates/constitution-template.md
+  s_d24d5272ea6ec9::t_a0d9e0e3474195 32-36
+  s_d24d5272ea6ec9::t_f58fa2fd2ec7f3 5
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_b7d304f4bfff9b::t_94723912f03186 3
+README.md
+  s_b7d304f4bfff9b::t_b774bec62fd4e3 287,291
+  s_b7d304f4bfff9b::t_5d0b73a834d069 7
+  s_b7d304f4bfff9b::t_78a8f517b336f5 14
+  s_d24d5272ea6ec9::t_759ef58fd169da 303
+  s_b7d304f4bfff9b::t_314b9b122b321a 302
+  s_d24d5272ea6ec9::t_ea1066841b6740 228-243
+  s_b7d304f4bfff9b::t_f9f7f867297e11 68,73
+  s_b7d304f4bfff9b::t_9946a2c295d05c 180-183
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_b7d304f4bfff9b::t_fe10fbc6d08845 60
+tests/test_archive_auditor.py
+  s_d24d5272ea6ec9::t_b710a4da13aa57 73-74,158-159
+  s_d24d5272ea6ec9::t_d5b5901180f0f6 75-157,160-171
+plugins/specpowers/plugin.json
+  s_b7d304f4bfff9b::t_94723912f03186 4
+plugins/specpowers/skills/specpowers-review/references/review-guidelines.md
+  s_b7d304f4bfff9b::t_ccff7715d253ab 5-10,32,52,129,153,159,166-167,171-173
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_b7d304f4bfff9b::t_94723912f03186 3
+.codebuddy-plugin/marketplace.json
+  s_b7d304f4bfff9b::t_9538d47ed54417 16
+plugins/specpowers/skills/specpowers/prompts/refs/auto-review.md
+  s_b7d304f4bfff9b::t_141ac07217769a 1-62
+tests/test_facade.py
+  s_d24d5272ea6ec9::t_c2f072db3c1b74 239-284
+plugins/specpowers/skills/specpowers/prompts/apply.md
+  s_d24d5272ea6ec9::t_df5fc7434f3cec 85
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_b7d304f4bfff9b::t_d69c34e756d592 4,10,14-17,19,26,28-30,33,35,39-51,55,61,65,67,70,72,74,78-85,87,93,97
+tests/test_builtin_skills.py
+  s_b7d304f4bfff9b::t_1c0256fd45091e 12-17,48-61
+  s_b7d304f4bfff9b::t_6f696abe7a1c57 108-140
+  s_bbdd77f4efce9c::t_1ebb60229d1b0f 62
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_b7d304f4bfff9b::t_94723912f03186 3
+plugins/specpowers/skills/specpowers-review/SKILL.md
+  s_b7d304f4bfff9b::t_5ec10ccdf5296f 40
+  s_b7d304f4bfff9b::t_62b6d8998d79a0 94
+  s_d24d5272ea6ec9::t_a679b9cba0f6b5 44-45
+  s_b7d304f4bfff9b::t_d014d08aa78ba8 73-74,78-79,81
+  s_bbdd77f4efce9c::t_84699f387a771b 120
+plugins/specpowers/skills/specpowers/prompts/explore.md
+  s_d24d5272ea6ec9::t_02c38598ab6f58 56-58
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_d24d5272ea6ec9::t_73701c822fc99e 255
+plugins/specpowers/skills/specpowers/prompts/refs/auto-explore-halt.md
+  s_b7d304f4bfff9b::t_4885ebfd82b7f0 1-17
+plugins/specpowers/.codex-plugin/plugin.json
+  s_b7d304f4bfff9b::t_94723912f03186 3
+plugins/specpowers/skills/specpowers-review/references/dataflow-tracking.md
+  s_b7d304f4bfff9b::t_980b3c19d571cc 1-54
+plugins/specpowers/skills/specpowers/prompts/refs/auto-adjudication.md
+  s_b7d304f4bfff9b::t_8d54c211a05703 1-23
+plugins/specpowers/skills/specpowers-review/references/codex-origin.md
+  s_b7d304f4bfff9b::t_887cbbfac692e3 1-39
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_d24d5272ea6ec9::t_e47ccca2029063 66
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_d24d5272ea6ec9::t_6ea52e79e96f8d 733-746
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_d24d5272ea6ec9::t_d9da884753e4da 394-405
+.claude-plugin/marketplace.json
+  s_b7d304f4bfff9b::t_94723912f03186 13
+pyproject.toml
+  s_b7d304f4bfff9b::t_94723912f03186 3
+docs/GETTING-STARTED.md
+  s_b7d304f4bfff9b::t_2d595dcc3f8c52 51
+  s_b7d304f4bfff9b::t_579b7553169d05 311
+  s_b7d304f4bfff9b::t_2a6eb29a0d1c84 10
+  s_b7d304f4bfff9b::t_2fbb18519816db 329
+  s_b7d304f4bfff9b::t_50dbd190257a86 317
+  s_b7d304f4bfff9b::t_41ca031f888503 106
+plugins/specpowers/skills/specpowers/prompts/init.md
+  s_d24d5272ea6ec9::t_55ffbeec60ee9d 79
+  s_d24d5272ea6ec9::t_f1f35c13776e14 27,29
+  s_d24d5272ea6ec9::t_fa643448b7837b 48
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_b7d304f4bfff9b::t_815346f5b357ee 14-15,19-20,25-35,51,59,62,66,70,92,111,114,144,146,149-150,167-177
+marketplace.json
+  s_b7d304f4bfff9b::t_94723912f03186 13
+plugins/specpowers/skills/specpowers/prompts/refs/auto-iteration.md
+  s_b7d304f4bfff9b::t_50de149153495d 1-48
+plugins/specpowers/skills/specpowers-review/references/method-review.md
+  s_b7d304f4bfff9b::t_ad297d7e37b91f 1-61
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/archive_auditor.py
+  s_d24d5272ea6ec9::t_fa3165c7dd5e07 70-122
+  s_d24d5272ea6ec9::t_3d0058174d9cee 8,11,20-23
+  s_d24d5272ea6ec9::t_ecba0531b40472 24
+  s_d24d5272ea6ec9::t_2a6fe8ac153267 68-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dbc7dab640685053cb60a0e40fc04e2abe45d83d",
+  "prompts": {},
+  "sessions": {
+    "s_b7d304f4bfff9b": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "session_c7869a8732753d2895f5619e66a7fa71",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_bbdd77f4efce9c": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "session_aea472c067654aac1aa0b267a7252a95",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_d24d5272ea6ec9": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_a38cbefe-85a7-465d-88d5-3ba69822b103",
+        "model": "unknown"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
