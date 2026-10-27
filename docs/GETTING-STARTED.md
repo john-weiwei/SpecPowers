@@ -266,9 +266,11 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 
 ```
 ┌──────────────────────────────────────┐
-│  认知层 (SKILL.md + 7 prompts/)      │  ← agent 加载执行
-│  init / explore / propose /          │
-│  apply / archive (+fast/auto)        │
+│  认知层 (11 skills + 7 prompts/)     │  ← agent 加载执行
+│  主技能（路由层）+ 9 个阶段技能      │
+│  init/explore/propose/apply/archive/ │
+│  fast/auto/baseline/reset（薄入口）  │
+│  + review 审查技能                   │
 ├──────────────────────────────────────┤
 │  确定性层 (Python, 仅 stdlib)        │  ← skill 通过 Bash 调用
 │  facade → dispatcher                 │
@@ -278,7 +280,7 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 └──────────────────────────────────────┘
 ```
 
-- **认知层**：纯 Markdown 指令集，作为 skill 插件被 agent 加载
+- **认知层**：纯 Markdown 指令集——主技能（路由层 + prompts/ + templates/）、9 个阶段技能（薄入口：slash 名即技能名，加载主技能上下文后跟随 `prompts/<stage>.md` 契约）、review 审查技能（探索引擎细则内联于 explore 契约，不以技能形态暴露），作为 skill 插件被 agent 加载
 - **确定性层**：Python 内部 helper，执行基线扫描、状态机、文件锁、git 操作等确定逻辑
 
 ---
