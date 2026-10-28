@@ -1,0 +1,19 @@
+pyproject.toml
+  s_0ebf76836e7dce::t_51cbde71c0dcce 45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9e1b55dc3e216f0b6c6bac5fdaadb7656863be4",
+  "prompts": {},
+  "sessions": {
+    "s_0ebf76836e7dce": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "session_52076beda3e1c1c9d9db2675052cc06a",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
