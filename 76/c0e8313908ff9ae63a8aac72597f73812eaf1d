@@ -1,0 +1,22 @@
+docs/GETTING-STARTED.md
+  s_0ebf76836e7dce::t_58b61acf9b26d8 4,126,149,153,253
+README.md
+  s_0ebf76836e7dce::t_58b61acf9b26d8 24,92,115
+  s_0ebf76836e7dce::t_d5c9bcd394e969 184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76c0e8313908ff9ae63a8aac72597f73812eaf1d",
+  "prompts": {},
+  "sessions": {
+    "s_0ebf76836e7dce": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "session_52076beda3e1c1c9d9db2675052cc06a",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
