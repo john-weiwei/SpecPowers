@@ -42,7 +42,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 # 插件化后 specpowers_cli 包位于 plugins/specpowers/scripts/ 下。
 # packages 指向包根，会自动包含 bridge/、bin/ 子目录及其中的 .py 和非 .py 文件。
-# commands/ 和 skills/ 不打进 wheel（它们走插件市场分发，pip 安装场景用 specpowers init 生成）。
+# skills/ 不打进 wheel（走插件市场分发，pip 安装场景用 specpowers init 生成 rules）。
 packages = ["plugins/specpowers/scripts/specpowers_cli"]
 
 [tool.pytest.ini_options]
