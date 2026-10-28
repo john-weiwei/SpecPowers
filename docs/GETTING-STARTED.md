@@ -1,7 +1,7 @@
 # SpecPowers 完整指南(Getting Started)
 
 > 本文档是 SpecPowers 的**完整使用指南**(由原 README 全文迁移而来),涵盖安装、前置依赖、流水线详解、四条路径对比、apply 阶段详解、架构、项目结构与团队协作。
-> 日常速览(安装 + 核心命令 + 升级)请看仓库根 [README.md](../README.md)。
+> 日常速览(安装 + 核心入口 + 升级)请看仓库根 [README.md](../README.md)。
 
 > 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加**结构一致性门禁**与**实时卡转人工**。
 
@@ -123,7 +123,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 引擎内置于 explore 契约、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
-**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑命令；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
 
 手动确认（可选）：
 ```bash
@@ -146,11 +146,11 @@ openspec --version          # OpenSpec CLI 可用性
 
 agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpowers/constitution.md`（插件自包含，无需外部依赖），并扫描项目结构生成 `.specpowers/baseline.json`。
 
-> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用本命令。
+> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用 `/specpowers-init`。
 
 ### 2. 启动特性开发
 
-| 场景 | 命令 |
+| 场景 | 入口 |
 |------|------|
 | 需要探索 | `/specpowers-explore "需求"` |
 | 直接开写 | `/specpowers-propose "需求"` |
@@ -250,7 +250,7 @@ apply 启动时比对 `git diff`，两道检查：
 
 SpecPowers 支持两类安装方式，按你的 agent 选择：
 
-| Agent | 安装方式 | 命令调用 |
+| Agent | 安装方式 | 入口调用 |
 |-------|---------|---------|
 | **ZCode** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | **Claude Code** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |

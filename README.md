@@ -21,7 +21,7 @@ SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引�
 
 SpecPowers 支持两类安装方式，按你的 agent 选择：
 
-| Agent | 安装方式 | 命令调用 |
+| Agent | 安装方式 | 入口调用 |
 |-------|---------|---------|
 | **ZCode** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | **Claude Code** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
@@ -89,7 +89,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 引擎内置于 explore 契约、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
-**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑命令；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
 
 手动确认（可选）：
 ```bash
@@ -112,7 +112,7 @@ openspec --version          # OpenSpec CLI 可用性
 
 agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpowers/constitution.md`（插件自包含，无需外部依赖），并扫描项目结构生成 `.specpowers/baseline.json`。
 
-> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用本命令。
+> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用 `/specpowers-init`。
 
 ### 2. 启动特性开发
 
@@ -181,7 +181,7 @@ apply 启动时比对 `git diff`，两道检查：
 
 ### 💡 省 token 建议
 
-各阶段产物**全部落盘**（`state.json` + `openspec/changes/`），阶段间不依赖对话记忆——因此人工模式推荐**每阶段完成即开新会话**再触发下一条命令：长会话中上下文逐轮累积并重复计费，是 token 消耗的主因；新会话只加载当阶段契约，会话启动探测（v2.3.0）会自动提示续跑命令，跨机接管同样支持。`/specpowers-auto` 无人值守模式例外（单会话直通是其设计）。此外，v2.3.1 起契约已分层按需加载（auto 迭代轮 / review 编排等低频细则不再预载入上下文）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，建议同一需求内避免频繁切换模型。
+各阶段产物**全部落盘**（`state.json` + `openspec/changes/`），阶段间不依赖对话记忆——因此人工模式推荐**每阶段完成即开新会话**再触发下一条命令：长会话中上下文逐轮累积并重复计费，是 token 消耗的主因；新会话只加载当阶段契约，会话启动探测（v2.3.0）会自动提示续跑入口，跨机接管同样支持。`/specpowers-auto` 无人值守模式例外（单会话直通是其设计）。此外，v2.3.1 起契约已分层按需加载（auto 迭代轮 / review 编排等低频细则不再预载入上下文）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，建议同一需求内避免频繁切换模型。
 
 ---
 
