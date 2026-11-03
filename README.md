@@ -4,14 +4,14 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.4.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.5.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
 - **结构一致性门禁** — AI 写代码不能"无中生有"建目录/加依赖
 - **实时卡转人工** — 遇到不确定性立刻暂停等人工判定，不静默跳过
 
-> 🧪 **质量保障**：294 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
+> 🧪 **质量保障**：305 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
 
 > 📖 **完整指南**：前置依赖详解、四条路径对比、架构、项目结构等完整内容见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)。
 
@@ -65,12 +65,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.4.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.4.0
+# → SpecPowers CLI v2.5.1
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -90,6 +90,8 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 引擎内置于 explore 契约、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
 **自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
+
+**WorkBuddy 技能行为异常时先验 CLI 可达**（v2.5.1）：确定性层命令（状态跃迁/设计文档登记）经 `python -m specpowers_cli.bridge.facade <子命令>` 调用，包不可达时改用包装脚本（pip 安装形态位于 `.workbuddy/skills/specpowers/bin/specpowers.bat`，插件市场形态位于插件目录 `scripts/specpowers_cli/bin/`，详见主技能 SKILL.md「执行方式」节）；CLI 不可达时未初始化拦截、propose 登记校验等确定性兜底全部缺位，症状即技能"不守约"——先执行 `specpowers.bat status --root .` 确认 CLI 正常，再检查技能正文是否为 v2.5.1+（跨端契约定位与 explore 硬性产出契约自该版本起生效）。
 
 手动确认（可选）：
 ```bash
@@ -111,6 +113,8 @@ openspec --version          # OpenSpec CLI 可用性
 ```
 
 agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpowers/constitution.md`（插件自包含，无需外部依赖），并扫描项目结构生成 `.specpowers/baseline.json`。
+
+> **忘了先 init？没关系（v2.5.0 起）**：直接调用 `/specpowers-explore` / `/specpowers-propose` / `/specpowers-fast` / `/specpowers-apply` / `/specpowers-archive` 时，技能会先检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json`——任一缺失即告知你并自动执行上面的初始化流程，完成后带着原输入继续目标阶段；确定性层在命令入口同步兜底，未初始化不会静默劣化（如 propose 读不到 constitution 自行编原则）。显式 `/specpowers-init` 仍是最推荐的开局方式（可第一时间确认项目原则再开工）。
 
 > pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用 `/specpowers-init`。
 
@@ -286,11 +290,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.4.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.4.0
+# → SpecPowers CLI v2.5.1
 
 # 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
 cd my-project
@@ -301,6 +305,8 @@ specpowers init --force
 
 | 版本 | 变更内容 |
 |------|---------|
+| v2.5.1 | **跨端契约遵从修复（WorkBuddy 上 explore 不展示方案/连环提问/不落盘设计文档的根因治理）**：① 契约文件定位修复——9 个阶段技能正文统一写明主技能目录真实位置（兄弟目录定位句 + 插件市场 `${PLUGIN_ROOT}` 四端变量含 WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}` + pip 形态 `<skills_root>` 路径示例 + Glob 兜底搜索句），消除裸相对路径 `prompts/<stage>.md` 在不级联加载主技能上下文的宿主上的断链（此前仅 specpowers-init 写明位置）；② explore 硬性产出契约前置——`specpowers-explore` 新增「硬性产出契约（HARD DELIVERABLES）」节，契约文件不可读时四条底线仍成立（静默探索禁止逐个提问循环/方案统一维度对比表+唯一推荐必须展示在对话中/设计文档必须 Write 落盘 `docs/specpowers/design/`/落盘后必须 record-design-doc 登记），并修正正文第 3 步无限定鼓励提问的反向误导措辞（改为"仅不可逆决策在结论后一次性批量提问，默认不打断"）；③ 主技能 CLI fallback 补全——「执行方式」节补 pip 安装形态包装脚本路径（`<skills_root>\specpowers\bin\specpowers.bat`，如 WorkBuddy `.workbuddy\skills\specpowers\bin\`）与 WorkBuddy 变量条目，消除 pip 形态下 `python -m` 失败无 fallback 可循的断点；④ 确定性层增强——check-deps 环境变量兜底链补读 `CODEBUDDY_PLUGIN_ROOT`（为后续 WorkBuddy hooks 实测铺路），record-design-doc 登记 advisory 段头检查（缺「## 方案对比」/「## 详细设计」段头警告不阻断，给空壳文档留可追溯信号，不误伤项目自有设计文档约定）；⑤ **pip 安装器断链修复**——`specpowers init --integration <agent>` 的技能拷贝段仍指向 v2.4.0 已删除的 commands/ 目录（`commands_dir.exists()` 恒为 False 静默跳过），pip 形态下 9 个阶段技能从未被安装（WorkBuddy pip 用户没有任何阶段入口）——改为直接整目录拷贝 `skills/specpowers-*`（9 阶段技能 + 内置 review，与插件市场 11 技能集合一致），删除 commands 时代死代码（`_get_commands_dir`/`_with_skill_name`）；⑥ **bin 包装脚本 cp936 兼容修复**——`specpowers.bat` 的 UTF-8 中文注释在中文 Windows 默认代码页（cp936）下被 cmd 错误解码、命令拆分错乱导致整个脚本无法执行（WorkBuddy 上 CLI fallback 直接崩），全文件改 ASCII-only；⑦ 测试新增防回潮断言（9 技能主技能目录定位锚点 + 7 契约技能 Glob 兜底句 + explore 硬产出锚点）与 advisory 两用例，新建 tests/test_installer.py 安装器产物完整性测试（11 技能集合/定位链闭合/bat ASCII-only），README 补 WorkBuddy CLI 可达性排查指引，用例数同步 305 |
+| v2.5.0 | **初始化前置自动补跑（新用户不 init 直接开工不再静默劣化）**：① 5 个流水线薄入口技能（explore/propose/apply/archive/fast）Outline 统一加第 0 步「Init check first」——`.specpowers/constitution.md` 与 `baseline.json` 任一缺失 = 未初始化，告知用户后自动加载 `prompts/init.md` 完整执行 specpowers-init，再带着原输入继续目标技能（auto 编排本就内置 init、baseline/reset/init 为维护或初始化动作不适用）；② 确定性层兜底——dispatcher route 入口新增 `_check_initialized`（位于 transition 校验与锁之前）：未初始化时五阶段命令直接拒绝并给出「Run /specpowers-init first」可执行指引，替代原含糊的 "Valid from stages: ready" 报错（`_handle_fast` 内部 baseline 硬门禁因被统一覆盖而移除）；③ 契约措辞同步——explore.md「stage=init 时提示先跑 init」与 fast_mode.md「缺则拒绝」升级为自动补跑语义，主技能 SKILL.md「执行方式」新增「初始化前置」全局规则；④ 测试新增 route 层未初始化三用例（五阶段拦截给指引 / init·baseline·reset 放行 / 已初始化项目正常进入 transition 校验）与薄入口第 0 步防回潮断言，README/GETTING-STARTED 快速开始补「忘了先 init」说明，用例数同步 298 |
 | v2.4.0 | **命令转技能：四端入口统一 + 探索引擎并入 explore 契约**（slash 调用名零破坏，`prompts/` 分层契约与确定性层逻辑零改动）：① 9 条阶段命令全部转为阶段技能（`skills/specpowers-<stage>/`，共 11 个技能），ZCode/Claude/CodeBuddy 三端清单删 `commands` 键，Codex 端从「无命令入口」变为 9 个显式技能直调（四端统一）；技能 description 统一精简为动词开头 ≤25 词（技能列表常驻系统提示的必修课），模型可经 Skill 工具自主调度阶段（auto 编排、resume 探测提示后直接续跑），并按描述语义反向建议入口（说「小改动」建议 fast、说「卡了」建议 reset）；② 探索引擎细则（四步流程/必须做禁止做规则表/方案对比·设计文档·探索结论三模板）内联并入 `prompts/explore.md` 第一步（HARD-GATE 措辞改为「必须完整执行」），删除引擎独立技能目录——11 个技能全部为用户可用入口，无内部单元以技能身份暴露，token 不增反降（省去技能包装开销约 30 行）；③ `prompts/auto.md` 编排第 3 步改为「经 explore 契约（含探索引擎细则）执行」；④ 测试新增阶段技能完整性断言（frontmatter name=目录名/契约引用不断链/无 $ARGUMENTS·handoffs·allowed-tools 残留/description 动词开头）与防回潮断言（commands/ 目录不存在、三端清单无 commands 键、skills/ 目录集合恰 11 个无 -engine 残留、explore.md 引擎细则锚点防误删、插件本体与用户文档无「内置 specpowers-explore 技能」残留表述），README 快速开始强化四入口引导（新用户只需理解一个决策点），README/GETTING-STARTED 用例数同步 294 |
 | v2.3.1 | **token 消耗优化（契约分层按需加载，流程与产物零变更）**：① `prompts/auto.md`（30KB→14KB）拆出四份按需加载细则 `prompts/refs/`（迭代轮编排 `auto-iteration.md` / review 编排与归档收口 `auto-review.md` / 完整裁决规则表 `auto-adjudication.md` / explore 停靠 `auto-explore-halt.md`），fresh 主路径只载主契约，主契约保留精简裁决原则与按需加载索引；② review 审查规则唯一来源 `references/review-guidelines.md`（15.6KB→10KB）同样分层——Pass 4 跨文件数据流细则 `dataflow-tracking.md` 命中触发条件才加载、单方法调用链穿透细则 `method-review.md` 仅单方法模式加载、Codex 英文溯源移 `codex-origin.md` 不进执行上下文，review SKILL.md 同步引用；③ 主 SKILL.md（11KB→6KB）瘦身为路由层（合并「三个概念/三个开关」入命令参考、契约文件表一句话化）；④ auto 路径下 propose 优先消费 `auto_base.json` 八要素 `parsed` 字段，不全文重读设计文档（数据流章节仍按需回查）；⑤ 文档新增「省 token 建议」（人工模式推荐阶段间开新会话 + prompt 缓存提示）；⑥ 新增契约分层资源完整性测试（refs/ 与 review references/ 细则防误删 + 主契约引用防断链），README/GETTING-STARTED 用例数同步 286 |
 | v2.3.0 | 门禁与续跑双增强（借鉴 Comet 的任务级路径门禁与 resume-probe 机制，落地为本仓库确定性实现）：① apply 结构门禁新增**修改范围比对**——propose 在 tasks.md 顶部注释块声明「修改范围：」路径前缀，gate 输出附 scope 比对结果，越界文件转人工（迭代轮取各轮声明并集，声明缺失 undeclared 兼容旧产物，流水线工件豁免）；② **活跃需求探测（ambient resume）**——SessionStart hook 顺带只读探测未完成流水线 / auto 断点 / 未归档 change，首条回复提示续跑命令，零活跃零噪音（bridge 新增只读子命令 resume-probe，探测绝不写状态、异常静默降级）；③ 修复 bin/specpowers 对 Windows 商店 python3 stub 的误判（command -v 命中假解释器导致包装脚本恒败，改用最小指令验证）；gate 命令新增 git_util.diff_name_only（core.quotepath=off 保中文路径）；④ **archive 场景覆盖核查**（规范即验收标尺）——归档前确定性校验 delta spec 每个 `#### Scenario:` 至少被一个任务的「场景引用」覆盖（新增 archive_auditor.scenario_coverage，宽松匹配防误报，fast 无场景自动跳过，提示不阻断不打回）；⑤ **gate 判定报告落盘**（借鉴 RTK recall 句柄）——有结构信号或越界改动时完整判定 JSON 落盘 `.specpowers/reports/`，输出附 report 句柄路径，人机按路径回查明细；⑥ constitution 模板新增可选「实现倾向」段（借鉴 Ponytail 七层决策阶梯，防过度工程原则可判定化）；⑦ explore/review 契约新增检索工具优先提示（项目已装 codegraph 类检索 MCP 时优先使用，避免盲目 grep） |

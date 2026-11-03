@@ -9,7 +9,7 @@ description: 刷新结构基线——重扫顶层目录、依赖清单与源码�
 
 ## Outline
 
-Load the specpowers skill context, then run:
+Load the specpowers skill context (`SKILL.md`) — it lives in the **main skill directory `specpowers/`**, a sibling of this stage skill (插件市场 `${PLUGIN_ROOT}/skills/specpowers/`；pip 安装 `<skills_root>/specpowers/`，如 WorkBuddy `.workbuddy/skills/specpowers/`) — then run:
 
 ```bash
 python -m specpowers_cli.bridge.facade baseline --root .

@@ -309,6 +309,31 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
     }
 
 
+def _check_initialized(root: Path, stage: str):
+    """未初始化项目兜底：流水线阶段要求 constitution.md 与 baseline.json 存在。
+
+    任一缺失 = 项目从未执行过 /specpowers-init。阶段薄入口技能（SKILL.md
+    第 0 步）已主动检测并自动补初始化，此处是确定性层兜底——防模型跳过
+    第 0 步时给出可执行指引，而非含糊的 transition 报错（"Valid from
+    stages: ready" 对新用户不可操作）。init/baseline/reset/auto/iterate
+    不查：init 自身创建产物，baseline/reset 为维护动作，auto 编排已内置
+    init 步骤。
+    作者：005819 | 协作：GLM-5.3
+    """
+    if stage not in ("explore", "propose", "fast", "apply", "archive"):
+        return
+    missing = [
+        name for name in ("constitution.md", "baseline.json")
+        if not (root / ".specpowers" / name).exists()
+    ]
+    if missing:
+        raise FatalError(
+            "Project not initialized (missing: " + ", ".join(missing) + "). "
+            "Run /specpowers-init first — 模型读到本错误时自动转执行 specpowers-init，"
+            "完成后重试原命令。"
+        )
+
+
 def _check_prerequisites(root: Path):
     """Verify git prerequisites before any operation."""
     if not is_git_repo(root):
@@ -653,12 +678,9 @@ def _handle_fast(root: Path, extra: dict) -> int:
 
     _check_prerequisites(root)
 
-    # Check constitution/baseline exist (hard gate for fast mode)
-    baseline_path = root / ".specpowers" / "baseline.json"
-    if not baseline_path.exists():
-        raise FatalError(
-            "Baseline not found. Run /specpowers-init first."
-        )
+    # constitution/baseline 存在性硬门禁已上移至 route 入口的 _check_initialized
+    # （未初始化统一兜底，v2.5.0），fast 内不再单独检查
+    # 作者：005819 | 协作：GLM-5.3
 
     # Feature 锁定：优先复用已有 feature，仅空时才 normalize
     existing_feature = state.get("feature", "")
@@ -997,7 +1019,9 @@ def _handle_record_design_doc(root: Path, extra: dict) -> int:
     explore 阶段认知层落盘设计文档（docs/specpowers/design/）后调用，
     把路径写入 state.design_doc。propose 从 explore 进入时确定性层校验非空且文件存在，
     形成防架空链：explore 必须真实探索 → propose 必须承接设计文档。
-    只登记不校验内容质量（认知层职责），但校验文件存在（防登记空指针）。
+    只登记不校验内容质量（认知层职责），但校验文件存在（防登记空指针）；
+    v2.5.1 起附带 advisory 段头检查——缺「## 方案对比」/「## 详细设计」段头
+    仅输出警告不阻断（项目自有设计文档约定可能不含这些章节，阻断会误伤）。
 
     作者：005819 | 协作：GLM-5.3
     """
@@ -1013,6 +1037,21 @@ def _handle_record_design_doc(root: Path, extra: dict) -> int:
             f"设计文档 '{design_doc}' 不存在，拒绝登记。"
             "请先经 explore 契约（探索引擎细则）落盘设计文档后再登记"
         )
+
+    # advisory 章节检查：模板必备段头缺失时警告，给"空壳/占位文档"留下可追溯信号
+    required_sections = (
+        ("方案对比", r"^##\s*方案对比"),
+        ("详细设计", r"^##\s*详细设计"),
+    )
+    try:
+        content = path.read_text(encoding="utf-8")
+        missing = [name for name, pattern in required_sections if not re.search(pattern, content, re.MULTILINE)]
+        if missing:
+            missing_label = "、".join(f"「## {name}」" for name in missing)
+            print(f"警告（advisory，登记已生效）：设计文档疑似缺章节 {missing_label}——"
+                  "请按 prompts/explore.md 设计文档模板补全后再提交 propose")
+    except OSError as e:
+        print(f"警告（advisory）：设计文档内容读取失败，跳过章节检查：{e}")
 
     state = load_state(root)
     state["design_doc"] = design_doc
@@ -1072,6 +1111,10 @@ def route(stage: str, root: Path, extra: dict | None = None) -> int:
     state_path = specpowers_dir / "state.json"
     if not state_path.exists():
         init_state(root)
+
+    # 未初始化兜底须在 lock 之前：报错即返回，不占锁不留锁残留
+    # 作者：005819 | 协作：GLM-5.3
+    _check_initialized(root, stage)
 
     # Acquire lock (except for reset which bypasses lock)
     # acquire_lock 成功返回 True，失败抛 LockAcquireError(FatalError 子类)

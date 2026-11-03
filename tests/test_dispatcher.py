@@ -5,6 +5,8 @@
   VALID_TRANSITIONS 无 "fast" 键而拒绝所有合法调用，导致 /specpowers-fast 不可用）
 - reset 保留 fallback_count
 - normalize_feature 中文/英文/边界
+- 未初始化兜底（v2.5.0）：route 入口五阶段统一拦截给 init 指引、
+  init/baseline/reset 放行、已初始化项目正常进入 transition 校验
 
 作者：005819 | 协作：GLM-5.2
 """
@@ -93,6 +95,67 @@ def test_handle_fast_from_apply_rejected(tmp_path):
     # 从 apply 启动 fast 应被拒绝
     with pytest.raises(StateError):
         _handle_fast(root, {"requirement": "fix typo"})
+
+
+# ---- 未初始化兜底（v2.5.0 初始化前置） ----
+
+def test_route_uninitialized_rejected_with_init_hint(tmp_path):
+    """未初始化项目跑流水线阶段命令应被 route 入口拒绝并给出 init 指引。
+
+    兜底在 _validate_transition 之前：报错语义是「未初始化」而非「非法跃迁」，
+    指引含 /specpowers-init（模型读到后自动转执行初始化再重试原命令）。
+    """
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.errors import FatalError
+
+    root = _create_temp_git_repo(tmp_path)
+    with pytest.raises(FatalError) as exc_info:
+        route("explore", root, {"requirement": "新需求"})
+    message = str(exc_info.value)
+    assert "not initialized" in message
+    assert "/specpowers-init" in message
+    assert "constitution.md" in message and "baseline.json" in message
+
+
+def test_route_uninitialized_applies_to_all_pipeline_stages(tmp_path):
+    """五个流水线阶段统一兜底；init/baseline/reset 不拦（维护或初始化动作）。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.errors import FatalError
+
+    root = _create_temp_git_repo(tmp_path)
+    with_args = {"explore", "propose", "fast"}
+    for stage in ("explore", "propose", "fast", "apply", "archive"):
+        extra = {"requirement": "新需求"} if stage in with_args else {}
+        with pytest.raises(FatalError, match="not initialized"):
+            route(stage, root, extra)
+
+    assert route("init", root, {}) == 0
+    assert route("baseline", root, {}) == 0
+    assert route("reset", root, {}) == 0
+
+
+def test_route_initialized_project_passes_init_check(tmp_path):
+    """已初始化项目（两产物齐）不触发兜底，正常进入后续 transition 校验。"""
+    from specpowers_cli.bridge.dispatcher import route
+    from specpowers_cli.bridge.core.errors import StateError
+    from specpowers_cli.bridge.core.fs_state import init_state, save_state
+
+    root = _create_temp_git_repo(tmp_path)
+    specpowers_dir = root / ".specpowers"
+    specpowers_dir.mkdir(exist_ok=True)
+    (specpowers_dir / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    (specpowers_dir / "baseline.json").write_text("{}", encoding="utf-8")
+    state = init_state(root)
+    state["stage"] = "ready"
+    save_state(root, state)
+
+    # 已初始化 + ready：初始化检查放行，explore 正常进入（不再抛任何错误）
+    assert route("explore", root, {"requirement": "新需求"}) == 0
+    # 已初始化但 stage=init：也不再是「未初始化」报错，而是正常 transition 校验
+    state["stage"] = "init"
+    save_state(root, state)
+    with pytest.raises(StateError):
+        route("explore", root, {"requirement": "另一个需求"})
 
 
 # ---- normalize_feature 边界回归 ----
@@ -382,6 +445,53 @@ def test_handle_record_design_doc_rejects_empty_path(tmp_path):
         _handle_record_design_doc(root, {"design_doc": ""})
 
 
+def test_handle_record_design_doc_warns_on_missing_sections(tmp_path, capsys):
+    """advisory 段头检查（v2.5.1）：缺「方案对比/详细设计」段头警告但不阻断登记。
+
+    项目自有设计文档约定可能不含模板章节，故 advisory 只警告不拒收——
+    警告为空壳/占位文档留下可追溯信号。
+    """
+    from specpowers_cli.bridge.dispatcher import _handle_record_design_doc
+    from specpowers_cli.bridge.core.fs_state import init_state, load_state
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir(exist_ok=True)
+    init_state(root)
+    design_doc = root / "docs" / "specpowers" / "design" / "d.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text("# 只有标题的空壳文档\n", encoding="utf-8")
+
+    rc = _handle_record_design_doc(root, {"design_doc": str(design_doc)})
+
+    assert rc == 0
+    assert load_state(root)["design_doc"] == str(design_doc)
+    out = capsys.readouterr().out
+    assert "advisory" in out, "缺模板段头应输出 advisory 警告"
+    assert "方案对比" in out and "详细设计" in out, "警告应点名缺失章节"
+
+
+def test_handle_record_design_doc_no_warning_on_complete_doc(tmp_path, capsys):
+    """advisory 段头检查（v2.5.1）：模板段头齐全时登记无警告。"""
+    from specpowers_cli.bridge.dispatcher import _handle_record_design_doc
+    from specpowers_cli.bridge.core.fs_state import init_state
+
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir(exist_ok=True)
+    init_state(root)
+    design_doc = root / "docs" / "specpowers" / "design" / "d.md"
+    design_doc.parent.mkdir(parents=True, exist_ok=True)
+    design_doc.write_text(
+        "# login 设计文档\n\n## 方案对比\nA vs B\n\n## 详细设计\n略\n",
+        encoding="utf-8",
+    )
+
+    rc = _handle_record_design_doc(root, {"design_doc": str(design_doc)})
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "advisory" not in out, "段头齐全不应触发 advisory 警告"
+
+
 # ---- reset 委托 reset_state 回归 ----
 
 def test_handle_reset_state_matches_default_structure(tmp_path):
@@ -468,8 +578,11 @@ def _seed_apply_stage(root: Path, feature: str = "fallback-feature") -> None:
     state["mode"] = "fast"
     state["feature"] = feature
     save_state(root, state)
-    # propose from apply 前置：constitution.md（设计文档校验仅 from explore 时触发）
-    (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    # propose from apply 前置：constitution.md + baseline.json（v2.5.0 起 route 入口
+    # 统一校验初始化产物齐全；设计文档校验仅 from explore 时触发）
+    specpowers_dir = root / ".specpowers"
+    (specpowers_dir / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    (specpowers_dir / "baseline.json").write_text("{}", encoding="utf-8")
 
 
 def test_fallback_from_apply_increments_count(tmp_path):
@@ -516,6 +629,7 @@ def test_propose_from_explore_not_counted(tmp_path):
     state["feature"] = "normal-flow"
     save_state(root, state)
     (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     design_doc = root / "docs" / "specpowers" / "design" / "2026-01-01-normal-design.md"
     design_doc.parent.mkdir(parents=True, exist_ok=True)
     design_doc.write_text("# 设计\n## 数据流\n本特性无跨链路字段\n", encoding="utf-8")

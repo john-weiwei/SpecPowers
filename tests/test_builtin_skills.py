@@ -19,6 +19,21 @@ v2.4.0 起 9 条阶段命令转为阶段技能（命令目录删除，slash 名�
     插件本体与两份用户文档无「内置 specpowers-explore 技能」残留表述
     （README 版本变更记录表中的历史条目除外）
 
+v2.5.0 起初始化前置（用户不 init 直接开工不再静默劣化），追加锁定：
+
+  - 5 个流水线薄入口（explore/propose/apply/archive/fast）含第 0 步
+    「Init check first」：constitution/baseline 任一缺失 = 未初始化，
+    自动补跑 specpowers-init 后继续原技能（auto 编排内置 init 不需要，
+    baseline/reset/init 为维护或初始化动作不适用）
+
+v2.5.1 起跨端契约遵从（WorkBuddy 读不到契约文件导致 explore 不守约），追加锁定：
+
+  - 9 个阶段技能正文必须写明主技能目录真实位置（兄弟目录定位句 +
+    双安装形态路径含 WorkBuddy .workbuddy/skills 示例），防裸相对路径回潮
+  - 7 个契约引用技能必须含契约文件 Glob 兜底搜索句（变量不可用时的最后定位手段）
+  - specpowers-explore 必须前置「硬性产出契约」节：契约文件不可读时
+    静默探索/方案对比展示/设计文档落盘登记四条底线仍成立
+
 作者：SpecPowers Team 2026-10-23（ZCode / GLM-5.3）
 """
 
@@ -108,6 +123,35 @@ EXPLORE_ENGINE_ANCHORS = [
     "探索结论输出模板",
 ]
 
+# v2.5.0 初始化前置：5 个流水线薄入口必须含第 0 步检测
+# （auto 编排内置 init 步骤不需要；baseline/reset/init 为维护或初始化动作不适用）
+INIT_CHECK_SKILLS = {
+    "specpowers-explore",
+    "specpowers-propose",
+    "specpowers-apply",
+    "specpowers-archive",
+    "specpowers-fast",
+}
+
+# v2.5.1 跨端契约定位：阶段技能必须写明主技能目录真实位置
+# （兄弟目录定位句 + pip 形态 WorkBuddy 示例路径——跨端断链修复的直接证据）
+STAGE_SKILL_LOCATION_ANCHORS = [
+    "sibling of this stage skill",
+    ".workbuddy/skills/specpowers",
+]
+
+# 契约引用技能必须含 Glob 兜底搜索句（PLUGIN_ROOT 变量不可用时的最后定位手段）
+CONTRACT_GLOB_ANCHOR = "**/specpowers/prompts/"
+
+# v2.5.1 explore 硬性产出契约锚点（WorkBuddy 等宿主读不到 prompts/explore.md 时底线仍成立）
+EXPLORE_HARD_DELIVERABLES_ANCHORS = [
+    "硬性产出契约",
+    "逐个提问",
+    "docs/specpowers/design/",
+    "不只在对话中展示",
+    "record-design-doc",
+]
+
 # 引擎技能身份的残留表述（防回潮；README 版本变更记录历史条目除外）
 BUILTIN_EXPLORE_SKILL_PHRASES = [
     "内置 specpowers-explore 技能",
@@ -173,6 +217,64 @@ def test_stage_skills_description_verb_first():
         description = _frontmatter_field(content, "description")
         assert description.startswith(verb_first_prefixes), (
             f"skills/{rel_dir}/SKILL.md description 应动词开头，实际：{description[:20]}…"
+        )
+
+
+def test_stage_skills_init_check_first():
+    """5 个流水线薄入口必须含第 0 步「Init check first」（v2.5.0 初始化前置）。
+
+    未初始化项目直接开工的场景下，薄入口是模型实际遵循的步骤清单——
+    第 0 步缺失会让 propose 读不到 constitution 时自行编原则静默劣化。
+    """
+    for rel_dir in INIT_CHECK_SKILLS:
+        content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert "**Init check first**" in content, (
+            f"skills/{rel_dir}/SKILL.md 缺少第 0 步初始化前置检查——"
+            "未初始化项目将静默劣化（自动补跑 specpowers-init 的锚点被误删）"
+        )
+        assert ".specpowers/constitution.md" in content, (
+            f"skills/{rel_dir}/SKILL.md 第 0 步未检查 constitution.md 存在性"
+        )
+        assert ".specpowers/baseline.json" in content, (
+            f"skills/{rel_dir}/SKILL.md 第 0 步未检查 baseline.json 存在性"
+        )
+
+
+def test_stage_skills_locate_main_skill_directory():
+    """v2.5.1 跨端契约定位：9 个阶段技能必须写明主技能目录真实位置。
+
+    裸相对路径（follow prompts/<stage>.md）在不级联加载主技能上下文的宿主
+    （如 WorkBuddy）上解析不到真实文件——阶段技能只拿到自身薄入口正文，
+    方案对比/落盘登记等硬规则全部丢失。定位句锚点缺失即断链回潮。
+    """
+    for rel_dir in STAGE_SKILLS:
+        content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
+        for anchor in STAGE_SKILL_LOCATION_ANCHORS:
+            assert anchor in content, (
+                f"skills/{rel_dir}/SKILL.md 缺少主技能目录定位锚点「{anchor}」——"
+                "裸相对路径在 WorkBuddy 等宿主上断链（v2.5.1 跨端修复回潮）"
+            )
+    for rel_dir in STAGE_SKILL_CONTRACTS:
+        content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert CONTRACT_GLOB_ANCHOR in content, (
+            f"skills/{rel_dir}/SKILL.md 缺少契约文件 Glob 兜底搜索句"
+            f"（{CONTRACT_GLOB_ANCHOR}）——宿主变量不可用时模型无最后定位手段"
+        )
+
+
+def test_explore_skill_hard_deliverables():
+    """v2.5.1 explore 硬性产出契约前置：契约文件不可读时四条底线仍成立。
+
+    WorkBuddy 事故根因：薄入口正文只有一行英文摘要且反向鼓励提问，
+    契约文件读不到时静默探索/方案对比/落盘登记全部丢失。
+    """
+    content = (SKILLS_ROOT / "specpowers-explore" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    for anchor in EXPLORE_HARD_DELIVERABLES_ANCHORS:
+        assert anchor in content, (
+            f"skills/specpowers-explore/SKILL.md 缺少硬性产出锚点「{anchor}」——"
+            "宿主读不到 prompts/explore.md 时产出物契约丢失（v2.5.1 修复回潮）"
         )
 
 

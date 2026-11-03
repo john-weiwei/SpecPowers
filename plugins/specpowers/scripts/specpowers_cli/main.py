@@ -100,9 +100,14 @@ def _get_assets_dir() -> Path:
     return _get_plugin_root() / "skills" / "specpowers"
 
 
-def _get_commands_dir() -> Path:
-    """Get the commands directory (<plugin_root>/commands/)."""
-    return _get_plugin_root() / "commands"
+def _get_stage_skills_source() -> Path:
+    """Get the stage-skill directories source (<plugin_root>/skills/).
+
+    v2.4.0 起 9 条阶段命令转为独立技能目录（skills/specpowers-<stage>/），
+    另含内置审查技能 specpowers-review——pip 安装直接整目录拷贝，
+    与插件市场形态的 11 技能集合保持一致。
+    """
+    return _get_plugin_root() / "skills"
 
 
 def _atomic_copytree(src: Path, dst: Path, ignore=None) -> None:
@@ -138,41 +143,15 @@ def _atomic_copytree(src: Path, dst: Path, ignore=None) -> None:
         raise
 
 
-def _with_skill_name(content: str, skill_name: str) -> str:
-    """为生成的 SKILL.md frontmatter 注入 name 属性（已有则覆盖）。
-
-    skill 规范要求 frontmatter 声明 name 且与目录名一致；
-    command 源文件只有 description，复制时在此补齐。
-    """
-    if not content.startswith("---"):
-        # 无 frontmatter：包一层只含 name 的头
-        return f"---\nname: {skill_name}\n---\n{content}"
-    lines = content.splitlines(keepends=True)
-    end = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end = i
-            break
-    if end is None:
-        # 只有起始 --- 无闭合，视为格式损坏，同样补标准头
-        return f"---\nname: {skill_name}\n---\n{content}"
-    body = lines[1:end]
-    for idx, line in enumerate(body):
-        if line.strip().startswith("name:"):
-            body[idx] = f"name: {skill_name}\n"
-            return "---\n" + "".join(body) + "".join(lines[end:])
-    return lines[0] + f"name: {skill_name}\n" + "".join(body) + "".join(lines[end:])
-
-
 def _copy_agent_files(project_dir: Path, integration: dict):
     """Copy skill files to the agent's skills directory.
 
     Creates:
       <skills_root>/specpowers/             ← main skill (SKILL.md + prompts/ + bin/)
-      <skills_root>/specpowers-<stage>/     ← 9 individual skills (SKILL.md each)
+      <skills_root>/specpowers-<stage>/     ← 10 skills (9 阶段技能 + 内置 review)
     """
     assets = _get_assets_dir()
-    commands_dir = _get_commands_dir()
+    skills_source = _get_stage_skills_source()
     skills_root = project_dir / integration["skills_root"]
 
     # 1. Main skill: specpowers/ (SKILL.md + prompts + bin)
@@ -199,18 +178,14 @@ def _copy_agent_files(project_dir: Path, integration: dict):
     if bin_source.exists():
         _atomic_copytree(bin_source, bin_target)
 
-    # 2. Individual skills: specpowers-<stage>/SKILL.md (9 skills)
-    #    命令文件已去 specpowers. 前缀（init.md 等），这里恢复成独立 skill
-    if commands_dir.exists():
-        for cmd_file in commands_dir.glob("*.md"):
-            # init.md → specpowers-init/SKILL.md
-            skill_name = f"specpowers-{cmd_file.stem}"
-            skill_dir = skills_root / skill_name
-            skill_dir.mkdir(parents=True, exist_ok=True)
-            # skill 规范要求 frontmatter 带 name 属性，command 源文件不带，复制时注入
-            content = cmd_file.read_text(encoding="utf-8")
-            with open(skill_dir / "SKILL.md", "w", encoding="utf-8", newline="") as f:
-                f.write(_with_skill_name(content, skill_name))
+    # 2. Stage skills: specpowers-<stage>/ (9 阶段技能 + 内置 review，整目录拷贝)
+    #    v2.4.0 命令转技能后源目录已带规范 frontmatter，直接拷贝即可；
+    #    旧的"从 commands/*.md 生成技能并注入 name"逻辑随 commands/ 删除而废弃
+    #    （v2.5.1 修复：此前安装器仍指向已删除的 commands/，pip 形态 9 个阶段技能从未被安装）
+    for skill_source in sorted(skills_source.glob("specpowers-*")):
+        if not skill_source.is_dir():
+            continue
+        _atomic_copytree(skill_source, skills_root / skill_source.name)
 
 
 def _copy_runtime_files(project_dir: Path, integration: dict):
@@ -306,7 +281,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"Initializing SpecPowers v{__version__}")
     print(f"  Project: {target}")
     print(f"  Agent:   {integration['name']} ({integration_name})")
-    print(f"  Skills:  {integration['skills_root']}/  (10 skills: specpowers + 9 specpowers-*)")
+    print(f"  Skills:  {integration['skills_root']}/  (11 skills: specpowers + 10 specpowers-*)")
 
     _copy_agent_files(target, integration)
     _copy_runtime_files(target, integration)

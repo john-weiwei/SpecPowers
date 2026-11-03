@@ -11,7 +11,7 @@ python -m specpowers_cli.bridge.facade fast "<需求>" --root .
 ```
 
 - 确认 stage 处于 `ready`
-- constitution.md + baseline.json 存在（硬门禁，缺则拒绝）
+- constitution.md + baseline.json 存在（未初始化时由薄入口第 0 步自动补跑 specpowers-init，确定性层兜底拒绝）
 
 ## 优化模式流水线
 

@@ -25,7 +25,7 @@
   ```
 - **确认开启**：调 `facade iterate [--instruction "<调整描述>"] --root .`（stage → `propose`、feature 锁定、`iteration_count += 1`），然后按下方「迭代轮」小节执行探索与设计文档覆盖更新；完成后提示用户 `/specpowers-propose` 做三件套增量修订
 - **选择取消**：不改任何状态，向用户说明可选步骤后结束
-- **未触发**（stage=`ready`）：正常流程——全新需求探索（stage=`init` 时提示先跑 `/specpowers-init`）
+- **未触发**（stage=`ready`）：正常流程——全新需求探索（未初始化时由薄入口第 0 步自动补跑 specpowers-init 后继续，见下方「前置校验」）
 
 ## 前置校验
 
@@ -35,7 +35,7 @@ python -m specpowers_cli.bridge.facade explore "<需求>" --root .
 
 - 确认 stage 处于 `ready`
 - feature 名已规范化并写入 state.json
-- 检查 constitution.md 存在（缺则拒绝）
+- constitution.md / baseline.json 存在性由确定性层在命令入口统一兜底：未初始化时 `facade explore` 直接拒绝并给出 init 指引（正常路径已由薄入口第 0 步先行自动补初始化，此处仅兜底）
 
 ## 执行步骤
 

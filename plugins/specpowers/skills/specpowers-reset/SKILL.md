@@ -9,7 +9,7 @@ description: 重置流水线状态——清除 state.json 与 lock 回到 ready�
 
 ## Outline
 
-Load the specpowers skill context, then run:
+Load the specpowers skill context (`SKILL.md`) — it lives in the **main skill directory `specpowers/`**, a sibling of this stage skill (插件市场 `${PLUGIN_ROOT}/skills/specpowers/`；pip 安装 `<skills_root>/specpowers/`，如 WorkBuddy `.workbuddy/skills/specpowers/`) — then run:
 
 ```bash
 python -m specpowers_cli.bridge.facade reset --root .

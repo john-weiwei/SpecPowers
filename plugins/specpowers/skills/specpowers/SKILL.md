@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.4.0
+version: 2.5.1
 ---
 
 # SpecPowers 桥接插件
@@ -63,15 +63,21 @@ python -m specpowers_cli.bridge.facade <subcommand> [--root <path>] [options]
 插件内 `specpowers_cli` 包内嵌在 `${PLUGIN_ROOT}/scripts/` 下；`python -m` 直接执行失败（包未 pip 安装）时，改用插件内包装脚本（自动设置 PYTHONPATH）：
 
 ```bash
-# Linux/macOS
+# 插件市场安装 —— Linux/macOS
 ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
-# Windows
+# 插件市场安装 —— Windows
 %PLUGIN_ROOT%\scripts\specpowers_cli\bin\specpowers.bat <subcommand> [options]
+# pip 安装（specpowers init --integration <agent>）—— 运行时包内置于主技能目录，Windows 示例
+<skills_root>\specpowers\bin\specpowers.bat <subcommand> [options]
+#   如 WorkBuddy：.workbuddy\skills\specpowers\bin\specpowers.bat
+#      Claude：   .claude\skills\specpowers\bin\specpowers.bat
 ```
 
-`PLUGIN_ROOT` 按运行环境替换：ZCode `${ZCODE_PLUGIN_ROOT}`、Claude Code `${CLAUDE_PLUGIN_ROOT}`、Codex `${PLUGIN_ROOT}`（兼容 `${CLAUDE_PLUGIN_ROOT}`）。
+`PLUGIN_ROOT` 按运行环境替换：ZCode `${ZCODE_PLUGIN_ROOT}`、Claude Code `${CLAUDE_PLUGIN_ROOT}`、Codex `${PLUGIN_ROOT}`（兼容 `${CLAUDE_PLUGIN_ROOT}`）、WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}`（兼容性待实测，变量不可用时按插件安装目录定位）。
 
 **自动读取契约强制**：Dispatcher 自动校验本阶段必读上游产物，缺必读 → 拒绝开工。如 propose 从 explore 进入时校验设计文档已登记；apply 入口校验 proposal 含「## 数据流契约」段头。
+
+**初始化前置（v2.5.0）**：任何流水线阶段技能（explore/propose/fast/apply/archive）执行前，若 `.specpowers/constitution.md` 与 `.specpowers/baseline.json` 任一缺失（= 项目未初始化），先自动执行 specpowers-init（加载 `prompts/init.md` 完整流程，含提示用户提交两产物），再带着原输入继续目标技能——用户无需记忆「先 init」，直接开工即可。确定性层在 dispatcher 入口兜底：未初始化时阶段命令直接拒绝并给出 init 指引（防认知层跳过检查）。auto 编排本就内置 init 步骤、baseline/reset/init 不受此约束。
 
 ## 契约文件（按阶段加载，不预读）
 

@@ -31,8 +31,11 @@ def _seed_ready_state(root: Path) -> None:
     state = dict(DEFAULT_STATE)
     state["stage"] = "ready"
     save_state(root, state)
-    # explore 前置检查要求 constitution.md 存在
-    (root / ".specpowers" / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    # explore 前置检查要求 constitution.md 存在；baseline.json 同为初始化产物
+    # （v2.5.0 起 route 入口统一校验，缺失会被未初始化兜底拒绝）
+    specpowers_dir = root / ".specpowers"
+    (specpowers_dir / "constitution.md").write_text("# Constitution", encoding="utf-8")
+    (specpowers_dir / "baseline.json").write_text("{}", encoding="utf-8")
 
 
 # ---------- _extract_global_options 单元测试 ----------

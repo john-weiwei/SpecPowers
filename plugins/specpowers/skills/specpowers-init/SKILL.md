@@ -11,10 +11,13 @@ description: 生成项目 constitution（质量/测试/UX/性能原则）并扫�
 
 You are running the **specpowers-init** stage skill. This is the project-initialization step — run it once per project.
 
-Load the specpowers skill context (`SKILL.md`), then follow the workflow defined in `prompts/init.md`. When the skill is installed via plugin, these files live at `${PLUGIN_ROOT}/skills/specpowers/` (ZCode/Claude/Codex 各自的 `PLUGIN_ROOT` 变量).
+Load the specpowers skill context (`SKILL.md`), then follow the contract `prompts/init.md`. Both live in the **main skill directory `specpowers/`** — a sibling of this stage skill (NOT in this skill's own directory):
+
+- 插件市场安装：`${PLUGIN_ROOT}/skills/specpowers/`（ZCode `${ZCODE_PLUGIN_ROOT}` / Claude `${CLAUDE_PLUGIN_ROOT}` / Codex `${PLUGIN_ROOT}` / WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}`；变量不可用时按兄弟目录 `specpowers/` 定位，仍找不到则 Glob 搜索 `**/specpowers/prompts/init.md`）
+- pip 安装（`specpowers init --integration <agent>`）：`<skills_root>/specpowers/`（如 WorkBuddy `.workbuddy/skills/specpowers/`、Claude `.claude/skills/specpowers/`）
 
 Summary of what you will do:
-1. Read the constitution template at `templates/constitution-template.md`（位于 skill 目录内，即 `${PLUGIN_ROOT}/skills/specpowers/templates/constitution-template.md`），scan project signals (README, dependency manifests, existing structure), and **inline-generate** `.specpowers/constitution.md` (focus: quality, testing, UX, performance principles — 4 categories only, no structural rules). Constitution is generated self-sufficiently by this skill (no external dependency).
+1. Read the constitution template at `templates/constitution-template.md`（位于上方定位的主技能目录内，即 `specpowers/templates/constitution-template.md`），scan project signals (README, dependency manifests, existing structure), and **inline-generate** `.specpowers/constitution.md` (focus: quality, testing, UX, performance principles — 4 categories only, no structural rules). Constitution is generated self-sufficiently by this skill (no external dependency).
 2. Baseline scan is auto-run by the deterministic layer (`init` 命令内部已调用 `scan()`). Verify `.specpowers/baseline.json` was created.
 3. After writing `.specpowers/constitution.md`, **refresh the baseline** to fill `constitution_hash` (the first scan ran before the file existed):
    ```bash

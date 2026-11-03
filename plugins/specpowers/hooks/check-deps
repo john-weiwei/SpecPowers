@@ -113,7 +113,7 @@ message_raw="$(build_message)"
 # ── 活跃需求探测（ambient resume，v2.3.0，借鉴 Comet resume-probe）──
 # 调 bridge 只读子命令 resume-probe 探测未完成的特性流水线：有活跃状态才
 # 在首条回复提示续跑，零活跃零噪音。任何失败静默跳过，绝不阻断会话启动。
-plugin_root="${ZCODE_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"
+plugin_root="${ZCODE_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEBUDDY_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}}"
 resume_msg=""
 probe_cli="$plugin_root/scripts/specpowers_cli/bin/specpowers"
 if [ -n "$plugin_root" ] && [ -f "$probe_cli" ]; then

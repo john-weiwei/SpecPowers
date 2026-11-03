@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.4.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.5.1-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,12 +48,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.4.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.4.0
+# → SpecPowers CLI v2.5.1
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -103,11 +103,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.4.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.4.0
+# → SpecPowers CLI v2.5.1
 
 # 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
 cd my-project
@@ -124,6 +124,8 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 引擎内置于 explore 契约、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
 **自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
+
+**WorkBuddy 技能行为异常时先验 CLI 可达**（v2.5.1）：确定性层命令（状态跃迁/设计文档登记）经 `python -m specpowers_cli.bridge.facade <子命令>` 调用，包不可达时改用包装脚本（pip 安装形态位于 `.workbuddy/skills/specpowers/bin/specpowers.bat`，插件市场形态位于插件目录 `scripts/specpowers_cli/bin/`，详见主技能 SKILL.md「执行方式」节）；CLI 不可达时未初始化拦截、propose 登记校验等确定性兜底全部缺位，症状即技能"不守约"——先执行 `specpowers.bat status --root .` 确认 CLI 正常，再检查技能正文是否为 v2.5.1+（跨端契约定位与 explore 硬性产出契约自该版本起生效）。
 
 手动确认（可选）：
 ```bash
@@ -145,6 +147,8 @@ openspec --version          # OpenSpec CLI 可用性
 ```
 
 agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpowers/constitution.md`（插件自包含，无需外部依赖），并扫描项目结构生成 `.specpowers/baseline.json`。
+
+> **忘了先 init？没关系（v2.5.0 起）**：直接调用 `/specpowers-explore` / `/specpowers-propose` / `/specpowers-fast` / `/specpowers-apply` / `/specpowers-archive` 时，技能会先检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json`——任一缺失即告知你并自动执行上面的初始化流程，完成后带着原输入继续目标阶段；确定性层在命令入口同步兜底，未初始化不会静默劣化。显式 `/specpowers-init` 仍是最推荐的开局方式。
 
 > pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用 `/specpowers-init`。
 
@@ -326,7 +330,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（294 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（305 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

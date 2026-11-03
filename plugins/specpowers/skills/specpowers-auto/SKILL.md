@@ -11,7 +11,10 @@ description: 驱动全流程无人值守——设计文档为权威输入直通 
 
 ## Outline
 
-Load the specpowers skill context, then follow `prompts/auto.md`.
+Load the specpowers skill context (`SKILL.md`), then follow the contract `prompts/auto.md`. Both live in the **main skill directory `specpowers/`** — a sibling of this stage skill (NOT in this skill's own directory):
+
+- 插件市场安装：`${PLUGIN_ROOT}/skills/specpowers/`（ZCode `${ZCODE_PLUGIN_ROOT}` / Claude `${CLAUDE_PLUGIN_ROOT}` / Codex `${PLUGIN_ROOT}` / WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}`；变量不可用时按兄弟目录 `specpowers/` 定位，仍找不到则 Glob 搜索 `**/specpowers/prompts/auto.md`）
+- pip 安装（`specpowers init --integration <agent>`）：`<skills_root>/specpowers/`（如 WorkBuddy `.workbuddy/skills/specpowers/`、Claude `.claude/skills/specpowers/`）
 
 You will:
 1. Run the deterministic tri-branch gate first: `facade auto-status` decides **fresh** (new requirement) / **resume** (breakpoint continue) / **iterate** (new round of the SAME requirement) — requirement identity is decided solely by archive state, never by the design doc path or content

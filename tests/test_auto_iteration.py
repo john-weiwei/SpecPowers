@@ -300,6 +300,7 @@ def test_explore_explicit_feature_lock(tmp_path):
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
+    (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
 
     assert route("explore", root, extra={
         "requirement": "全新需求措辞",
@@ -320,6 +321,7 @@ def test_propose_explicit_feature_overrides_existing(tmp_path):
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
+    (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     # from explore 进入需要设计文档已登记（防架空链）
     design_doc = root / "docs" / "specpowers" / "design" / "2026-01-01-origin-design.md"
     design_doc.parent.mkdir(parents=True, exist_ok=True)
@@ -448,6 +450,7 @@ def test_iterate_does_not_consume_fallback_count(tmp_path):
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
+    (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     # 先消耗唯一一次 fallback（apply→propose；from apply 不校验设计文档/proposal）
     assert route("propose", root, extra={"requirement": "升级完整流程"}) == 0
     assert load_state(root)["fallback_count"] == 1
@@ -473,6 +476,7 @@ def _seed_manual_iteration_repo(tmp_path: Path, feature: str = "manual-feat") ->
     save_state(root, state)
     (root / ".specpowers").mkdir(exist_ok=True)
     (root / ".specpowers" / "constitution.md").write_text("# C", encoding="utf-8")
+    (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     return root
 
 
