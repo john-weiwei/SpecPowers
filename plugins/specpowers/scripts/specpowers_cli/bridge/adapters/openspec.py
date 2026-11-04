@@ -1,9 +1,12 @@
-"""OpenSpec adapter — 场景生成 + archive 命令封装。
+"""OpenSpec adapter — archive 命令封装。
 
 职责：
-- to_scenario: propose 阶段把需求转成 OpenSpec 场景格式文本（认知层用）
 - is_openspec_available: 检测 openspec CLI 是否可用（归档强依赖）
 - archive_change: 调用真实 openspec archive 命令归档指定 change
+
+历史注记：早期版本的 to_scenario（含 brief.md 背景段落）已删除——
+explore 阶段产出已由设计文档（docs/specpowers/design/）承担，brief.md 从未
+是注册产物，其无路径约定的残留 docstring 曾诱导模型把 brief.md 写到项目根目录。
 
 注意：真实的 archive 命令是 `openspec archive [change-name]`，
 内置 delta 合并（findSpecUpdates + buildUpdatedSpec），无需 --delta 开关。
@@ -19,39 +22,6 @@ from pathlib import Path
 
 from specpowers_cli.bridge.core.errors import FatalError
 from specpowers_cli.bridge.core.platform import _safe_which
-
-
-def to_scenario(req: str, brief: str | None = None) -> str:
-    """生成 OpenSpec 场景格式文本（propose 阶段认知层使用）。
-
-    Args:
-        req: 需求文本。
-        brief: 可选的 brief.md 内容（explore 阶段产出）。
-
-    Returns:
-        OpenSpec 格式的场景文本，供 agent 写入 spec.md。
-    """
-    lines = ["# 场景描述", ""]
-    lines.append("## 需求描述")
-    lines.append("")
-    lines.append(f"{req}")
-    lines.append("")
-
-    if brief:
-        lines.append("## 背景（来自 brief.md）")
-        lines.append("")
-        lines.append(f"{brief}")
-        lines.append("")
-
-    lines.append("## 验收条件")
-    lines.append("- [ ] TBD - 定义验收条件")
-    lines.append("")
-
-    lines.append("## 技术要点")
-    lines.append("- TBD")
-    lines.append("")
-
-    return "\n".join(lines)
 
 
 # ---- CLI 可用性检测 ----
