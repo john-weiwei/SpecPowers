@@ -1,0 +1,23 @@
+plugins/specpowers/scripts/specpowers_cli/bridge/adapters/openspec.py
+  s_c74248a9324b6a::t_7a8aa5ee1d9c27 1,8-10
+  s_c74248a9324b6a::t_0190a0b4b75747 7
+tests/test_openspec_adapter.py
+  s_c74248a9324b6a::t_b3659592e01191 1,3,7
+  s_c74248a9324b6a::t_05914b2c92e9da 32-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be8617a8752d5583735de20f5669c846b4539134",
+  "prompts": {},
+  "sessions": {
+    "s_c74248a9324b6a": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_0f6bb0c2-3932-4847-ad40-db481f2c96ec",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
