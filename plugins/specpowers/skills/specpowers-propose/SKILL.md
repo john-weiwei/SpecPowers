@@ -11,8 +11,8 @@ description: 生成提案——从设计文档一站式产出 proposal/spec/task
 
 Load the specpowers skill context (`SKILL.md`), then follow the contract `prompts/propose.md`. Both live in the **main skill directory `specpowers/`** — a sibling of this stage skill (NOT in this skill's own directory):
 
-- 插件市场安装：`${PLUGIN_ROOT}/skills/specpowers/`（ZCode `${ZCODE_PLUGIN_ROOT}` / Claude `${CLAUDE_PLUGIN_ROOT}` / Codex `${PLUGIN_ROOT}` / WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}`；变量不可用时按兄弟目录 `specpowers/` 定位，仍找不到则 Glob 搜索 `**/specpowers/prompts/propose.md`）
-- pip 安装（`specpowers init --integration <agent>`）：`<skills_root>/specpowers/`（如 WorkBuddy `.workbuddy/skills/specpowers/`、Claude `.claude/skills/specpowers/`）
+- 插件市场安装：`${PLUGIN_ROOT}/skills/specpowers/`——`PLUGIN_ROOT` 取宿主任意插件根变量（`*_PLUGIN_ROOT` 形态，如 `${ZCODE_PLUGIN_ROOT}`、`${CLAUDE_PLUGIN_ROOT}`、`${CODEBUDDY_PLUGIN_ROOT}` 等，新工具同理）；变量不可用时按兄弟目录 `specpowers/` 定位，仍找不到则 Glob 搜索 `**/specpowers/prompts/propose.md`
+- pip 安装（`specpowers init --integration <agent>` 或 `--skills-root <路径>`）：`<skills_root>/specpowers/`（如 WorkBuddy `.workbuddy/skills/specpowers/`、Claude `.claude/skills/specpowers/`）
 
 You will:
 0. **Init check first**: 检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json` 是否存在——任一缺失 = 项目未初始化：告知用户「检测到项目未初始化，先自动执行 specpowers-init」，加载 `prompts/init.md` 完整执行初始化（含提示用户提交两产物），完成后带着原 args 回到本技能第 1 步继续；两文件均存在则直接往下执行

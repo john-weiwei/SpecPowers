@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.5.1
+version: 2.6.0
 ---
 
 # SpecPowers 桥接插件
@@ -73,7 +73,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
 #      Claude：   .claude\skills\specpowers\bin\specpowers.bat
 ```
 
-`PLUGIN_ROOT` 按运行环境替换：ZCode `${ZCODE_PLUGIN_ROOT}`、Claude Code `${CLAUDE_PLUGIN_ROOT}`、Codex `${PLUGIN_ROOT}`（兼容 `${CLAUDE_PLUGIN_ROOT}`）、WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}`（兼容性待实测，变量不可用时按插件安装目录定位）。
+`PLUGIN_ROOT` 按运行环境替换：优先取宿主提供的任意插件根变量（`*_PLUGIN_ROOT` 形态——ZCode `${ZCODE_PLUGIN_ROOT}`、Claude Code `${CLAUDE_PLUGIN_ROOT}`、Codex `${PLUGIN_ROOT}`（兼容 `${CLAUDE_PLUGIN_ROOT}`）、WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}` 等，新工具同理）；变量不可用时按插件安装目录定位。pip 安装形态（`specpowers init --integration <agent>` 或 `--skills-root <路径>`）包装脚本位于 `<skills_root>/specpowers/bin/`（如 WorkBuddy `.workbuddy\skills\specpowers\bin\specpowers.bat`）。
 
 **自动读取契约强制**：Dispatcher 自动校验本阶段必读上游产物，缺必读 → 拒绝开工。如 propose 从 explore 进入时校验设计文档已登记；apply 入口校验 proposal 含「## 数据流契约」段头。
 

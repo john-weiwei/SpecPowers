@@ -140,6 +140,10 @@ STAGE_SKILL_LOCATION_ANCHORS = [
     ".workbuddy/skills/specpowers",
 ]
 
+# v2.6.0 变量模式锚点：仅 7 个契约引用技能适用（完整版定位句）——
+# `*_PLUGIN_ROOT` 模式化表述让新工具零改动覆盖，防止回潮成封闭端枚举清单
+CONTRACT_VARIABLE_PATTERN_ANCHOR = "*_PLUGIN_ROOT"
+
 # 契约引用技能必须含 Glob 兜底搜索句（PLUGIN_ROOT 变量不可用时的最后定位手段）
 CONTRACT_GLOB_ANCHOR = "**/specpowers/prompts/"
 
@@ -247,6 +251,7 @@ def test_stage_skills_locate_main_skill_directory():
     （如 WorkBuddy）上解析不到真实文件——阶段技能只拿到自身薄入口正文，
     方案对比/落盘登记等硬规则全部丢失。定位句锚点缺失即断链回潮。
     """
+    # 基础锚点对全部 9 个阶段技能适用（baseline/reset 为缩短版定位句）
     for rel_dir in STAGE_SKILLS:
         content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
         for anchor in STAGE_SKILL_LOCATION_ANCHORS:
@@ -254,8 +259,13 @@ def test_stage_skills_locate_main_skill_directory():
                 f"skills/{rel_dir}/SKILL.md 缺少主技能目录定位锚点「{anchor}」——"
                 "裸相对路径在 WorkBuddy 等宿主上断链（v2.5.1 跨端修复回潮）"
             )
+    # 变量模式锚点仅对 7 个契约引用技能适用（完整版定位句）
     for rel_dir in STAGE_SKILL_CONTRACTS:
         content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert CONTRACT_VARIABLE_PATTERN_ANCHOR in content, (
+            f"skills/{rel_dir}/SKILL.md 变量表述缺少「{CONTRACT_VARIABLE_PATTERN_ANCHOR}」模式——"
+            "必须是模式 + 举例（新工具零改动覆盖），不得回潮成封闭端枚举（v2.6.0）"
+        )
         assert CONTRACT_GLOB_ANCHOR in content, (
             f"skills/{rel_dir}/SKILL.md 缺少契约文件 Glob 兜底搜索句"
             f"（{CONTRACT_GLOB_ANCHOR}）——宿主变量不可用时模型无最后定位手段"

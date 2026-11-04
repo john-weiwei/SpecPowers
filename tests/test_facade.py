@@ -313,3 +313,32 @@ def test_resume_probe_survives_corrupt_state(tmp_path, capsys):
     (root / ".specpowers" / "state.json").write_text("{broken", encoding="utf-8")
     rc = main(["resume-probe", "--root", str(root)])
     assert rc == 0
+
+
+# ---------- locate 自描述命令（v2.6.0） ----------
+
+def test_locate_reports_source_tree_installation(capsys):
+    """locate 在源码树/插件市场形态下报告 plugin_root 候选与契约存在性。
+
+    pytest 的 sys.path 指向仓库源码树（conftest 注入），locate 应探测出
+    plugins/specpowers 的 skills 目录与 explore 契约、bin 包装脚本。
+    """
+    import json
+    rc = main(["locate"])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["cli_package"], "应报告 CLI 包绝对路径"
+    plugin_roots = [c for c in payload["candidates"] if c["kind"] == "plugin_root"]
+    assert plugin_roots, "源码树形态应探测出 plugin_root 候选"
+    candidate = plugin_roots[0]
+    assert candidate["explore_contract_exists"], "explore 契约应真实存在"
+    assert "specpowers-explore" in candidate["skills"], "技能清单应含阶段技能"
+    assert payload["bin_wrapper"] and payload["bin_wrapper"]["exists"], "应报告 bin 包装脚本"
+
+
+def test_locate_requires_no_project_root(tmp_path, capsys):
+    """locate 不依赖项目状态：空目录（非 git、未初始化）也能执行。"""
+    import json
+    rc = main(["locate", "--root", str(tmp_path)])
+    assert rc == 0
+    json.loads(capsys.readouterr().out)

@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.5.1-blue)]()
+[![Version](https://img.shields.io/badge/version-2.6.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -44,16 +44,16 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ### 方式二：pip（Cursor / Copilot / Windsurf 等无插件市场的工具）
 
-这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（自动生成对应 rules 文件）：
+这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（复制 11 个技能到对应 skills 目录 + 在项目根 `AGENTS.md` 写入引导段）；不在列表内的任意工具用 `specpowers init --skills-root <路径>` 指定自己的技能目录（v2.6.0）：
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.6.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.5.1
+# → SpecPowers CLI v2.6.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -103,13 +103,13 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.5.1
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.6.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.5.1
+# → SpecPowers CLI v2.6.0
 
-# 已用 pip 初始化过的项目建议重新生成 rules（命令名已全部更新）
+# 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（命令名已全部更新）
 cd my-project
 specpowers init --force
 ```
@@ -150,7 +150,7 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 
 > **忘了先 init？没关系（v2.5.0 起）**：直接调用 `/specpowers-explore` / `/specpowers-propose` / `/specpowers-fast` / `/specpowers-apply` / `/specpowers-archive` 时，技能会先检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json`——任一缺失即告知你并自动执行上面的初始化流程，完成后带着原输入继续目标阶段；确定性层在命令入口同步兜底，未初始化不会静默劣化。显式 `/specpowers-init` 仍是最推荐的开局方式。
 
-> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，用于生成 rules 文件）；插件市场用户装好插件即可直接用 `/specpowers-init`。
+> pip 方式用户需先在项目里跑安装器命令 `specpowers init`（见上方"安装 → 方式二"，复制技能目录并写入 AGENTS.md 引导段）；插件市场用户装好插件即可直接用 `/specpowers-init`。
 
 ### 2. 启动特性开发
 
@@ -260,11 +260,12 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 | **Claude Code** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` |
 | **Codex CLI** | 插件市场（推荐） | `/specpowers:specpowers-init` 或 `/specpowers-init` 技能直调（四端统一） |
 | **WorkBuddy** | 插件市场（推荐）；pip 亦可 | `/specpowers:specpowers-init` 或 `/specpowers-init` |
-| Cursor | pip + `specpowers init --integration cursor` | 自然语言触发（rules 引导） |
-| GitHub Copilot | pip + `specpowers init --integration copilot` | 自然语言触发（rules 引导） |
-| Windsurf | pip + `specpowers init --integration windsurf` | 自然语言触发（rules 引导） |
+| Cursor | pip + `specpowers init --integration cursor` | 技能目录 + AGENTS.md 引导 |
+| GitHub Copilot | pip + `specpowers init --integration copilot` | 技能目录 + AGENTS.md 引导 |
+| Windsurf | pip + `specpowers init --integration windsurf` | 技能目录 + AGENTS.md 引导 |
+| 其他任意工具 | pip + `specpowers init --skills-root <路径>` | AGENTS.md 引导（v2.6.0 零枚举接入） |
 
-> 插件市场方式享受完整体验（9 个阶段技能，slash 直调 `/specpowers-xxx`，四端统一入口 + SessionStart 依赖检测）；pip 方式生成 rules 文件引导 agent 按流水线执行，功能等价但无原生 slash 入口。
+> 插件市场方式享受完整体验（9 个阶段技能，slash 直调 `/specpowers-xxx`，四端统一入口 + SessionStart 依赖检测）；pip 方式把 11 个技能复制到对应 skills 目录并在项目根 `AGENTS.md` 写入引导段（幂等标记段，引导 agent 按流水线执行），功能等价但无原生 slash 入口。
 
 ## 架构
 
@@ -330,7 +331,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（305 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（311 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

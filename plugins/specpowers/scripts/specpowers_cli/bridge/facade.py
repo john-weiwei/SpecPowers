@@ -39,6 +39,10 @@ Internal subcommands (for CI / agent direct use):
     record-design-doc <path>     Register explore design doc path (propose 前置校验凭据)
     resume-probe                 Ambient resume 只读探测（SessionStart hook 消费）：
                                  活跃需求才输出续跑提示，零活跃零噪音，异常降级为空
+    locate                       安装位置自描述（v2.6.0）：输出 CLI 包路径、候选
+                                 skills 目录（插件市场/源码树与 pip 两形态）、契约文件
+                                 与 bin 包装脚本的实际路径——任意 agent 工具执行一次
+                                 即完成自定位，不依赖宿主特性、不需要 --root
 
 > v2.0.0 起旧子命令名（constitution/brainstorm/specify/plan/build）已移除，无别名。
 """
@@ -334,6 +338,62 @@ def _cmd_scan(args: list[str], root: Path) -> int:
     return 0
 
 
+def _cmd_locate(args: list[str], root: Path) -> int:
+    """Handle locate command — 安装位置自描述（任意 agent 工具运行时探测，v2.6.0）。
+
+    输出 JSON：CLI 包绝对路径、候选 skills 目录清单（源码树/插件市场形态
+    与 pip 安装形态各自动探测）、每个候选下的技能集合与探索契约存在性、
+    bin 包装脚本路径。模型在任何工具里执行一次即完成自定位——不依赖宿主
+    环境变量，不需要项目已初始化。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    import specpowers_cli
+    pkg_dir = Path(specpowers_cli.__file__).resolve().parent
+    result = {"cli_package": str(pkg_dir), "candidates": [], "bin_wrapper": None}
+
+    def _record_bin(bin_dir: Path) -> None:
+        # 记录包装脚本候选（首次命中即保留：越早的祖先越接近实际安装位置）
+        if result["bin_wrapper"] is None and bin_dir.is_dir():
+            result["bin_wrapper"] = {
+                "posix": str(bin_dir / "specpowers"),
+                "windows": str(bin_dir / "specpowers.bat"),
+                "exists": (bin_dir / "specpowers").exists() or (bin_dir / "specpowers.bat").exists(),
+            }
+
+    for ancestor in pkg_dir.parents:
+        # 形态一：源码树/插件市场——包在 <plugin_root>/scripts/specpowers_cli 下
+        skills_dir = ancestor / "skills"
+        explore_contract = skills_dir / "specpowers" / "prompts" / "explore.md"
+        if (skills_dir / "specpowers" / "SKILL.md").is_file():
+            result["candidates"].append({
+                "kind": "plugin_root",
+                "path": str(ancestor),
+                "skills_dir": str(skills_dir),
+                "skills": sorted(p.name for p in skills_dir.iterdir() if p.is_dir()),
+                "explore_contract": str(explore_contract),
+                "explore_contract_exists": explore_contract.is_file(),
+            })
+            _record_bin(ancestor / "scripts" / "specpowers_cli" / "bin")
+        # 形态二：pip 安装——包拷贝于 <skills_root>/specpowers/specpowers_cli 下，
+        # 名为 specpowers 且含 SKILL.md 的祖先即主技能目录，其父即 skills 根
+        if ancestor.name == "specpowers" and (ancestor / "SKILL.md").is_file():
+            pip_skills_root = ancestor.parent
+            pip_contract = ancestor / "prompts" / "explore.md"
+            result["candidates"].append({
+                "kind": "pip_skills_root",
+                "path": str(pip_skills_root),
+                "skills_dir": str(pip_skills_root),
+                "skills": sorted(p.name for p in pip_skills_root.iterdir() if p.is_dir()),
+                "explore_contract": str(pip_contract),
+                "explore_contract_exists": pip_contract.is_file(),
+            })
+            _record_bin(ancestor / "bin")
+
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def _scope_assessment(root: Path, base: str) -> dict | None:
     """评估任务级修改范围比对；不适用场景返回 None（输出 JSON 不带 scope 键）。
 
@@ -503,6 +563,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if subcommand in ("version", "--version", "-V"):
         return _cmd_version(rest, Path.cwd())
+
+    # locate 自描述：不依赖项目状态，提前分发（root 解析前即可执行）
+    if subcommand == "locate":
+        return _cmd_locate(rest, Path.cwd())
 
     # Resolve project root
     try:

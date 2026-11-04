@@ -240,6 +240,70 @@ def _copy_runtime_files(project_dir: Path, integration: dict):
         gitignore_path.write_text(gitignore_entry.strip() + "\n", encoding="utf-8")
 
 
+AGENTS_MD_BEGIN = "<!-- specpowers:begin -->"
+AGENTS_MD_END = "<!-- specpowers:end -->"
+
+
+def _write_agents_md_section(project_dir: Path, skills_root_rel: str) -> None:
+    """向项目根 AGENTS.md 写入 SpecPowers 引导段（幂等，标记段整体替换）。
+
+    AGENTS.md 是跨 agent 工具的事实标准引导文件——对不读取 skills 目录
+    的规则驱动型工具，这是模型发现 SpecPowers 入口的唯一途径；对已支持
+    skills 的工具则提供路径速查。标记段外的用户内容不受影响，删除整段
+    后重新执行安装即可恢复。
+
+    Args:
+        project_dir: 项目根路径（AGENTS.md 所在目录）。
+        skills_root_rel: 技能根目录相对路径（POSIX 风格，如 .workbuddy/skills）。
+
+    作者：SpecPowers Team 2026-11-03（ZCode / GLM-5.3）
+    """
+    # 引导段正文：11 技能入口表 + 契约位置 + CLI 调用方式（路径保持 POSIX 风格）
+    section = f"""{AGENTS_MD_BEGIN}
+## SpecPowers 流水线
+
+spec-driven 开发流水线已安装到本项目的 `{skills_root_rel}/`（11 个技能：主技能 specpowers + 9 个阶段技能 + specpowers-review 审查）。**新需求先走探索阶段**。
+
+| 阶段 | 技能入口（SKILL.md） |
+|------|---------------------|
+| 项目初始化 | `{skills_root_rel}/specpowers-init/SKILL.md` |
+| 需求探索（方案对比 + 设计文档落盘） | `{skills_root_rel}/specpowers-explore/SKILL.md` |
+| 提案三件套 | `{skills_root_rel}/specpowers-propose/SKILL.md` |
+| 执行构建 | `{skills_root_rel}/specpowers-apply/SKILL.md` |
+| 归档收尾 | `{skills_root_rel}/specpowers-archive/SKILL.md` |
+| 小改动快速通道 | `{skills_root_rel}/specpowers-fast/SKILL.md` |
+| 无人值守全流程 | `{skills_root_rel}/specpowers-auto/SKILL.md` |
+| 基线刷新 / 状态重置 | `{skills_root_rel}/specpowers-baseline/SKILL.md`、`{skills_root_rel}/specpowers-reset/SKILL.md` |
+| 独立审查 | `{skills_root_rel}/specpowers-review/SKILL.md` |
+
+阶段契约与模板位于 `{skills_root_rel}/specpowers/prompts/`（如 `prompts/explore.md`）；主技能总览 `{skills_root_rel}/specpowers/SKILL.md`。
+
+确定性层 CLI：`python -m specpowers_cli.bridge.facade <子命令> --root .`（包不可达时改用包装脚本 `{skills_root_rel}/specpowers/bin/specpowers`，Windows 为 `specpowers.bat`）。
+
+本段由 `specpowers init` 自动维护（重装时整体替换）；删除整段后重新执行安装可恢复。
+{AGENTS_MD_END}
+"""
+    agents_md = project_dir / "AGENTS.md"
+    if agents_md.exists():
+        content = agents_md.read_text(encoding="utf-8")
+        if AGENTS_MD_BEGIN in content:
+            # 已有标记段：定位起止整体删除旧段，实现重装幂等替换（段前段后用户内容均保留）
+            start = content.index(AGENTS_MD_BEGIN)
+            end = content.index(AGENTS_MD_END) + len(AGENTS_MD_END)
+            before = content[:start].rstrip("\n")
+            after = content[end:].lstrip("\n")
+            parts = [p for p in (before, section, after) if p]
+            content = "\n\n".join(parts)
+        else:
+            # 无标记段：纯追加
+            content = content.rstrip("\n") + "\n\n" + section
+        agents_md.write_text(content, encoding="utf-8", newline="\n")
+    else:
+        # 不存在：创建最小骨架 + 引导段
+        agents_md.write_text("# AGENTS.md\n\n" + section, encoding="utf-8", newline="\n")
+    print(f"AGENTS.md 引导段已写入：{agents_md}")
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     """Initialize SpecPowers in a project directory."""
     target = Path(args.directory or ".").resolve()
@@ -247,26 +311,37 @@ def cmd_init(args: argparse.Namespace) -> int:
     if not target.exists():
         target.mkdir(parents=True)
 
-    # Detect or use specified integration
-    integration_name = args.integration
-    if not integration_name:
-        integration_name = _detect_agent(target)
-        if not integration_name:
-            print("╔══════════════════════════════════════════════╗")
-            print("║  No AI agent detected in this project.       ║")
-            print("║  Use --integration <agent> to specify one.   ║")
-            print("║                                              ║")
-            print("║  Supported agents:                           ║")
-            for key, info in INTEGRATIONS.items():
-                print(f"║    {key:<12} → {info['name']:<25} ║")
-            print("╚══════════════════════════════════════════════╝")
-            return 1
-    elif integration_name not in INTEGRATIONS:
-        print(f"Unknown integration: {integration_name}")
-        print(f"Supported: {', '.join(INTEGRATIONS.keys())}")
+    # --skills-root 与 --integration 互斥：二选一指定安装位置
+    if args.skills_root and args.integration:
+        print("Error: --skills-root 与 --integration 互斥，请二选一指定安装位置。")
         return 1
 
-    integration = INTEGRATIONS[integration_name]
+    if args.skills_root:
+        # 任意 agent 工具通用接入（v2.6.0）：用户显式指定技能目录，无需改代码加集成
+        skills_root_rel = Path(args.skills_root).as_posix()
+        integration = {"name": "custom (--skills-root)", "skills_root": skills_root_rel}
+        integration_name = "custom"
+    else:
+        # Detect or use specified integration
+        integration_name = args.integration
+        if not integration_name:
+            integration_name = _detect_agent(target)
+            if not integration_name:
+                print("╔══════════════════════════════════════════════╗")
+                print("║  No AI agent detected in this project.       ║")
+                print("║  Use --integration <agent> to specify one,   ║")
+                print("║  or --skills-root <path> for any other tool. ║")
+                print("║                                              ║")
+                print("║  Supported agents:                           ║")
+                for key, info in INTEGRATIONS.items():
+                    print(f"║    {key:<12} → {info['name']:<25} ║")
+                print("╚══════════════════════════════════════════════╝")
+                return 1
+        elif integration_name not in INTEGRATIONS:
+            print(f"Unknown integration: {integration_name}")
+            print(f"Supported: {', '.join(INTEGRATIONS.keys())}")
+            return 1
+        integration = INTEGRATIONS[integration_name]
     skills_root = target / integration["skills_root"]
     main_skill = skills_root / "specpowers"
 
@@ -285,6 +360,8 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     _copy_agent_files(target, integration)
     _copy_runtime_files(target, integration)
+    # AGENTS.md 引导段：对规则驱动型工具是发现入口的唯一途径，幂等标记段
+    _write_agents_md_section(target, integration["skills_root"])
 
     print()
     print("Done! SpecPowers is ready.")
@@ -336,6 +413,10 @@ def main(argv: list[str] | None = None) -> int:
         "--integration", "-i",
         choices=list(INTEGRATIONS.keys()),
         help="AI agent to integrate with (auto-detected if omitted)"
+    )
+    init_parser.add_argument(
+        "--skills-root",
+        help="Custom skills directory (relative to project) for any agent tool not in --integration list"
     )
     init_parser.add_argument(
         "--force", "-f", action="store_true",
