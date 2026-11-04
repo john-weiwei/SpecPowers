@@ -1,0 +1,101 @@
+plugins/specpowers/skills/specpowers-archive/SKILL.md
+  s_50dee6b37e7034::t_0d47f06d53681f 14-15
+.claude-plugin/marketplace.json
+  s_50dee6b37e7034::t_81685a80fd8b19 13
+plugins/specpowers/skills/specpowers-apply/SKILL.md
+  s_50dee6b37e7034::t_1f8eb9d7e828cb 14-15
+plugins/specpowers/skills/specpowers-propose/SKILL.md
+  s_50dee6b37e7034::t_fcc035d4536c02 14-15
+plugins/specpowers/.codex-plugin/plugin.json
+  s_50dee6b37e7034::t_81685a80fd8b19 3
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_50dee6b37e7034::t_3dfcb51df69ebf 243-289,291-292,297-306,314-316,319-344
+  s_50dee6b37e7034::t_f8c412b05d8dbd 363-364
+  s_50dee6b37e7034::t_bf83e85534f3c7 290,293-296
+  s_50dee6b37e7034::t_99b699bb361706 418-419
+  s_50dee6b37e7034::t_181d57fbead56b 417
+  s_50dee6b37e7034::t_c1c0168b5e5b2c 420
+docs/GETTING-STARTED.md
+  s_50dee6b37e7034::t_81685a80fd8b19 10,51,56,106,110
+  s_50dee6b37e7034::t_f84a6c7285b115 47
+  s_50dee6b37e7034::t_ece598a0619a2a 153
+  s_50dee6b37e7034::t_d80787e89abd36 263-266,268
+  s_50dee6b37e7034::t_90b62dfb2a2bbf 112
+  s_c74248a9324b6a::t_2f037d0587330b 334
+plugins/specpowers/skills/specpowers-init/SKILL.md
+  s_50dee6b37e7034::t_3ea11042dc86a7 16-17
+plugins/specpowers/plugin.json
+  s_50dee6b37e7034::t_81685a80fd8b19 4
+plugins/specpowers/.claude-plugin/plugin.json
+  s_50dee6b37e7034::t_81685a80fd8b19 3
+tests/test_installer.py
+  s_50dee6b37e7034::t_7eeb7a2edfd15f 76-122
+plugins/specpowers/skills/specpowers-auto/SKILL.md
+  s_50dee6b37e7034::t_b4e27737f3a84c 16-17
+pyproject.toml
+  s_50dee6b37e7034::t_d947dc01d093c4 3
+  s_50dee6b37e7034::t_b861abea624f99 45
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_50dee6b37e7034::t_81685a80fd8b19 3
+.codebuddy-plugin/marketplace.json
+  s_50dee6b37e7034::t_81685a80fd8b19 16
+plugins/specpowers/skills/specpowers-explore/SKILL.md
+  s_50dee6b37e7034::t_695313cb6a266b 14-15
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_50dee6b37e7034::t_81685a80fd8b19 3
+tests/test_facade.py
+  s_50dee6b37e7034::t_444097579b4a69 320
+  s_50dee6b37e7034::t_1e2f3c39d00ca0 344
+  s_50dee6b37e7034::t_0e2725f50a7727 329
+  s_50dee6b37e7034::t_92e3499fbdb5e5 316-319,321-328,330-343
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_50dee6b37e7034::t_81685a80fd8b19 3
+marketplace.json
+  s_50dee6b37e7034::t_81685a80fd8b19 13
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_50dee6b37e7034::t_31cad9a19387d7 567-569
+  s_50dee6b37e7034::t_60243c625f8493 341-396
+  s_50dee6b37e7034::t_c44cc89cdc5407 42-45
+  s_50dee6b37e7034::t_95bd5d524b88bb 570
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_50dee6b37e7034::t_81685a80fd8b19 4,76
+tests/test_builtin_skills.py
+  s_50dee6b37e7034::t_19ab16f53a21c7 265-266
+  s_50dee6b37e7034::t_be3c775334df49 143-145
+  s_50dee6b37e7034::t_f3709938942046 254,262,267-268
+  s_50dee6b37e7034::t_175835f89d99d4 146
+README.md
+  s_c74248a9324b6a::t_c670b25be44f17 14
+  s_c74248a9324b6a::t_60b5e65e716164 309
+  s_50dee6b37e7034::t_4ad605779b64ee 65
+  s_50dee6b37e7034::t_ffb99a83b5224e 120
+  s_50dee6b37e7034::t_81685a80fd8b19 7,69,74,294,298
+  s_50dee6b37e7034::t_19deb0309ffd0a 300
+  s_50dee6b37e7034::t_c8898d1d40872d 30-33,35
+plugins/specpowers/skills/specpowers-fast/SKILL.md
+  s_50dee6b37e7034::t_6612cc699b3922 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d7497ec3d40afffdf7461df809907f83ae1bdcb",
+  "prompts": {},
+  "sessions": {
+    "s_50dee6b37e7034": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "session_6b467c06ae17792ebca65e4d3bce777c",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    },
+    "s_c74248a9324b6a": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_0f6bb0c2-3932-4847-ad40-db481f2c96ec",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
