@@ -29,3 +29,5 @@ After archive: stage resets to `ready`, feature name cleared. Ready for next fea
 **Do NOT commit code**: archive only finalizes (openspec archive + state transition), never runs `git add` / `git commit` — committing is left to the user.
 
 完成后：stage 回到 `ready`；建议用户提交代码，下一个需求可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto（按需求形态四选一）。
+
+会话粘滞（v2.7.0）：归档后活跃需求清空，粘滞自然解除——此前本对话后续消息默认延续 specpowers 流程语境（判定规则见主技能 SKILL.md「会话粘滞」小节）。

@@ -29,3 +29,5 @@ You will:
 6. Tell user: next step is `/specpowers-archive`
 
 完成后：建议调用技能 specpowers-review（可选独立审查）与 specpowers-archive（用户直接 `/specpowers-archive` 调用，auto 模式下模型直接经 Skill 工具调用）。
+
+会话粘滞（v2.7.0）：本对话后续消息默认延续 specpowers 流程语境——相关消息走流程、无关消息照常回答并附一行活跃需求提醒（解除条件=归档/reset），判定规则见主技能 SKILL.md「会话粘滞」小节。

@@ -27,7 +27,7 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 
 | 输入情况 | 路径 | 重跑范围 |
 |----------|------|----------|
-| 新文档/文档变更，且「已定方案」变了 | 全量 | explore 更新设计文档 → propose → apply → review |
+| 新文档/文档变更，且「已定方案」变了 | 全量 | explore 新落 design-round-<N> 简易设计文档 → propose → apply → review |
 | 文档变更但方案不变，场景/范围有调整 | 全量 | propose → apply → review |
 | 口头小调整，能无歧义映射到现有 scenario 的增/删/改，不引入新 capability、不碰硬边界 | 轻量 | propose 增量修订三件套 → apply → review |
 | 深度判定有疑义 | **保守取全量** | — |
@@ -38,7 +38,7 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 
 各阶段调用方式与人工模式完全一致（先调 facade 确定性层，再按对应 `prompts/<stage>.md` 契约执行认知任务），各阶段**迭代轮语义**以对应契约文件的「迭代轮」小节为准（该语义为 auto 与人工模式通用）：
 
-- explore：方案变了才重跑，设计文档覆盖 + 追加「## 迭代历史」。**注意**：这是认知任务直接落盘更新设计文档，**不调 `facade explore`**（其 from_stage 仅 ready，与迭代轮 stage=propose 冲突；stage 保持 propose 即可，更新后重新 `facade record-design-doc` 刷新登记，propose 的前置校验天然满足）
+- explore：方案变了才重跑，**新落简易设计文档 `openspec/changes/<feature>/design-round-<N>.md`**（基线设计文档冻结不动、`state.design_doc` 仍指向基线，**不重新 `facade record-design-doc`**——propose 前置校验天然满足；模板与四节结构见 explore.md 迭代轮小节）。**注意**：这是认知任务直接落盘，**不调 `facade explore`**（其 from_stage 仅 ready，与迭代轮 stage=propose 冲突；stage 保持 propose 即可）
 - propose：proposal/spec/tasks 三件套**增量修订**（spec 增量修订场景 + tasks 分轮演进 Round N 小节 + 作废留痕）
 - apply：只执行未勾选且未作废的任务
 - specpowers-review：范围 = 首轮基点 → 当前（累计审查，编排细则读 `refs/auto-review.md`）

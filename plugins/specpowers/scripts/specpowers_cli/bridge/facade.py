@@ -39,6 +39,9 @@ Internal subcommands (for CI / agent direct use):
     record-design-doc <path>     Register explore design doc path (propose 前置校验凭据)
     resume-probe                 Ambient resume 只读探测（SessionStart hook 消费）：
                                  活跃需求才输出续跑提示，零活跃零噪音，异常降级为空
+    sticky-note                  会话粘滞锚点行（UserPromptSubmit hook 消费，v2.7.0）：
+                                 活跃需求才输出 feature/stage/Round + capability +
+                                 修改范围单行锚点，零活跃零噪音，异常降级为空
     locate                       安装位置自描述（v2.6.0）：输出 CLI 包路径、候选
                                  skills 目录（插件市场/源码树与 pip 两形态）、契约文件
                                  与 bin 包装脚本的实际路径——任意 agent 工具执行一次
@@ -483,6 +486,22 @@ def _cmd_resume_probe(args: list[str], root: Path) -> int:
     return 0
 
 
+def _cmd_sticky_note(args: list[str], root: Path) -> int:
+    """Handle sticky-note command — 会话粘滞锚点行（UserPromptSubmit hook 消费，v2.7.0）。
+
+    有活跃需求才输出单行锚点（feature/stage/Round + capability + 修改范围），
+    零活跃零输出；任何异常静默降级为空输出（exit 0），绝不阻断用户消息。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.modules.resume_probe import sticky_note
+    try:
+        print(sticky_note(root))
+    except Exception:
+        return 0
+    return 0
+
+
 def _cmd_version(args: list[str], root: Path) -> int:
     """Handle version command."""
     print(f"SpecPowers bridge v{__version__}")
@@ -591,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
         "record-execution-mode": _cmd_record_execution_mode,
         "record-design-doc": _cmd_record_design_doc,
         "resume-probe": _cmd_resume_probe,
+        "sticky-note": _cmd_sticky_note,
         "auto-status": _cmd_auto_status,
         "auto-new-round": _cmd_auto_new_round,
         "auto-clarify": _cmd_auto_clarify,

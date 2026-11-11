@@ -352,7 +352,9 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 
 ## 迭代轮：三件套增量修订（多轮迭代，auto 与人工模式通用）
 
-当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别确认（人工模式，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，三件套不做盲目重写，按各自规则增量演进（方案变更时 explore 已先更新设计文档，见 explore.md 迭代轮小节）：
+当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别确认（人工模式，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，三件套不做盲目重写，按各自规则增量演进（方案变更时 explore 已先新落本轮简易设计文档 `design-round-<N>.md`，见 explore.md 迭代轮小节）：
+
+**本轮读取清单（锁死，防整份重读）**：现有 proposal.md + 最新 `openspec/changes/<feature>/design-round-<N>.md`（存在时）；基线设计文档（`state.design_doc` 指向的首轮文档）**仅按需局部查阅**——方案变更轮重提炼需要核对基线结论时读对应章节，**禁止整份重读**（v2.7.0 迭代轮 token 节省的关键落点：写侧靠 explore 只落增量文档，读侧靠本清单）。
 
 **proposal.md — 覆盖 + 迭代历史**：
 - proposal.md **覆盖更新**（以本轮有效八要素为准），但文末必须**追加「## 迭代历史」小节**（已有则续写），记录本轮变化点：
@@ -368,7 +370,7 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 
 - **feature 锁定**：迭代轮 feature 已由确定性层锁定，proposal.md 仍写入原 change 目录（`openspec/changes/<锁定slug>/`），不新建目录
 - **调用方式**：迭代轮更新 proposal 是**认知任务直接落盘**，不调 `facade propose`（其常规入口不含本语境）；stage 保持 propose
-- **注意**：方案变更轮（explore 重跑）必须重新从更新后的设计文档提炼 proposal；仅场景/范围调整轮 proposal 可原样保留（追加迭代历史即可）
+- **注意**：方案变更轮（explore 重跑）必须从「基线设计文档 + 最新 `design-round-<N>.md`」合并视角重新提炼 proposal（基线仅按需局部查阅，见上方读取清单）；仅场景/范围调整轮 proposal 可原样保留（追加迭代历史即可）
 
 **spec.md — 增量修订**：
 - **对照本轮有效场景清单增量修订**现有 delta spec。场景清单来源：auto 迭代轮取八要素「必测场景清单」；人工迭代轮取用户本轮调整描述与现有 spec 的合并结果：

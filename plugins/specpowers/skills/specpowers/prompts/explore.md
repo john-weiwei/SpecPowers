@@ -19,11 +19,11 @@
 
   ```
   检测到未归档需求 <feature>（stage=<stage>，当前 Round <iteration_count>）。
-  重跑探索意味着方案可能变更。是否开启 Round <iteration_count+1> 迭代轮并更新探索结论（设计文档）？
-  1. 是 —— 调 `facade iterate` 开轮（feature 锁定不变），探索后覆盖更新设计文档并追加迭代历史
+  重跑探索意味着方案可能变更。是否开启 Round <iteration_count+1> 迭代轮并更新探索结论（简易设计文档）？
+  1. 是 —— 调 `facade iterate` 开轮（feature 锁定不变），探索后新落本轮简易设计文档 design-round-<N>.md（不修改基线设计文档）
   2. 否 —— 取消（若仅是场景/范围调整，无需动方案：直接重入 /specpowers-propose 即可）
   ```
-- **确认开启**：调 `facade iterate [--instruction "<调整描述>"] --root .`（stage → `propose`、feature 锁定、`iteration_count += 1`），然后按下方「迭代轮」小节执行探索与设计文档覆盖更新；完成后提示用户 `/specpowers-propose` 做三件套增量修订
+- **确认开启**：调 `facade iterate [--instruction "<调整描述>"] --root .`（stage → `propose`、feature 锁定、`iteration_count += 1`），然后按下方「迭代轮」小节执行探索并新落简易设计文档；完成后提示用户 `/specpowers-propose` 做三件套增量修订
 - **选择取消**：不改任何状态，向用户说明可选步骤后结束
 - **未触发**（stage=`ready`）：正常流程——全新需求探索（未初始化时由薄入口第 0 步自动补跑 specpowers-init 后继续，见下方「前置校验」）
 
@@ -322,24 +322,36 @@ python -m specpowers_cli.bridge.facade record-design-doc <设计文档路径> --
 | `纯文案` | 仅文案修改 | 改 copy、i18n |
 | `纯重构` | 不改行为 | 重命名、提取方法 |
 
-## 迭代轮：设计文档覆盖 + 迭代历史（多轮迭代，auto 与人工模式通用）
+## 迭代轮：简易设计文档（不改基线，多轮迭代 auto 与人工模式通用）
 
 当本轮是迭代轮且**方案相对上一轮发生变更**时（人工模式由 `/specpowers-explore`、`/specpowers-propose` 重入识别与用户确认，见「重入识别」小节；auto 模式由 auto 契约按「已定方案」判定）：
 
-- 设计文档**覆盖更新**（以本轮有效八要素为准），但文末必须**追加「## 迭代历史」小节**（已有则续写），记录本轮变化点，保证决策痕迹可追溯：
+- **基线设计文档冻结不动**：`docs/specpowers/design/` 下的首轮文档只读，`state.design_doc` 永远指向它——propose 前置校验天然满足，**迭代轮不再重新 `facade record-design-doc`**（v2.7.0 起取代旧的「覆盖更新 + 追加迭代历史 + 重新登记」，消除每轮重读重写整份基线的 token 大头）
+- **新落本轮简易设计文档**到 `openspec/changes/<feature>/design-round-<N>.md`（N = 本轮 `iteration_count`，路径确定性推导），**只写增量**，固定四节、无 TBD/TODO：
 
 ```markdown
-## 迭代历史
+# Round <N> 简易设计文档（<feature>）
 
-### Round <N>（<日期>）
+## 本轮输入
 
-- 输入：<新设计文档 <路径> / 口头指令 "<摘要>">
-- 变化点：<相对上一轮的方案/边界/依赖变化，逐条列出；无变化则写「仅场景与范围调整，方案未变」>
+- <新设计文档 <路径> / 口头指令 "<摘要>"，一句话说明本轮要调整什么>
+
+## 方案对比
+
+- <仅当本轮方案分叉时给 2-3 方案统一维度对比 + 唯一推荐；方案未变则一句「方案未变，仅局部调整」>
+
+## 详细设计变更点
+
+- <相对基线设计的变化项，逐条列出：架构/组件/数据流/接口/错误处理中**仅变化的部分**，每条注明影响的基线章节>
+
+## 修改范围增量
+
+- <本轮新增/移除的目录与文件前缀（与 tasks.md「修改范围：」声明取并集的方向一致）>
 ```
 
-- **feature 锁定**：迭代轮 feature 已由确定性层锁定（`state.json` 的 feature 字段，重入确认后的 `facade iterate` 或 `auto new-round` 轮次切换时均不改动），设计文档仍更新原路径，change 目录不迁移（`openspec/changes/<锁定slug>/` 由 propose 维护）
-- **调用方式**：迭代轮更新设计文档是**认知任务直接落盘**，不调 `facade explore`（其语义是"从 ready 开新特性"，与迭代轮 stage=propose 冲突）；stage 保持 propose，更新后须重新 `facade record-design-doc` 刷新登记
-- 首轮（非迭代轮）行为不变：按上方执行步骤全新生成
+- **feature 锁定**：迭代轮 feature 已由确定性层锁定（`state.json` 的 feature 字段，重入确认后的 `facade iterate` 或 `auto new-round` 轮次切换时均不改动），change 目录不迁移（`openspec/changes/<锁定slug>/` 由 propose 维护，design-round 文档与其同处、归档时随 change 整体进 archive/，设计演进链完整保留）
+- **调用方式**：迭代轮落盘简易设计文档是**认知任务直接落盘**，不调 `facade explore`（其语义是"从 ready 开新特性"，与迭代轮 stage=propose 冲突）；stage 保持 propose
+- 首轮（非迭代轮）行为不变：按上方执行步骤全新生成基线设计文档
 
 ## 后续步骤
 

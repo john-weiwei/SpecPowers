@@ -26,3 +26,5 @@ You will:
 8. Tell user: next step is `/specpowers-apply`
 
 完成后：三件套已生成到 `openspec/changes/<feature>/`；下一步建议调用技能 specpowers-apply（用户直接 `/specpowers-apply` 调用，auto 模式下模型直接经 Skill 工具调用）。
+
+会话粘滞（v2.7.0）：本对话后续消息默认延续 specpowers 流程语境——相关消息走流程、无关消息照常回答并附一行活跃需求提醒（解除条件=归档/reset），判定规则见主技能 SKILL.md「会话粘滞」小节。

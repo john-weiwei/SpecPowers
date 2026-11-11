@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# SpecPowers UserPromptSubmit 会话粘滞脚本（v2.7.0）
+# 逐轮注入活跃需求锚点行：调 bridge 只读子命令 sticky-note，有活跃需求时
+# 输出单行锚点（feature/stage/Round + capability + 修改范围），供模型对
+# 用户消息做软粘滞相关性判定（规则见主技能 SKILL.md「会话粘滞」小节）；
+# 零活跃零输出（不打印任何 JSON，逐轮零 token）。
+# 只读、绝不写状态；任何失败静默 exit 0，绝不阻断用户消息提交。
+#
+# 输出（stdout 一行 JSON，仅在有活跃需求时）：
+#   - Cursor  → {"additional_context": "..."}
+#   - Claude  → {"hookSpecificOutput": {"hookEventName":"UserPromptSubmit","additionalContext":"..."}}
+#   - 其他    → {"additionalContext": "..."}
+
+set -euo pipefail
+
+# ── JSON 转义（复用 check-deps 范式）────────────────────────
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# ── 活跃需求锚点探测（bridge 只读子命令 sticky-note）─────────
+# 项目根：hook 工作目录向上找 .git（目录或 worktree 文件均认）；
+# 非项目目录 / CLI 不可用 / 任何失败 → 空输出静默跳过
+plugin_root="${ZCODE_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CODEBUDDY_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}}"
+sticky_msg=""
+probe_cli="$plugin_root/scripts/specpowers_cli/bin/specpowers"
+if [ -n "$plugin_root" ] && [ -f "$probe_cli" ]; then
+    probe_dir="$PWD"
+    project_root=""
+    while [ -n "$probe_dir" ] && [ "$probe_dir" != "/" ]; do
+        if [ -e "$probe_dir/.git" ]; then
+            project_root="$probe_dir"
+            break
+        fi
+        probe_dir="$(dirname "$probe_dir")"
+    done
+    if [ -n "$project_root" ]; then
+        # bin 包装自带 PYTHONPATH 兜底与 PYTHONUTF8=1；失败/空输出均静默
+        sticky_msg="$(bash "$probe_cli" sticky-note --root "$project_root" 2>/dev/null || true)"
+    fi
+fi
+
+# 零活跃 = 零输出（不打印 JSON，宿主侧零注入零 token）
+if [ -z "$sticky_msg" ]; then
+    exit 0
+fi
+
+# ── 平台分流输出（各平台消费字段不同，避免 Claude 重复消费）──
+
+message_escaped="$(escape_for_json "[specpowers] ${sticky_msg}")"
+
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$message_escaped"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' "$message_escaped"
+else
+    printf '{\n  "additionalContext": "%s"\n}\n' "$message_escaped"
+fi
+
+exit 0

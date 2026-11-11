@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.6.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.7.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,12 +48,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.6.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.6.0
+# → SpecPowers CLI v2.7.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -103,11 +103,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.6.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.6.0
+# → SpecPowers CLI v2.7.0
 
 # 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（命令名已全部更新）
 cd my-project
@@ -171,10 +171,12 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 
 **归档前，所有调整都视为同一个需求的新迭代轮**，记录进当前 change 目录的同一个 spec 文件；归档即宣告需求终结、开启全新需求：
 
-- **人工模式**：直接重入 `/specpowers-propose "调整描述"`（场景/范围调整）或 `/specpowers-explore`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）
+- **人工模式**：直接重入 `/specpowers-propose "调整描述"`（场景/范围调整）或 `/specpowers-explore`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）；方案变更轮 v2.7.0 起**不再改写基线设计文档**，改为在 change 目录新落 `design-round-<N>.md` 简易设计文档（只写本轮增量：输入/方案对比/详细设计变更点/修改范围增量，归档时随 change 整体归档）——省 token 关键：基线冻结不再逐轮重读重写整份文档，且设计文档的唯一下游消费者 propose 的迭代轮读取清单同步锁死（现有 proposal + 最新 design-round，基线仅按需局部查阅）
 - **auto 模式**：重入 `/specpowers-auto`（新文档 / 原文档 / `--instruction "口头调整"`），自动三分判定全新（fresh）/ 续跑（resume）/ 迭代轮（iterate）
 
 > 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
+
+> **会话粘滞（v2.7.0）**：对话中用过 specpowers 技能且需求未归档时，后续消息默认先做相关性判定——相关消息走流程、无关消息照常回答+末尾一行活跃需求提醒、拿不准一律按相关；解除条件 = 归档或 reset。ZCode/Claude/Codex 由 UserPromptSubmit hook 逐轮注入锚点行（feature/stage/Round + capability + 修改范围，零活跃零注入），WorkBuddy/pip 形态靠技能正文条款。与「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
 
 ---
 
@@ -331,7 +333,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（311 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（328 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

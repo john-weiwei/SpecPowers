@@ -25,7 +25,7 @@ Load the specpowers skill context (`SKILL.md`), then follow the contract `prompt
 
 You will:
 0. **Init check first**: 检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json` 是否存在——任一缺失 = 项目未初始化：告知用户「检测到项目未初始化，先自动执行 specpowers-init」，加载 `prompts/init.md` 完整执行初始化（含提示用户提交两产物），完成后带着原 args 回到本技能第 1 步继续；两文件均存在则直接往下执行
-1. **Iteration re-entry check first**: read `.specpowers/state.json` — if `stage` is `propose`/`apply` and `feature` is non-empty (unarchived), follow the「重入识别」section of `prompts/explore.md`: confirm with the user to open Round <N+1> via `facade iterate` (approach-change path — design doc updated in place, proposal.md regenerated at the propose stage), then hand off to `/specpowers-propose` for incremental spec/tasks revision
+1. **Iteration re-entry check first**: read `.specpowers/state.json` — if `stage` is `propose`/`apply` and `feature` is non-empty (unarchived), follow the「重入识别」section of `prompts/explore.md`: confirm with the user to open Round <N+1> via `facade iterate` (approach-change path — a lightweight `design-round-<N>.md` delta doc lands in the change dir, the baseline design doc stays untouched and stays registered, proposal.md regenerated at the propose stage), then hand off to `/specpowers-propose` for incremental spec/tasks revision
 2. Otherwise (normal flow): 完整执行 `prompts/explore.md` 第一步的**探索引擎细则**（内联于该契约）：静默项目探索 → 2-3 approaches compared on unified dimensions → single recommendation → design doc written under `docs/specpowers/design/`, incl. data-flow conclusions
 3. Interact with the user **only for genuinely irreversible decisions** (approach selection with no clear winner / ambiguous requirements): batch them into ONE AskUserQuestion round **after** presenting the exploration conclusion — 默认不打断用户，禁止逐个提问循环（use Chinese, per `prompts/explore.md` 交互决策原则）
 4. **Register the design doc** with the deterministic layer (hard gate for propose):
@@ -35,3 +35,5 @@ You will:
 5. Tell user: next step is `/specpowers-propose "<requirement>"` (one-shot proposal.md + spec.md + tasks.md)
 
 完成后：设计文档已落盘并登记；下一步建议调用技能 specpowers-propose（用户直接 `/specpowers-propose "<需求>"` 调用，auto 模式下模型直接经 Skill 工具调用）。
+
+会话粘滞（v2.7.0）：本对话后续消息默认延续 specpowers 流程语境——相关消息走流程、无关消息照常回答并附一行活跃需求提醒（解除条件=归档/reset），判定规则见主技能 SKILL.md「会话粘滞」小节。

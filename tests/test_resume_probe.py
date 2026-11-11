@@ -14,7 +14,13 @@
 from pathlib import Path
 
 from specpowers_cli.bridge.core.fs_state import DEFAULT_STATE, save_state
-from specpowers_cli.bridge.modules.resume_probe import active_changes, probe_resume
+from specpowers_cli.bridge.modules.resume_probe import (
+    _capability_names,
+    _scope_prefixes,
+    active_changes,
+    probe_resume,
+    sticky_note,
+)
 
 
 def _write_state(root: Path, **overrides) -> None:
@@ -128,3 +134,99 @@ def test_active_changes_filters_and_sorts(tmp_path):
 def test_active_changes_empty_when_no_dir(tmp_path):
     """无 openspec/changes 目录 → 空列表。"""
     assert active_changes(tmp_path) == []
+
+
+# ---------- sticky_note 会话粘滞锚点行（v2.7.0） ----------
+
+
+def _make_specs_dir(root: Path, feature: str, caps: list[str]) -> None:
+    """构造 change 的 specs/<capability>/ 目录结构。"""
+    for cap in caps:
+        d = root / "openspec" / "changes" / feature / "specs" / cap
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "spec.md").write_text("# spec", encoding="utf-8")
+
+
+def test_sticky_note_active_pipeline_with_anchors(tmp_path):
+    """活跃流水线 + specs/tasks 齐备 → 锚点行含 feature/stage/Round/capability/修改范围。"""
+    _write_state(tmp_path, stage="apply", mode="full", feature="demo", iteration_count=2)
+    _make_specs_dir(tmp_path, "demo", ["order-retry", "mq-send"])
+    tasks = tmp_path / "openspec" / "changes" / "demo" / "tasks.md"
+    tasks.write_text("<!-- 修改范围：src/order/**, src/mq/** -->\n# t\n", encoding="utf-8")
+    msg = sticky_note(tmp_path)
+    assert "demo" in msg
+    assert "apply" in msg
+    assert "Round 2" in msg
+    assert "capability=mq-send,order-retry" in msg
+    assert "修改范围=src/order/**, src/mq/**" in msg
+    # 注释闭合符不得泄漏进修改范围取值（tasks.md 声明行在 HTML 注释块内）
+    assert "-->" not in msg.split("修改范围=", 1)[1].split(" —— ")[0]
+    assert "/specpowers-archive" in msg
+    assert "/specpowers-reset" in msg
+
+
+def test_sticky_note_first_round_without_round_note(tmp_path):
+    """首轮（iteration_count=0）锚点行不带 Round 注记。"""
+    _write_state(tmp_path, stage="propose", mode="full", feature="demo")
+    msg = sticky_note(tmp_path)
+    assert "demo" in msg
+    assert "Round" not in msg
+
+
+def test_sticky_note_degrades_without_artifacts(tmp_path):
+    """change 工件缺失（仅 state 活跃）→ 降级为不含 capability/修改范围的简版。"""
+    _write_state(tmp_path, stage="propose", mode="full", feature="demo")
+    msg = sticky_note(tmp_path)
+    assert "demo" in msg
+    assert "capability=" not in msg
+    assert "修改范围=" not in msg
+
+
+def test_sticky_note_silent_when_ready(tmp_path):
+    """无活跃需求（ready/full）→ 空串零注入。"""
+    _write_state(tmp_path, stage="ready", mode="full", feature="")
+    assert sticky_note(tmp_path) == ""
+
+
+def test_sticky_note_silent_on_fresh_project(tmp_path):
+    """全新项目 → 空串零噪音。"""
+    assert sticky_note(tmp_path) == ""
+
+
+def test_sticky_note_fast_mode_hint(tmp_path):
+    """fast 进行中 → 验收/放弃提示（粘滞期间编码由用户完成）。"""
+    _write_state(tmp_path, stage="ready", mode="fast", feature="demo")
+    msg = sticky_note(tmp_path)
+    assert "fast 优化模式进行中" in msg
+    assert "/specpowers-apply" in msg
+    assert "/specpowers-reset" in msg
+
+
+def test_sticky_note_survives_corrupt_state(tmp_path):
+    """state.json 损坏 → 按默认状态降级为空串（绝不阻断用户消息）。"""
+    (tmp_path / ".specpowers").mkdir()
+    (tmp_path / ".specpowers" / "state.json").write_text("{broken", encoding="utf-8")
+    assert sticky_note(tmp_path) == ""
+
+
+def test_scope_prefixes_truncation(tmp_path):
+    """修改范围声明超 120 字符截断加省略号；缺声明行返回空串。"""
+    feature_dir = tmp_path / "openspec" / "changes" / "demo"
+    feature_dir.mkdir(parents=True)
+    long_decl = ",".join(f"src/module-{i:03d}/**" for i in range(30))
+    (feature_dir / "tasks.md").write_text(
+        f"<!-- 修改范围：{long_decl} -->\n# t\n", encoding="utf-8",
+    )
+    got = _scope_prefixes(tmp_path, "demo")
+    assert len(got) == 120
+    assert got.endswith("…")
+    # 无声明行 → 空串
+    (feature_dir / "tasks.md").write_text("# t\n", encoding="utf-8")
+    assert _scope_prefixes(tmp_path, "demo") == ""
+
+
+def test_capability_names_sorted_and_missing(tmp_path):
+    """capability 取 specs/ 下一级目录并排序；目录缺失返回空列表。"""
+    _make_specs_dir(tmp_path, "demo", ["beta", "alpha"])
+    assert _capability_names(tmp_path, "demo") == ["alpha", "beta"]
+    assert _capability_names(tmp_path, "missing") == []

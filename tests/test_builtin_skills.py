@@ -147,6 +147,39 @@ CONTRACT_VARIABLE_PATTERN_ANCHOR = "*_PLUGIN_ROOT"
 # 契约引用技能必须含 Glob 兜底搜索句（PLUGIN_ROOT 变量不可用时的最后定位手段）
 CONTRACT_GLOB_ANCHOR = "**/specpowers/prompts/"
 
+# v2.7.0 迭代轮简易设计文档：基线冻结 + design-round-<N>.md 增量文档
+# （防回潮为「覆盖重写基线 + 重新登记」的旧语义——token 消耗大头）
+ITERATION_DESIGN_ROUND_ANCHORS = {
+    "specpowers/prompts/explore.md": [
+        "design-round-<N>",
+        "基线设计文档冻结不动",
+    ],
+    "specpowers/prompts/propose.md": [
+        "design-round-<N>.md",
+        "禁止整份重读",
+    ],
+    "specpowers/prompts/refs/auto-iteration.md": [
+        "design-round-<N>",
+    ],
+    "specpowers-explore/SKILL.md": [
+        "design-round-<N>.md",
+    ],
+}
+
+# 迭代轮旧覆盖语义的防回潮标记（只扫设计文档相关契约；proposal 三件套的
+# 「覆盖更新」是有意保留的规则，不在扫描范围）
+ITERATION_OVERWRITE_REGRESSION_MARKERS = ["设计文档覆盖", "更新后须重新"]
+
+# v2.7.0 会话粘滞：主技能六级判定锚点 + 薄入口粘滞行（auto 单会话直通不适用）
+SESSION_STICKY_MAIN_ANCHORS = ["会话粘滞", "拿不准 → 一律按相关", "UserPromptSubmit"]
+SESSION_STICKY_SKILLS = {
+    "specpowers-explore",
+    "specpowers-propose",
+    "specpowers-apply",
+    "specpowers-archive",
+    "specpowers-fast",
+}
+
 # v2.5.1 explore 硬性产出契约锚点（WorkBuddy 等宿主读不到 prompts/explore.md 时底线仍成立）
 EXPLORE_HARD_DELIVERABLES_ANCHORS = [
     "硬性产出契约",
@@ -327,6 +360,70 @@ def test_explore_contract_contains_engine_details():
         assert anchor in content, (
             f"prompts/explore.md 缺少探索引擎细则锚点「{anchor}」——引擎细则被误删即断链"
         )
+
+
+def test_iteration_design_round_anchors():
+    """v2.7.0 迭代轮简易设计文档防断链：契约与薄入口必须写明 design-round 语义。
+
+    基线冻结 + change 目录内增量文档是迭代轮 token 节省的核心；锚点缺失
+    意味着模型会被引导回「重读重写整份基线」的旧行为。
+    """
+    for rel_path, anchors in ITERATION_DESIGN_ROUND_ANCHORS.items():
+        content = (SKILLS_ROOT / rel_path).read_text(encoding="utf-8")
+        for anchor in anchors:
+            assert anchor in content, (
+                f"skills/{rel_path} 缺少迭代轮 design-round 锚点「{anchor}」——"
+                "简易设计文档语义断链（v2.7.0 修复回潮）"
+            )
+
+
+def test_iteration_no_overwrite_regression():
+    """防回潮：设计文档相关契约不得残留旧的「覆盖重写基线 + 重新登记」语义。
+
+    proposal.md 的「覆盖更新」是三件套有意保留的规则，不在扫描范围。
+    """
+    scan_paths = [
+        "specpowers/prompts/explore.md",
+        "specpowers/prompts/refs/auto-iteration.md",
+    ]
+    for rel_path in scan_paths:
+        content = (SKILLS_ROOT / rel_path).read_text(encoding="utf-8")
+        for marker in ITERATION_OVERWRITE_REGRESSION_MARKERS:
+            assert marker not in content, (
+                f"skills/{rel_path} 残留旧覆盖语义标记「{marker}」——"
+                "迭代轮应新落 design-round-<N>.md，不再覆盖重写基线设计文档（v2.7.0）"
+            )
+
+
+def test_session_sticky_main_skill_anchors():
+    """v2.7.0 会话粘滞防断链：主技能必须含六级判定规则与 hook 说明。"""
+    content = (SKILLS_ROOT / "specpowers" / "SKILL.md").read_text(encoding="utf-8")
+    for anchor in SESSION_STICKY_MAIN_ANCHORS:
+        assert anchor in content, (
+            f"skills/specpowers/SKILL.md 缺少会话粘滞锚点「{anchor}」——"
+            "粘滞三级处理/六级判定/hook 注入说明断链（v2.7.0 修复回潮）"
+        )
+
+
+def test_session_sticky_stage_skill_lines():
+    """v2.7.0 五个流水线薄入口必须含粘滞行（auto 单会话直通不适用）。"""
+    for rel_dir in SESSION_STICKY_SKILLS:
+        content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert "会话粘滞" in content, (
+            f"skills/{rel_dir}/SKILL.md 缺少会话粘滞行——宿主不级联加载主技能时"
+            "粘滞语义对薄入口不可见（v2.7.0）"
+        )
+
+
+def test_hooks_register_user_prompt_submit():
+    """v2.7.0 hooks.json 必须注册 UserPromptSubmit 且脚本落位（逐轮锚点行）。"""
+    hooks = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    assert "UserPromptSubmit" in hooks.get("hooks", {}), (
+        "hooks.json 未注册 UserPromptSubmit——逐轮粘滞锚点行注入断链（v2.7.0）"
+    )
+    assert (PLUGIN_ROOT / "hooks" / "session-sticky").is_file(), (
+        "hooks/session-sticky 脚本缺失——UserPromptSubmit 注册指向不存在的脚本"
+    )
 
 
 def test_no_builtin_explore_skill_references():

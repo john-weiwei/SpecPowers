@@ -1,5 +1,9 @@
 """Ambient resume — SessionStart 只读探测活跃需求状态（v2.3.0）。
 
+v2.7.0 增补 sticky_note：UserPromptSubmit 逐轮注入的会话粘滞锚点行
+（有活跃需求才输出单行 feature/stage/Round + capability + 修改范围锚点，
+供模型做消息相关性判定；零活跃零输出，与 probe_resume 同只读口径）。
+
 借鉴 Comet resume-probe 的低噪声理念（文章数据分级 B/C 级，机制以本仓库
 实测为准）：会话启动时只读探测未完成的特性流水线，确有活跃状态才输出
 提示，零活跃零噪音。探测绝不写状态、绝不抛异常阻断——所有异常由调用方
@@ -99,5 +103,84 @@ def probe_resume(root: Path) -> str:
         return (
             f"📌 检测到未归档的 change：{names}（本机流水线状态未接管）。"
             "继续该需求：/specpowers-propose（重入确认为迭代轮）；放弃：/specpowers-reset。"
+        )
+    return ""
+
+
+def _capability_names(root: Path, feature: str) -> list[str]:
+    """列出当前 change 的 capability 目录名（specs/ 下一级目录，排序）。
+
+    供 sticky_note 拼装锚点行（本地文件 IO，零 LLM token）；目录不存在返回空。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    specs = root / "openspec" / "changes" / feature / "specs"
+    if not specs.is_dir():
+        return []
+    return sorted(child.name for child in specs.iterdir() if child.is_dir())
+
+
+def _scope_prefixes(root: Path, feature: str, limit: int = 120) -> str:
+    """提取 tasks.md「修改范围：」声明行内容，超长截断。
+
+    多轮迭代取并集后可能很长，超 limit 字符截断加省略号；文件缺失或无
+    声明行返回空串（sticky_note 降级为不含修改范围的简版锚点行）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    tasks = root / "openspec" / "changes" / feature / "tasks.md"
+    if not tasks.is_file():
+        return ""
+    for line in tasks.read_text(encoding="utf-8", errors="replace").splitlines():
+        # 匹配 tasks.md 顶部注释块中的「修改范围：」声明行
+        if "修改范围" in line and "：" in line:
+            raw = line.split("：", 1)[1].strip()
+            # 声明行位于 HTML 注释块内，剥掉行尾注释闭合符再截断
+            if raw.endswith("-->"):
+                raw = raw[:-3].rstrip()
+            return raw if len(raw) <= limit else raw[: limit - 1] + "…"
+    return ""
+
+
+def sticky_note(root: Path) -> str:
+    """会话粘滞锚点行（v2.7.0，UserPromptSubmit hook 消费）。
+
+    有活跃需求时输出单行锚点（feature/stage/Round + capability + 修改范围
+    前缀），供模型对每条用户消息做相关性匹配（软粘滞，判定规则见主技能
+    SKILL.md「会话粘滞」小节）；无活跃状态返回空串零注入。只读、绝不写
+    状态；capability/修改范围取自本地文件 IO（零 LLM token），文件缺失
+    逐项降级。异常由调用方（facade sticky-note）吞掉降级为空输出。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    try:
+        state = load_state(root)
+    except Exception:
+        state = dict(DEFAULT_STATE)
+    stage = str(state.get("stage", "init"))
+    mode = str(state.get("mode", "full"))
+    feature = str(state.get("feature") or "").strip()
+    rounds = int(state.get("iteration_count", 0) or 0)
+
+    # 1. 流水线活跃：拼装锚点行（capability / 修改范围逐项可选，缺失即降级）
+    if stage in ACTIVE_STAGES and feature:
+        round_note = f"，Round {rounds}" if rounds >= 1 else ""
+        anchors = ""
+        caps = _capability_names(root, feature)
+        if caps:
+            anchors += f"：capability={','.join(caps)}"
+        scope = _scope_prefixes(root, feature)
+        if scope:
+            anchors += f"，修改范围={scope}"
+        return (
+            f"活跃需求 {feature}（{stage}{round_note}）{anchors} —— "
+            "相关消息按 specpowers 流程处理（判定规则见主技能 SKILL.md「会话粘滞」），"
+            "脱离流程请先 /specpowers-archive 或 /specpowers-reset"
+        )
+    # 2. fast 优化模式进行中：编码由用户完成，仅提示验收入口
+    if stage == "ready" and mode == "fast" and feature:
+        return (
+            f"fast 优化模式进行中：{feature}。编码完成后 /specpowers-apply 验收；"
+            "放弃请 /specpowers-reset"
         )
     return ""

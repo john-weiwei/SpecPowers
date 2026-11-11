@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.6.0
+version: 2.7.0
 ---
 
 # SpecPowers 桥接插件
@@ -27,12 +27,36 @@ init ─▶ ready ─┬─(explore)───▶ explore ─▶ propose ─▶ a
                ├─(fast)──▶(用户编码)──▶ apply ─▶ archive ─▶ ready
                └─(迭代重入)──▶ 归档前重入 /specpowers-propose（场景调整）或
                               /specpowers-explore（方案变更）= 同需求新迭代轮，
-                              feature 锁定，spec 增量修订 + tasks 分轮演进
+                              feature 锁定，方案变更轮新落 design-round-<N>
+                              简易设计文档（基线冻结不动），spec 增量修订 + tasks 分轮演进
 ```
 
 propose 一站式生成三件套到 `openspec/changes/<feature>/`：proposal.md（含「## 数据流契约」，apply 硬依赖）+ `specs/<capability>/spec.md`（OpenSpec delta 格式）+ tasks.md（writing-plans 瘦身，顶部含执行方式推荐与「修改范围：」声明）。
 
 > **省 token 建议**：各阶段产物全部落盘（state.json + openspec/changes/），阶段间不依赖对话记忆。人工模式推荐**每阶段完成即开新会话**再触发下一条命令——长会话上下文逐轮累积是 token 消耗主因，新会话只加载当阶段契约；会话启动探测（v2.3.0）会自动提示续跑命令，跨机接管同样支持。`/specpowers-auto` 例外（单会话直通是其设计）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，避免频繁切换模型。
+
+## 会话粘滞（v2.7.0）
+
+本对话加载过任一 specpowers 技能且项目有活跃需求（`state.json` 的 stage ∈ explore/propose/apply/archive 且 feature 非空，或 fast 模式进行中）时，**后续每条用户消息默认先做相关性判定**，把对话保持在流程语境内（软粘滞，不阻塞正常使用）：
+
+| 消息判定 | 处理 |
+|---------|------|
+| ① 相关 | 按当前阶段技能/契约处理（未归档调整 = 同需求迭代轮，走重入识别） |
+| ② 无关（闲聊/其他任务） | 照常回答，回复**末尾加一行提醒**：当前有活跃需求 \<feature\>（\<stage\>），脱离流程前建议 `/specpowers-archive` 或 `/specpowers-reset` |
+| ③ 要开新需求 | 提示先归档（`/specpowers-archive`）或与用户明确并存后再开工 |
+
+**相关性六级判定**（按优先级短路）：
+
+1. 明确流程指令（继续/下一步/验收/归档/重置/迭代/Round N/specpowers-* 入口名）→ 相关
+2. 结构化锚点命中：feature 名、capability/Requirement/Scenario 名、Task 编号/标题、「修改范围：」路径前缀、数据流契约的数据源/接口、design-round-\<N\> 章节 → 相关
+3. 语义重叠：消息目标改动与当前需求修改范围/场景语义重叠 → 相关
+4. 明显新需求（新能力目标、与当前 feature 无重叠）→ 按③
+5. 都不中 → 无关，按②
+6. **拿不准 → 一律按相关①**（代价不对称：多一句确认 ≪ 绕过流程）
+
+配套约束：**判定零额外读取**——用上下文已加载的锚点（或 hook 注入的锚点行）匹配即可，禁止为判定重读三件套；**每条消息独立判定**——话题漂移后重新走规则表，不整段对话二分。误判不伤流程：确定性层状态机仍是最终防线（阶段跃迁/产物门禁/修改范围比对照常拦截），粘滞只是路由引导。
+
+**解除条件**：需求归档或 reset（stage 回 ready、feature 清空）——「对话结束」宿主侧不可观测，以磁盘状态为界；对话结束后新会话由 SessionStart resume-probe 提示续跑，跨会话衔接不丢。逐轮锚点行由 UserPromptSubmit hook 注入（ZCode/Claude/Codex，约 80 token/轮，`facade sticky-note` 供模型直接调用；WorkBuddy/pip 形态无 hook 机制，仅靠本小节条款）。粘滞与上方「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
 
 ## 技能参考
 
@@ -41,7 +65,7 @@ v2.4.0 起 9 条阶段命令全部转为**阶段技能**（`skills/specpowers-<s
 | 技能（slash 名不变） | 参数 | 说明 |
 |------|------|------|
 | `/specpowers-init` | `[--force]` | 生成 constitution（质量/测试/UX/性能原则 + 可选实现倾向段，从 AGENTS.md 提取编码约束）+ 扫结构基线 |
-| `/specpowers-explore` | `"<需求>"` | 探索 + 设计文档落盘（`docs/specpowers/design/`）+ `record-design-doc` 登记；未归档重入=迭代轮确认（方案变更路径） |
+| `/specpowers-explore` | `"<需求>"` | 探索 + 设计文档落盘（`docs/specpowers/design/`）+ `record-design-doc` 登记；未归档重入=迭代轮确认（方案变更路径，v2.7.0 起新落 `design-round-<N>.md` 简易设计文档，基线不动不重登记） |
 | `/specpowers-propose` | `"<需求>"` | 一站式生成三件套；未归档重入=迭代轮确认（场景调整路径） |
 | `/specpowers-auto` | `"<设计文档路径>" [--instruction "<描述>"] [--archive] [--new-round]` | 无人值守全流程至 review，**默认不归档**（`--archive` 显式收口）；重入三分判定 fresh/resume/iterate；所有确认/门禁节点自动裁决，仅硬阻断才停；归档前重入=同需求迭代轮 |
 | `/specpowers-fast` | `"<需求>"` | 判小跳 explore/propose，用户编码后直进 apply（fast→full 回退消耗生命周期唯一 1 次额度） |

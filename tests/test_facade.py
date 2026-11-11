@@ -315,6 +315,43 @@ def test_resume_probe_survives_corrupt_state(tmp_path, capsys):
     assert rc == 0
 
 
+# ---------- sticky-note 会话粘滞锚点行子命令（v2.7.0） ----------
+
+def test_sticky_note_subcommand_silent_on_fresh(tmp_path, capsys):
+    """sticky-note 在无活跃状态的项目 exit 0 且输出空（零注入零 token）。"""
+    root = _create_temp_git_repo(tmp_path)
+    rc = main(["sticky-note", "--root", str(root)])
+    assert rc == 0
+    assert capsys.readouterr().out.strip() == ""
+
+
+def test_sticky_note_subcommand_reports_anchor_line(tmp_path, capsys):
+    """sticky-note 在活跃流水线输出锚点行（hook 注入的内容源）。"""
+    _seed_propose_state(tmp_path, "demo")
+    change = tmp_path / "openspec" / "changes" / "demo"
+    (change / "specs" / "order").mkdir(parents=True)
+    (change / "tasks.md").write_text(
+        "<!-- 修改范围：src/order/** -->\n# t\n", encoding="utf-8",
+    )
+    rc = main(["sticky-note", "--root", str(tmp_path)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "demo" in out
+    assert "propose" in out
+    assert "capability=order" in out
+    assert "修改范围=src/order/**" in out
+    assert "/specpowers-archive" in out
+
+
+def test_sticky_note_subcommand_survives_corrupt_state(tmp_path, capsys):
+    """state.json 损坏时 sticky-note 仍 exit 0（绝不阻断用户消息提交）。"""
+    root = _create_temp_git_repo(tmp_path)
+    (root / ".specpowers").mkdir()
+    (root / ".specpowers" / "state.json").write_text("{broken", encoding="utf-8")
+    rc = main(["sticky-note", "--root", str(root)])
+    assert rc == 0
+
+
 # ---------- locate 自描述命令（v2.6.0） ----------
 
 def test_locate_reports_source_tree_installation(capsys):
