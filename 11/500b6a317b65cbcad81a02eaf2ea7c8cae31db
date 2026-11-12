@@ -1,0 +1,125 @@
+plugins/specpowers/skills/specpowers-explore/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 28,39
+tests/test_builtin_skills.py
+  s_af939730bb1153::t_4b2c6a9f46f3aa 445-465
+  s_af939730bb1153::t_b513a9ef44ff8f 192-207
+.codebuddy-plugin/marketplace.json
+  s_af939730bb1153::t_b07dd4a5d81308 16
+plugins/specpowers/skills/specpowers/prompts/apply.md
+  s_af939730bb1153::t_52f9b886fc7b6e 7
+plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py
+  s_af939730bb1153::t_b5fc0d2dd2b828 4-7,9-22,24-38,46,50-54,74-91,93-109,111-112,114,123-125,149,152,156-159,161-169,171-192,194,198,201-202,205,209-216,218-274,276-280,286-289,291-302,306-414,452-453,456-458,461-462,468-469,471,473-479,481,489-533,537,564-566,571,573-575,577-594
+  s_af939730bb1153::t_e83780ff300898 92,110,150,160,275,534-535
+  s_af939730bb1153::t_c4a20ba2a42dd3 281-285
+  s_af939730bb1153::t_57a86e85b549bb 437-451,454-455,459-460,463-467,470,472,480,482-488
+  s_af939730bb1153::t_151bb505e59561 415-436
+pyproject.toml
+  s_af939730bb1153::t_b07dd4a5d81308 3
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_af939730bb1153::t_258dabe1786acc 701-702,704
+  s_af939730bb1153::t_c031c7caba8084 763-764,771-777
+  s_af939730bb1153::t_65eaf7bb9bb278 298,302-306
+  s_af939730bb1153::t_aa2ce3bac72511 659-660,662-667,669-673,679-680,682-695,700,703,715
+  s_af939730bb1153::t_b539eecb4a2d79 858-860,862-866,868,875,881-882,913,918-921,929-937,940
+  s_af939730bb1153::t_35bc596c504e50 1209-1212,1215
+  s_af939730bb1153::t_6e424da98cf80f 651-652
+  s_af939730bb1153::t_9c73d8524baa3b 24-25,32-100,681,727,883,955,983
+  s_af939730bb1153::t_33afbb4aca2097 277,280-282,286,290-295,299-301,307-313,322,328,341-343,345,370,377,379,396
+  s_af939730bb1153::t_0e76ac2a45479c 1026-1031,1035-1037,1039,1042-1043,1059-1060,1063-1064,1069,1072,1075,1086,1088,1090,1124
+  s_af939730bb1153::t_adbcb65cf46bbb 829-833,840-841,843,847,849
+  s_af939730bb1153::t_e5dcf6c3cf303d 728-743,752,766,792-797,799-802
+  s_af939730bb1153::t_9ccb85e62d3c74 461
+  s_af939730bb1153::t_de95cdb11471be 585-587,590-591,594-596
+  s_af939730bb1153::t_e8cd85eb6bf26e 811-813,815-816
+  s_af939730bb1153::t_8c919dce8b4ab2 954,956-959,962,967-982,984-993
+  s_af939730bb1153::t_987e314918df1d 176-178,181-182,186,193-194,198-200
+  s_af939730bb1153::t_c44e9a782f6777 623-625,629,632,635,649-650,653
+  s_af939730bb1153::t_c2231d8d172755 491-492,495-496,500,503,507-508,512,517
+  s_af939730bb1153::t_048d2c473fd5ba 316-317
+  s_af939730bb1153::t_5747cba987375d 1145,1147-1149,1152-1153,1161-1162
+  s_af939730bb1153::t_c328843eefd7fe 314-315,318-320
+tests/test_auto_iteration.py
+  s_af939730bb1153::t_31e8c3782462a6 29-38,43-45,97,99,377,407
+.claude-plugin/marketplace.json
+  s_af939730bb1153::t_b07dd4a5d81308 13
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_af939730bb1153::t_b07dd4a5d81308 3
+tests/test_multi_feature.py
+  s_af939730bb1153::t_6c64f2212e45c0 1-583
+plugins/specpowers/skills/specpowers/prompts/explore.md
+  s_af939730bb1153::t_52f9b886fc7b6e 7
+plugins/specpowers/.codex-plugin/plugin.json
+  s_af939730bb1153::t_345df72fe269a3 3
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_af939730bb1153::t_345df72fe269a3 4,11,22,25-28,35-36,41,43,47-51,55-58,62,64,73-78,80,82,134
+plugins/specpowers/skills/specpowers-propose/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 19,21,30
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/resume_probe.py
+  s_af939730bb1153::t_4221a208cd4064 4,7-11,17-23,26,33,35,48-49,78,83-88,90-92,96-116,118-129,131,175-207,209,211-216,221-222,224-245,247
+  s_af939730bb1153::t_4d59ba71b1c015 34
+  s_af939730bb1153::t_8ca904758064b7 93-95
+tests/test_dispatcher.py
+  s_af939730bb1153::t_5b01beaff93c0f 410-413,463-466,488-491
+  s_af939730bb1153::t_4e8391700f92f2 84,93,96,153,155-157
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_af939730bb1153::t_b07dd4a5d81308 3
+docs/GETTING-STARTED.md
+  s_af939730bb1153::t_513d890560dbea 10,51,56,106,110
+  s_af939730bb1153::t_e8b35d4be69d3e 336
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_af939730bb1153::t_eb3c0c7e5b7bf5 688
+  s_af939730bb1153::t_3b5e5bea5ec957 24,185-186,190-193,199-200,206,208-211
+  s_af939730bb1153::t_bc2d412ab1c8f0 268,273,285,289,299,313,318,323,327,334,339,348,352-375,379-380,384-390,392-395
+  s_af939730bb1153::t_2e9019f6b65b28 575,577,579,581,583,585-586,593-594,600-616,620
+  s_af939730bb1153::t_c303a8d8767b32 12-20,22-23,25-32,35,38,40-41,43,45,50,52-55,59-60
+tests/test_fs_state.py
+  s_af939730bb1153::t_0bd77f2da5c95f 24-26,36,51-56,69,77-78,101
+plugins/specpowers/skills/specpowers-auto/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 21,24
+plugins/specpowers/skills/specpowers-reset/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 15,18,20
+marketplace.json
+  s_af939730bb1153::t_b07dd4a5d81308 13
+plugins/specpowers/skills/specpowers-fast/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 28
+plugins/specpowers/.claude-plugin/plugin.json
+  s_af939730bb1153::t_345df72fe269a3 3
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_af939730bb1153::t_52f9b886fc7b6e 51,58
+plugins/specpowers/plugin.json
+  s_af939730bb1153::t_b07dd4a5d81308 4
+plugins/specpowers/skills/specpowers-archive/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 27,33
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_af939730bb1153::t_52f9b886fc7b6e 7,76,106-107
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_af939730bb1153::t_345df72fe269a3 3
+tests/test_execution_mode.py
+  s_af939730bb1153::t_88bb18e31c8b9d 79-87,94-95,107-108,119-120,130-131,150-152,160-162,183,206-207
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_af939730bb1153::t_52f9b886fc7b6e 7
+plugins/specpowers/skills/specpowers-apply/SKILL.md
+  s_af939730bb1153::t_c88a2f3e2d0fd2 33
+tests/test_resume_probe.py
+  s_af939730bb1153::t_c031cdc1de05ae 73,75-77
+README.md
+  s_af939730bb1153::t_3b2cd533eb8a92 185,188-200
+  s_af939730bb1153::t_513d890560dbea 7,69,74,187,309,313
+  s_af939730bb1153::t_e8b35d4be69d3e 14,324
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "11500b6a317b65cbcad81a02eaf2ea7c8cae31db",
+  "prompts": {},
+  "sessions": {
+    "s_af939730bb1153": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_d59f9dba-6504-4692-9416-6477fc055162",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
