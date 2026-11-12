@@ -1,30 +1,38 @@
 """Ambient resume — SessionStart 只读探测活跃需求状态（v2.3.0）。
 
 v2.7.0 增补 sticky_note：UserPromptSubmit 逐轮注入的会话粘滞锚点行
-（有活跃需求才输出单行 feature/stage/Round + capability + 修改范围锚点，
+（有活跃需求才输出 feature/stage/Round + capability + 修改范围锚点，
 供模型做消息相关性判定；零活跃零输出，与 probe_resume 同只读口径）。
+
+v2.8.0 多活跃需求化：probe 与 sticky 均枚举全部活跃需求（features 映射），
+每需求一行、前台标注——「当前在做什么」活在对话上下文里，锚点的作用是
+把全部活跃需求摆在模型眼前供消息归属判定（与 OpenSpec「agent 上下文
+指名、工具不做隐式当前」同哲学），而非维护单一「当前需求」。
 
 借鉴 Comet resume-probe 的低噪声理念（文章数据分级 B/C 级，机制以本仓库
 实测为准）：会话启动时只读探测未完成的特性流水线，确有活跃状态才输出
 提示，零活跃零噪音。探测绝不写状态、绝不抛异常阻断——所有异常由调用方
 （facade resume-probe 子命令）吞掉降级为空提示。
 
-判定分支（按序短路）：
-1. state 阶段活跃（explore/propose/apply/archive）+ feature 非空
-   → auto_base.json 存在按 auto 断点提示（重入 /specpowers-auto 续跑）；
-     否则按阶段给续跑指引（与状态机 VALID_TRANSITIONS 对齐）
-2. stage=ready + mode=fast → fast 验收提示（编码完成后 /specpowers-apply）
-3. 工件存在但流水线状态未接管（本机 state 缺失/已回 ready——团队协作时
+probe_resume 判定分支（按序短路）：
+1. features 映射有活跃需求（stage ∈ explore/propose/apply/archive）
+   → 每需求一行：auto_base（.specpowers/auto_base/<slug>.json）存在按
+     auto 断点提示（重入 /specpowers-auto 续跑）；否则按阶段给续跑指引
+     （与状态机 VALID_TRANSITIONS 对齐）；fast 态需求（stage=ready+mode=fast）
+     给验收提示
+2. 工件存在但流水线状态未接管（本机 state 缺失/已回 ready——团队协作时
    state.json 每人独立而 openspec/changes/ 工件共享，跨机接管靠此提示）
    → 列出活跃 change，建议重入 propose 确认或 reset 放弃
-4. 其余（含全新项目）→ 空串，零噪音
+3. 其余（含全新项目）→ 空串，零噪音
 
 作者：005819 | 协作：GLM-5.3
 """
 
 from pathlib import Path
 
-from specpowers_cli.bridge.core.fs_state import DEFAULT_STATE, load_state
+from specpowers_cli.bridge.core.fs_state import (
+    list_features, load_feature, foreground_feature, auto_base_path,
+)
 
 # 阶段 → 续跑指引。与 dispatcher.VALID_TRANSITIONS 对齐：
 # - explore 重入 explore 非法（from 仅 ready），指引 propose 直达或重新探索
@@ -37,10 +45,8 @@ STAGE_NEXT = {
 }
 ACTIVE_STAGES = ("explore", "propose", "apply", "archive")
 
-
-def _auto_base_path(root: Path) -> Path:
-    """auto_base.json 路径（与 dispatcher._auto_base_path 保持一致）。"""
-    return root / ".specpowers" / "auto_base.json"
+# sticky_note 多需求展示上限：≤3 全列；>3 时前台 + 后台一行汇总（控 token）
+STICKY_MAX_LINES = 3
 
 
 def active_changes(root: Path) -> list[str]:
@@ -69,36 +75,60 @@ def active_changes(root: Path) -> list[str]:
 def probe_resume(root: Path) -> str:
     """只读探测，返回多行提示文本；空串 = 无活跃状态（零噪音）。
 
+    多活跃需求：每需求一行（auto 断点优先于阶段指引），前台标注。
     state.json 缺失/损坏时按默认状态继续（探测不阻断、不引导 reset——
     修复指引属于各阶段命令的前置校验职责，不在探测里越位）。
     """
     try:
-        state = load_state(root)
+        features = list_features(root)
     except Exception:
-        state = dict(DEFAULT_STATE)
-    stage = str(state.get("stage", "init"))
-    mode = str(state.get("mode", "full"))
-    feature = str(state.get("feature") or "").strip()
-    rounds = int(state.get("iteration_count", 0) or 0)
+        features = []
+    fg = ""
+    try:
+        fg = foreground_feature(root)
+    except Exception:
+        fg = ""
 
-    # 1. 流水线活跃：按 stage 给续跑指引（auto 断点优先）
-    if stage in ACTIVE_STAGES and feature:
-        if _auto_base_path(root).exists():
-            return (
-                f"📌 检测到 auto 无人值守任务中断：{feature}，断点阶段 {stage}。"
-                "重入 /specpowers-auto 续跑（三分判定 resume/iterate）。"
+    lines: list[str] = []
+    # 前台永远排第一行（与 sticky_note 同序：模型对未指名语境的默认归属参考）
+    ordered = [fg] + [slug for slug in features if slug != fg]
+    for slug in ordered:
+        try:
+            fs = load_feature(root, slug) or {}
+        except Exception:
+            continue
+        stage = str(fs.get("stage", ""))
+        mode = str(fs.get("mode", "full"))
+        rounds = int(fs.get("iteration_count", 0) or 0)
+        fg_note = "（前台）" if slug == fg else ""
+
+        # 1. 流水线活跃：按 stage 给续跑指引（auto 断点优先）
+        if stage in ACTIVE_STAGES:
+            if auto_base_path(root, slug).exists():
+                lines.append(
+                    f"📌 检测到 auto 无人值守任务中断：{slug}{fg_note}，断点阶段 {stage}。"
+                    f"重入 /specpowers-auto 续跑（三分判定 resume/iterate）。"
+                )
+                continue
+            round_note = f"（Round {rounds}）" if rounds >= 1 else ""
+            lines.append(
+                f"📌 检测到未完成的特性流水线：{slug}{round_note}{fg_note}，"
+                f"当前阶段 {stage}。续跑：{STAGE_NEXT[stage]}"
             )
-        round_note = f"（Round {rounds}）" if rounds >= 1 else ""
-        return (
-            f"📌 检测到未完成的特性流水线：{feature}{round_note}，"
-            f"当前阶段 {stage}。续跑：{STAGE_NEXT[stage]}"
-        )
-    # 2. fast 优化模式进行中
-    if stage == "ready" and mode == "fast" and feature:
-        return f"📌 fast 优化模式进行中：{feature}。编码完成后运行 /specpowers-apply 验收。"
-    # 3. 工件存在但流水线状态未接管（state 每人独立而工件共享的跨机场景）
+            continue
+        # fast 态需求（stage=ready + mode=fast）：编码由用户完成，提示验收入口
+        if stage == "ready" and mode == "fast":
+            lines.append(
+                f"📌 fast 优化模式进行中：{slug}{fg_note}。"
+                f"编码完成后运行 /specpowers-apply 验收。"
+            )
+
+    if lines:
+        return "\n".join(lines)
+
+    # 2. 工件存在但流水线状态未接管（state 每人独立而工件共享的跨机场景）
     changes = active_changes(root)
-    if changes and not (stage in ACTIVE_STAGES and feature):
+    if changes:
         names = ", ".join(changes)
         return (
             f"📌 检测到未归档的 change：{names}（本机流水线状态未接管）。"
@@ -142,45 +172,76 @@ def _scope_prefixes(root: Path, feature: str, limit: int = 120) -> str:
     return ""
 
 
-def sticky_note(root: Path) -> str:
-    """会话粘滞锚点行（v2.7.0，UserPromptSubmit hook 消费）。
+def _sticky_line(root: Path, slug: str, fs: dict, fg: bool) -> str:
+    """拼装单个活跃需求的粘滞锚点行（capability/修改范围逐项可选，缺失降级）。
 
-    有活跃需求时输出单行锚点（feature/stage/Round + capability + 修改范围
-    前缀），供模型对每条用户消息做相关性匹配（软粘滞，判定规则见主技能
-    SKILL.md「会话粘滞」小节）；无活跃状态返回空串零注入。只读、绝不写
-    状态；capability/修改范围取自本地文件 IO（零 LLM token），文件缺失
-    逐项降级。异常由调用方（facade sticky-note）吞掉降级为空输出。
+    作者：005819 | 协作：GLM-5.3
+    """
+    stage = str(fs.get("stage", ""))
+    mode = str(fs.get("mode", "full"))
+    rounds = int(fs.get("iteration_count", 0) or 0)
+    fg_note = "（前台）" if fg else ""
+
+    # fast 态需求：编码由用户完成，仅提示验收入口
+    if stage == "ready" and mode == "fast":
+        return (
+            f"fast 优化模式进行中：{slug}{fg_note}。编码完成后 /specpowers-apply 验收；"
+            f"放弃该需求请 /specpowers-reset --feature {slug}"
+        )
+
+    round_note = f"，Round {rounds}" if rounds >= 1 else ""
+    anchors = ""
+    caps = _capability_names(root, slug)
+    if caps:
+        anchors += f"：capability={','.join(caps)}"
+    scope = _scope_prefixes(root, slug)
+    if scope:
+        anchors += f"，修改范围={scope}"
+    return (
+        f"活跃需求 {slug}{fg_note}（{stage}{round_note}）{anchors} —— "
+        "相关消息按 specpowers 流程处理（判定规则见主技能 SKILL.md「会话粘滞」，"
+        "命中哪个需求就按哪个需求的阶段契约处理），"
+        f"脱离该需求请先 /specpowers-archive --feature {slug} 或 /specpowers-reset --feature {slug}"
+    )
+
+
+def sticky_note(root: Path) -> str:
+    """会话粘滞锚点行（v2.7.0，UserPromptSubmit hook 消费；v2.8.0 多需求多行）。
+
+    每个活跃需求一行锚点（feature/stage/Round + capability + 修改范围
+    前缀，前台行加「（前台）」标注），供模型对每条用户消息做相关性匹配
+    （软粘滞，判定规则见主技能 SKILL.md「会话粘滞」）；无活跃状态返回
+    空串零注入。展示上限：≤3 个全列，>3 时前台 + 一行后台汇总（控 token）。
+    只读、绝不写状态；capability/修改范围取自本地文件 IO（零 LLM token），
+    文件缺失逐项降级。异常由调用方（facade sticky-note）吞掉降级为空输出。
 
     作者：005819 | 协作：GLM-5.3
     """
     try:
-        state = load_state(root)
+        features = list_features(root)
+        fg = foreground_feature(root)
     except Exception:
-        state = dict(DEFAULT_STATE)
-    stage = str(state.get("stage", "init"))
-    mode = str(state.get("mode", "full"))
-    feature = str(state.get("feature") or "").strip()
-    rounds = int(state.get("iteration_count", 0) or 0)
+        return ""
 
-    # 1. 流水线活跃：拼装锚点行（capability / 修改范围逐项可选，缺失即降级）
-    if stage in ACTIVE_STAGES and feature:
-        round_note = f"，Round {rounds}" if rounds >= 1 else ""
-        anchors = ""
-        caps = _capability_names(root, feature)
-        if caps:
-            anchors += f"：capability={','.join(caps)}"
-        scope = _scope_prefixes(root, feature)
-        if scope:
-            anchors += f"，修改范围={scope}"
-        return (
-            f"活跃需求 {feature}（{stage}{round_note}）{anchors} —— "
-            "相关消息按 specpowers 流程处理（判定规则见主技能 SKILL.md「会话粘滞」），"
-            "脱离流程请先 /specpowers-archive 或 /specpowers-reset"
+    if not features:
+        # state 未接管但工件存在（跨机场景）：保持零噪音原则，锚点不输出
+        # （接管提示由 SessionStart 的 probe_resume 分支 2 承担）
+        return ""
+
+    lines: list[str] = []
+    # 前台永远排第一行（模型对未指名语境的默认归属参考）
+    ordered = [fg] + [slug for slug in features if slug != fg]
+    shown = ordered[:STICKY_MAX_LINES]
+    for slug in shown:
+        try:
+            fs = load_feature(root, slug) or {}
+        except Exception:
+            continue
+        lines.append(_sticky_line(root, slug, fs, slug == fg))
+    rest = ordered[STICKY_MAX_LINES:]
+    if rest:
+        lines.append(
+            f"另有 {len(rest)} 个后台活跃需求：{'、'.join(rest)}——"
+            "相关消息处理时命令须显式 --feature 指定目标"
         )
-    # 2. fast 优化模式进行中：编码由用户完成，仅提示验收入口
-    if stage == "ready" and mode == "fast" and feature:
-        return (
-            f"fast 优化模式进行中：{feature}。编码完成后 /specpowers-apply 验收；"
-            "放弃请 /specpowers-reset"
-        )
-    return ""
+    return "\n".join(lines)

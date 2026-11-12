@@ -70,9 +70,11 @@ def test_probe_pipeline_stage_hint(tmp_path):
 
 
 def test_probe_auto_breakpoint(tmp_path):
-    """auto_base.json 存在 → 按 auto 断点提示（重入 /specpowers-auto 续跑）。"""
+    """auto_base（v2.8.0 起按需求隔离）存在 → 按 auto 断点提示（重入 /specpowers-auto 续跑）。"""
     _write_state(tmp_path, stage="apply", mode="full", feature="demo")
-    (tmp_path / ".specpowers" / "auto_base.json").write_text("{}", encoding="utf-8")
+    base_dir = tmp_path / ".specpowers" / "auto_base"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    (base_dir / "demo.json").write_text("{}", encoding="utf-8")
     msg = probe_resume(tmp_path)
     assert "auto 无人值守任务中断" in msg
     assert "/specpowers-auto" in msg

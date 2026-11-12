@@ -4,14 +4,14 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.7.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.8.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
 - **结构一致性门禁** — AI 写代码不能"无中生有"建目录/加依赖
 - **实时卡转人工** — 遇到不确定性立刻暂停等人工判定，不静默跳过
 
-> 🧪 **质量保障**：328 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
+> 🧪 **质量保障**：356 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
 
 > 📖 **完整指南**：前置依赖详解、四条路径对比、架构、项目结构等完整内容见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)。
 
@@ -66,12 +66,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.7.0
+# → SpecPowers CLI v2.8.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -182,9 +182,22 @@ apply 启动时比对 `git diff`，两道检查：
 - **人工模式**：直接重入 `/specpowers-propose "调整描述"`（场景/范围调整）或 `/specpowers-explore`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）；方案变更轮 v2.7.0 起**不再改写基线设计文档**，改为在 change 目录新落 `design-round-<N>.md` 简易设计文档（只写本轮增量：输入/方案对比/详细设计变更点/修改范围增量，归档时随 change 整体归档）——省 token 关键：基线冻结不再逐轮重读重写整份文档，且设计文档的唯一下游消费者 propose 的迭代轮读取清单同步锁死（现有 proposal + 最新 design-round，基线仅按需局部查阅）
 - **auto 模式**：重入 `/specpowers-auto`（新文档 / 原文档 / `--instruction "口头调整"`），自动三分判定全新（fresh）/ 续跑（resume）/ 迭代轮（iterate）
 
-> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
+> 注意：**归档前所有调整都归属当前需求**（slug 即身份，per-feature 判定）——想调整需求 A 就重入 A 的入口（多活跃时命令带 `--feature <A>`）；auto 的新文档输入归属其判定目标需求，不会被其他活跃需求误接管。
 
-> **会话粘滞（v2.7.0）**：对话中用过 specpowers 技能且需求未归档时，后续消息默认先做相关性判定——相关消息走流程、无关消息照常回答+末尾一行活跃需求提醒、拿不准一律按相关；解除条件 = 归档或 reset。ZCode/Claude/Codex 由 UserPromptSubmit hook 逐轮注入锚点行（feature/stage/Round + capability + 修改范围，零活跃零注入），WorkBuddy/pip 形态靠技能正文条款。与「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
+> **会话粘滞（v2.7.0；v2.8.0 多活跃）**：对话中用过 specpowers 技能且有活跃需求时，后续消息默认先做相关性判定——相关消息按锚点命中的需求走流程（命中哪个需求就按哪个需求的阶段契约处理）、无关消息照常回答+末尾一行活跃需求清单提醒、拿不准一律按相关；解除条件 per-feature（归档/reset 仅解除该需求）。ZCode/Claude/Codex 由 UserPromptSubmit hook 逐轮注入锚点行（**每活跃需求一行**，前台标注，≤3 全列，零活跃零注入），WorkBuddy/pip 形态靠技能正文条款。与「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
+
+### 6. 多活跃需求并行（v2.8.0）
+
+多个需求可以**同时活跃、各自推进、归档时机独立**——不必做完一个再做下一个：
+
+- **开第二个需求**：A 进行中直接 `/specpowers-explore "新需求描述"`，A 自动转后台（状态保留在 `state.json` 的 features 映射，互不覆盖）；slug 命中已有活跃需求会被识别为该需求的续作（explore 重入会引导走 propose/iterate）
+- **续推某个后台需求**：对话里说「继续做 X」→ 模型按粘滞锚点命中 X，命令显式带 `--feature X`；`facade switch <slug>` 可纯切前台（前台 = 最近操作的需求，`last_touched` 推导）
+- **多活跃保护**：推进/破坏性命令（apply/archive/reset/iterate/auto 系列/record-*）未指名会被确定性层**拒绝并列出活跃需求与各自阶段**，模型带 `--feature` 重试——不会写错需求；只读命令（status/auto-status）多需求全输出
+- **归档互不影响**：`/specpowers-archive --feature <slug>` 仅终结该需求（映射移除 + 该需求 auto_base 清理），其余活跃需求照常，前台自动切到剩余最近操作者；`/specpowers-reset --feature <slug>` 同理按需求放弃
+- **归档按序**：多个需求改动**同一 capability** 的规格时，归档是短临界区、按序执行——后归档方负责对齐主规格（openspec 的 delta 合并按 requirement 逐条应用，不同 requirement 天然不冲突；同 requirement 双改属真实规格冲突，需人工裁决）
+- **单需求体验零变化**：只有一个活跃需求时，所有命令照旧不带参数（缺省作用于前台）
+
+> 前台与多会话：前台 = `last_touched` 最大的需求（推导式不落盘），「最近操作谁谁就是前台」；不同需求开不同会话并行推进时，各自只写自己需求的状态条目，无争抢写点。旧项目（v2.7.0 及以前的扁平 state.json）首条命令自动迁移到新结构，幂等无感。
 
 ### 💡 省 token 建议
 
@@ -293,11 +306,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.7.0
+# → SpecPowers CLI v2.8.0
 
 # 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（命令名已全部更新）
 cd my-project
@@ -308,6 +321,7 @@ specpowers init --force
 
 | 版本 | 变更内容 |
 |------|---------|
+| v2.8.0 | **多活跃需求原生支持（state.json schema 2：features 映射 + 推导式前台）**：① 数据模型——需求级状态（stage/mode/execution_mode/iteration_count/design_doc）从仓库级单 feature 字段迁入 `state.json` 的 `features` 映射（每需求一份，多需求并存互不覆盖；借鉴 OpenSpec「目录即队列 + 状态推导」哲学但保留 SpecPowers 阶段状态机/迭代轮等真状态承载），前台 = `last_touched` 最大者**推导式不落盘**（与 `openspec list --sort recent` 同构，操作即前台，多会话并行无指针争抢写点），全局仅留 fallback_count/last_archive_ref；死字段 fallback_used 借迁移清除；schema 1（v2.7.0 及以前扁平顶层）读出即迁移（feature 非空迁入映射 + 顶层 auto_base.json 原子搬入分片，幂等）；② auto_base 按需求隔离——`.specpowers/auto_base/<slug>.json`（认知层第 0 步直接写盘不持锁，多需求并行必须物理隔离，是唯一按需求拆分的状态文件），auto 三分判定/迭代轮/澄清全链路 per-feature；③ slug 即身份——开新入口（explore/propose/fast）解析出的 slug 命中活跃映射 = 该需求续作请求（走 from_stage 转换校验，explore 重入自然拒绝并给续作指引），未命中 = 新需求（from ready）——不需要专门查重逻辑；④ 多活跃路由三层设计——单活跃命令缺省作用于前台（体验与旧版零差异）/ 多活跃 + 推进类命令（apply/archive/reset/iterate/auto 系列/record-*）未指名 → **拒绝并列出活跃需求与阶段**（模型带 --feature 重试，确定性层兜底防错需求）/ 只读命令（status/auto-status/sticky）多需求全输出；新增 `facade switch <slug>` 纯切前台（touch last_touched）；⑤ 归档按需求终结——features 映射移除该键 + 该需求 auto_base 清理，其余活跃需求不受影响、前台自动切到剩余 last_touched 最大者；`reset --feature <slug>` 按需求放弃（多活跃未指名拒绝防误清全部）；⑥ 粘滞多需求化——sticky_note/probe_resume 每活跃需求一行锚点（前台标注、前台排首行，≤3 全列 >3 前台+汇总行控 token），六级判定第 2 级「命中哪个需求就按哪个需求处理」、第 4 级新需求直接开工（旧需求自动转后台）、解除条件 per-feature；⑦ 归档按序条款（README 多活跃小节）——多需求改动同一 capability 时归档是短临界区按序执行，后归档方对齐主规格（openspec delta 合并按 requirement 逐条应用，不同 requirement 天然不冲突）；⑧ 兼容层关键设计——load_state 返回「全局 + 前台展开」扁平视图（旧结构超集）/ save_state 按视图 feature 拆回映射，上层 handler 与 mode_controller 零感知；修复实现期抓到的 `_load_raw` 浅拷贝跨目录状态串扰 bug（DEFAULT_GLOBAL_STATE.features 被写入污染）；⑨ 测试新增 26 用例（迁移 4 + 并存路由 7 + 归档/reset 5 + 粘滞/probe 4 + auto 分片 2 + facade status/record 3 + 多活跃拒绝含在路由内）并适配既有用例到新模型（fs_state 结构断言/execution_mode 活跃需求构造/auto_base 新路径/fast 重入语义/record_design_doc 活跃目标），用例数同步 356 |
 | v2.7.0 | **迭代轮简易设计文档（省 token）+ 会话粘滞（软粘滞）**：① 迭代轮不再「覆盖重写基线设计文档 + 追加迭代历史 + 重新 record-design-doc」（每轮重读重写整份文档且逐轮膨胀，token 消耗大头），改为**基线设计文档冻结不动**（`state.design_doc` 永远指向首轮文档、迭代轮不再重新登记，propose 门禁天然满足），方案变更轮新落简易设计文档 `openspec/changes/<feature>/design-round-<N>.md`（N=iteration_count 路径确定性推导，固定四节：本轮输入/方案对比（仅当分叉）/详细设计变更点（仅变化项）/修改范围增量；随 change 归档整体进 archive/ 保留设计演进链）；② propose 迭代轮读取清单锁死（现有 proposal.md + 最新 design-round-<N>.md，基线仅按需局部查阅、禁止整份重读）——设计文档唯一下游消费者是 propose（apply 读三件套、review 读 git diff、archive 不读设计文档），读侧不增反降、写侧大幅节省且不随轮次膨胀；③ 三件套增量规则（proposal 覆盖+迭代历史/spec 增量修订/tasks 分轮演进）完全不动；CLI/确定性层零改动；④ 会话粘滞——对话加载过任一 specpowers 技能且需求未归档时，后续消息默认先做相关性判定（六级规则：流程指令→结构化锚点→语义重叠→明显新需求→都不中→拿不准一律按相关），相关走流程/无关照常回答+末尾一行活跃需求提醒/新需求提示先归档，解除条件=归档或 reset（对话结束宿主侧不可观测，如实以磁盘状态为界；判定零额外读取、每条消息独立判定、确定性层状态机仍是最终防线）；⑤ 逐轮锚点行注入——`facade sticky-note` 子命令 + `resume_probe.sticky_note`（feature/stage/Round + capability + 修改范围前缀，本地文件 IO 零 LLM token，缺工件降级简版，零活跃零输出）+ hooks.json 注册 UserPromptSubmit 调新脚本 `hooks/session-sticky`（复用 check-deps 项目根定位与 bin 包装范式，失败静默 exit 0）；WorkBuddy/pip 形态无 hook 机制，靠主技能 SKILL.md「会话粘滞」小节条款 + 5 个流水线薄入口粘滞行覆盖；⑥ 测试新增 17 用例（sticky_note 9 + sticky-note 子命令 3 + design-round/粘滞/hooks 防回潮锚点 5），用例数同步 328 |
 | v2.6.0 | **任意 agent 工具通用接入（零枚举化）**：① 定位句去枚举化——7 个契约技能与主技能 SKILL.md 的插件根变量表述从封闭端清单改为「模式 + 举例」（`*_PLUGIN_ROOT` 形态，如 ZCode/Claude/WorkBuddy 等，新工具同理），新 agent 工具无需再改技能正文；② 安装器 `--skills-root <路径>` 参数——与 `--integration` 互斥，任意不在七种内置集成之列的工具一步接入（11 技能整目录落位 + AGENTS.md 引导段），零代码改动；③ AGENTS.md 引导段默认生成（幂等标记段 `<!-- specpowers:begin/end -->`，重装整段替换、段前段后用户内容保留）——AGENTS.md 是跨工具事实标准，对不读取 skills 目录的规则驱动型工具是模型发现入口的唯一途径，同时兑现文档长期宣称的"pip 生成 rules 文件"（修正 README/GETTING-STARTED/pyproject 共 11 处陈旧表述为"复制技能目录 + 写入 AGENTS.md 引导段"）；④ `facade locate` 自描述命令——输出 JSON 报告 CLI 包路径、候选 skills 目录（插件市场/源码树与 pip 两形态自动探测）、技能清单、探索契约存在性、bin 包装脚本路径，模型在任何工具里执行一次即完成自定位，不依赖宿主环境变量与项目状态；⑤ 支持平台表补「其他任意工具 `--skills-root`」行，测试新增通用接入 5 用例（--skills-root 安装/AGENTS.md 幂等含段后内容保留/互斥报错/locate 源码树报告/locate 免 root）与 `*_PLUGIN_ROOT` 模式锚点防回潮（防回潮成封闭端枚举）；⑥ `to_scenario` 死函数删除——openspec 适配器残留的该函数（无任何调用方/CLI 暴露/契约引用）docstring 自称「brief.md 为 explore 阶段产出」却全库无路径约定，曾诱导模型把 brief.md 写到目标项目根目录（explore 产出实际由设计文档承担，brief.md 从不是注册产物），测试新增防回潮用例，用例数同步 311 |
 | v2.5.1 | **跨端契约遵从修复（WorkBuddy 上 explore 不展示方案/连环提问/不落盘设计文档的根因治理）**：① 契约文件定位修复——9 个阶段技能正文统一写明主技能目录真实位置（兄弟目录定位句 + 插件市场 `${PLUGIN_ROOT}` 四端变量含 WorkBuddy `${CODEBUDDY_PLUGIN_ROOT}` + pip 形态 `<skills_root>` 路径示例 + Glob 兜底搜索句），消除裸相对路径 `prompts/<stage>.md` 在不级联加载主技能上下文的宿主上的断链（此前仅 specpowers-init 写明位置）；② explore 硬性产出契约前置——`specpowers-explore` 新增「硬性产出契约（HARD DELIVERABLES）」节，契约文件不可读时四条底线仍成立（静默探索禁止逐个提问循环/方案统一维度对比表+唯一推荐必须展示在对话中/设计文档必须 Write 落盘 `docs/specpowers/design/`/落盘后必须 record-design-doc 登记），并修正正文第 3 步无限定鼓励提问的反向误导措辞（改为"仅不可逆决策在结论后一次性批量提问，默认不打断"）；③ 主技能 CLI fallback 补全——「执行方式」节补 pip 安装形态包装脚本路径（`<skills_root>\specpowers\bin\specpowers.bat`，如 WorkBuddy `.workbuddy\skills\specpowers\bin\`）与 WorkBuddy 变量条目，消除 pip 形态下 `python -m` 失败无 fallback 可循的断点；④ 确定性层增强——check-deps 环境变量兜底链补读 `CODEBUDDY_PLUGIN_ROOT`（为后续 WorkBuddy hooks 实测铺路），record-design-doc 登记 advisory 段头检查（缺「## 方案对比」/「## 详细设计」段头警告不阻断，给空壳文档留可追溯信号，不误伤项目自有设计文档约定）；⑤ **pip 安装器断链修复**——`specpowers init --integration <agent>` 的技能拷贝段仍指向 v2.4.0 已删除的 commands/ 目录（`commands_dir.exists()` 恒为 False 静默跳过），pip 形态下 9 个阶段技能从未被安装（WorkBuddy pip 用户没有任何阶段入口）——改为直接整目录拷贝 `skills/specpowers-*`（9 阶段技能 + 内置 review，与插件市场 11 技能集合一致），删除 commands 时代死代码（`_get_commands_dir`/`_with_skill_name`）；⑥ **bin 包装脚本 cp936 兼容修复**——`specpowers.bat` 的 UTF-8 中文注释在中文 Windows 默认代码页（cp936）下被 cmd 错误解码、命令拆分错乱导致整个脚本无法执行（WorkBuddy 上 CLI fallback 直接崩），全文件改 ASCII-only；⑦ 测试新增防回潮断言（9 技能主技能目录定位锚点 + 7 契约技能 Glob 兜底句 + explore 硬产出锚点）与 advisory 两用例，新建 tests/test_installer.py 安装器产物完整性测试（11 技能集合/定位链闭合/bat ASCII-only），README 补 WorkBuddy CLI 可达性排查指引，用例数同步 305 |

@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.7.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.8.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,12 +48,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.7.0
+# → SpecPowers CLI v2.8.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -103,11 +103,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.7.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.7.0
+# → SpecPowers CLI v2.8.0
 
 # 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（命令名已全部更新）
 cd my-project
@@ -333,7 +333,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（328 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（356 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

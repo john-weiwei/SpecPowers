@@ -26,20 +26,23 @@ def _create_temp_git_repo(tmp_path: Path) -> Path:
     return create_git_repo(tmp_path / "auto-iter-repo")
 
 
-def _write_auto_base(root: Path, data: dict) -> None:
-    """写入 .specpowers/auto_base.json（测试辅助）。"""
-    base_dir = root / ".specpowers"
-    base_dir.mkdir(exist_ok=True)
-    (base_dir / "auto_base.json").write_text(
+def _auto_base_file(root: Path, feature: str = "auto-feat") -> Path:
+    """按需求隔离的 auto_base 路径（v2.8.0：.specpowers/auto_base/<feature>.json）。"""
+    return root / ".specpowers" / "auto_base" / f"{feature}.json"
+
+
+def _write_auto_base(root: Path, data: dict, feature: str = "auto-feat") -> None:
+    """写入 .specpowers/auto_base/<feature>.json（测试辅助）。"""
+    path = _auto_base_file(root, feature)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8",
     )
 
 
-def _read_auto_base(root: Path) -> dict:
-    """读取 .specpowers/auto_base.json（测试辅助）。"""
-    return json.loads(
-        (root / ".specpowers" / "auto_base.json").read_text(encoding="utf-8"),
-    )
+def _read_auto_base(root: Path, feature: str = "auto-feat") -> dict:
+    """读取 .specpowers/auto_base/<feature>.json（测试辅助）。"""
+    return json.loads(_auto_base_file(root, feature).read_text(encoding="utf-8"))
 
 
 def _seed_active_auto_feature(root: Path, feature: str = "auto-feat",
@@ -91,7 +94,9 @@ def test_auto_status_fresh_and_cleans_legacy_base(tmp_path):
     result = auto_status(root)
     assert result["mode"] == "fresh"
     assert result["auto_base_removed"] is True
+    # 旧版顶层 auto_base.json 孤儿(无活跃需求时无人认领)一并清理
     assert not (root / ".specpowers" / "auto_base.json").exists()
+    assert not _auto_base_file(root, "old").exists()
 
 
 def test_auto_status_resume_when_doc_unchanged(tmp_path):
@@ -369,7 +374,7 @@ def test_archive_cleans_auto_base_and_resets_iteration(tmp_path, monkeypatch):
 
     assert route("archive", root, extra={}) == 0
 
-    assert not (root / ".specpowers" / "auto_base.json").exists()
+    assert not _auto_base_file(root).exists()
     state = load_state(root)
     assert state["stage"] == "ready"
     assert state["feature"] == ""
@@ -399,7 +404,7 @@ def test_iterate_without_auto_base_succeeds(tmp_path):
     assert state["iteration_count"] == 1
     assert state["execution_mode"] == ""
     # 无 auto 基线时不落盘 auto_base.json（人工模式无此文件）
-    assert not (root / ".specpowers" / "auto_base.json").exists()
+    assert not _auto_base_file(root).exists()
 
 
 def test_iterate_with_auto_base_updates_rounds(tmp_path):

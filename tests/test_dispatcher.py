@@ -81,7 +81,7 @@ def test_handle_fast_from_ready_succeeds(tmp_path):
 
 
 def test_handle_fast_from_apply_rejected(tmp_path):
-    """fast 命令不允许从 apply 阶段启动（应抛 StateError）。"""
+    """fast 命令不允许对 apply 态的活跃需求启动（slug 命中即续作校验，应抛 StateError）。"""
     from specpowers_cli.bridge.dispatcher import _handle_fast
     from specpowers_cli.bridge.core.fs_state import init_state, save_state
 
@@ -90,9 +90,10 @@ def test_handle_fast_from_apply_rejected(tmp_path):
     (root / ".specpowers" / "baseline.json").write_text("{}", encoding="utf-8")
     state = init_state(root)
     state["stage"] = "apply"
+    state["feature"] = "fix-typo"
     save_state(root, state)
 
-    # 从 apply 启动 fast 应被拒绝
+    # requirement normalize 后命中 apply 态活跃需求 → 续作校验拒绝
     with pytest.raises(StateError):
         _handle_fast(root, {"requirement": "fix typo"})
 
@@ -149,13 +150,11 @@ def test_route_initialized_project_passes_init_check(tmp_path):
     state["stage"] = "ready"
     save_state(root, state)
 
-    # 已初始化 + ready：初始化检查放行，explore 正常进入（不再抛任何错误）
+    # 已初始化 + 无活跃需求：初始化检查放行，explore 正常进入（不再抛任何错误）
     assert route("explore", root, {"requirement": "新需求"}) == 0
-    # 已初始化但 stage=init：也不再是「未初始化」报错，而是正常 transition 校验
-    state["stage"] = "init"
-    save_state(root, state)
-    with pytest.raises(StateError):
-        route("explore", root, {"requirement": "另一个需求"})
+    # v2.8.0：无活跃需求即 ready 空转（schema 2 顶层存在即 ready），
+    # 旧「stage=init 拒绝」语义取消——再次 explore 开另一新需求同样合法
+    assert route("explore", root, {"requirement": "另一需求"}) == 0
 
 
 # ---- normalize_feature 边界回归 ----
@@ -408,6 +407,10 @@ def test_handle_record_design_doc_registers_path(tmp_path):
     root = _create_temp_git_repo(tmp_path)
     (root / ".specpowers").mkdir(exist_ok=True)
     init_state(root)
+    # v2.8.0：record-design-doc 是推进类命令，需要活跃目标需求
+    from specpowers_cli.bridge.core.fs_state import save_state
+    state = {"stage": "explore", "mode": "full", "feature": "demo-feat"}
+    save_state(root, state)
     design_doc = root / "docs" / "specpowers" / "design" / "d.md"
     design_doc.parent.mkdir(parents=True, exist_ok=True)
     design_doc.write_text("# 设计", encoding="utf-8")
@@ -457,6 +460,10 @@ def test_handle_record_design_doc_warns_on_missing_sections(tmp_path, capsys):
     root = _create_temp_git_repo(tmp_path)
     (root / ".specpowers").mkdir(exist_ok=True)
     init_state(root)
+    # v2.8.0：record-design-doc 是推进类命令，需要活跃目标需求
+    from specpowers_cli.bridge.core.fs_state import save_state
+    state = {"stage": "explore", "mode": "full", "feature": "demo-feat"}
+    save_state(root, state)
     design_doc = root / "docs" / "specpowers" / "design" / "d.md"
     design_doc.parent.mkdir(parents=True, exist_ok=True)
     design_doc.write_text("# 只有标题的空壳文档\n", encoding="utf-8")
@@ -478,6 +485,10 @@ def test_handle_record_design_doc_no_warning_on_complete_doc(tmp_path, capsys):
     root = _create_temp_git_repo(tmp_path)
     (root / ".specpowers").mkdir(exist_ok=True)
     init_state(root)
+    # v2.8.0：record-design-doc 是推进类命令，需要活跃目标需求
+    from specpowers_cli.bridge.core.fs_state import save_state
+    state = {"stage": "explore", "mode": "full", "feature": "demo-feat"}
+    save_state(root, state)
     design_doc = root / "docs" / "specpowers" / "design" / "d.md"
     design_doc.parent.mkdir(parents=True, exist_ok=True)
     design_doc.write_text(

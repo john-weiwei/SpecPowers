@@ -4,7 +4,7 @@
 
 当用户调用 `/specpowers-apply` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（explore/fast 阶段确定并锁定，同一流程不变）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
 ## 前置校验
 

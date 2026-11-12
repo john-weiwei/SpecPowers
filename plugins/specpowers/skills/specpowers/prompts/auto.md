@@ -48,14 +48,14 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 
 1. 校验设计文档：`<设计文档路径>` 必填且文件存在（`design_doc_exists=false` 或未提供 → 参数错误，硬阻断）
 2. 前置校验：依赖就绪（OpenSpec CLI、superpowers）以 SessionStart hook 的检测结果为准（`facade status --root .` 只读 state，不做依赖探测）；specpowers-review 为内置技能随插件分发，无需预装检测（仅当 Skill 调用异常时 → **降级不阻断**，review 改用最小自审 checklist，汇总报告标注「本次为降级审查」）
-3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base.json` 的 `base_commit`（跨轮不变，见 `refs/auto-review.md`）
+3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base/<feature>.json` 的 `base_commit`（v2.8.0 起按需求 slug 隔离；跨轮不变，见 `refs/auto-review.md`）
 4. 解析八要素（见下节）随基点一并落盘 `parsed` 字段；`rounds` 初始化为空数组（rounds 只记录后续每次迭代轮的开启动作，fresh 首轮不单独记录）
 5. **需求澄清**（见「需求澄清（第 1 步）」小节）：五维检查 → 推进深度上限 ceiling → `facade auto clarify` 登记；功能名 null → 参数错误硬阻断
 6. 进入「阶段编排表」全流程——默认 0–6 止于 specpowers-review，`--archive` 时追加第 7 步归档（ceiling=explore 时推进到第 3 步停靠）
 
 ### 分支 B：`resume`（断点续跑）
 
-1. 读 `.specpowers/auto_base.json`（基点 + 八要素 + clarification）——不重复解析
+1. 读该需求的 `.specpowers/auto_base/<feature>.json`（基点 + 八要素 + clarification；v2.8.0 起按 slug 隔离）——不重复解析
 2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按 `refs/auto-explore-halt.md` 停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-reset`
 3. 读 `state.json` 当前 stage + 各阶段产物存在性（constitution.md → 设计文档 → proposal.md → spec.md → tasks.md → apply 产物）定位断点
 4. 从断点阶段继续，**已完成阶段不重做**；澄清凭 `clarification` 字段**不重做**（字段缺失：旧格式 auto_base.json / 人工流程接管 → 补做全量澄清并登记后继续）

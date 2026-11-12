@@ -21,7 +21,9 @@ def test_load_state_default():
         state = load_state(root)
         assert state["stage"] == "init"
         assert state["mode"] == "full"
-        assert state["fallback_used"] is False
+        # v2.8.0 schema 2：死字段 fallback_used 已清除，视图带结构版本标识
+        assert "fallback_used" not in state
+        assert state["schema"] == 2
         assert state["fallback_count"] == 0
 
 
@@ -31,7 +33,7 @@ def test_save_and_load_state():
         root = Path(tmpdir)
         (root / ".specpowers").mkdir(exist_ok=True)
 
-        state = {"stage": "propose", "mode": "full", "fallback_used": False,
+        state = {"stage": "propose", "mode": "full",
                  "fallback_count": 0, "feature": "test-feature", "last_archive_ref": ""}
         save_state(root, state)
 
@@ -46,9 +48,12 @@ def test_init_state():
         root = Path(tmpdir)
         (root / ".specpowers").mkdir(exist_ok=True)
 
-        state = init_state(root)
-        assert state["stage"] == "init"
-        assert state["mode"] == "full"
+        raw = init_state(root)
+        # v2.8.0：init_state 返回顶层全局结构（features 映射），无 stage 键
+        assert raw["schema"] == 2
+        assert raw["features"] == {}
+        # 顶层存在但无活跃需求 → 视图 stage=ready（空转态）
+        assert load_state(root)["stage"] == "ready"
 
         # File should exist
         assert (root / ".specpowers" / "state.json").exists()
@@ -61,15 +66,16 @@ def test_reset_state_preserves_fallback_count():
         (root / ".specpowers").mkdir(exist_ok=True)
 
         # Save with fallback_count = 3
-        state = {"stage": "apply", "mode": "fast", "fallback_used": True,
+        state = {"stage": "apply", "mode": "fast",
                  "fallback_count": 3, "feature": "test", "last_archive_ref": "abc123"}
         save_state(root, state)
 
         new_state = reset_state(root)
         assert new_state["stage"] == "ready"
         assert new_state["fallback_count"] == 3
-        assert new_state["fallback_used"] is False
         assert new_state["feature"] == ""
+        # v2.8.0：reset 清空 features 映射（多活跃全清语义）
+        assert load_state(root)["feature"] == ""
 
 
 def test_delete_state():
@@ -92,7 +98,7 @@ def test_atomic_write_corruption_resistance():
         (root / ".specpowers").mkdir(exist_ok=True)
 
         # Write a large state
-        state = {"stage": "apply", "mode": "full", "fallback_used": False,
+        state = {"stage": "apply", "mode": "full",
                  "fallback_count": 0, "feature": "x" * 1000, "last_archive_ref": "a" * 40}
         save_state(root, state)
 

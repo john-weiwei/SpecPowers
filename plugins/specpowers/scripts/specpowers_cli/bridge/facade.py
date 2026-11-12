@@ -9,39 +9,55 @@ Usage:
 
 Subcommands (user-facing, called by skill slash commands):
     init [--force]               Generate constitution + baseline scan
-    explore "<requirement>"      Start feature with exploration
-    propose "<requirement>"      One-shot generate proposal/spec/tasks (OpenSpec change)
-    fast "<requirement>"         Start feature in fast/optimized mode
-    apply                        Enter apply phase with structure gate
-    archive [--force-merge-check]  Finalize and archive
+    explore "<requirement>" [--feature <slug>]
+                                 Start feature with exploration
+    propose "<requirement>" [--feature <slug>]
+                                 One-shot generate proposal/spec/tasks (OpenSpec change)
+    fast "<requirement>" [--feature <slug>]
+                                 Start feature in fast/optimized mode
+    apply [--feature <slug>]     Enter apply phase with structure gate
+    archive [--force-merge-check] [--feature <slug>]
+                                 Finalize and archive
     baseline                     Manual baseline refresh
-    reset                        Reset state (clear state + lock)
+    reset [--feature <slug>]     Reset state (per-feature abandon, or full clear)
+    switch <slug>                Switch foreground feature (multi-active, v2.8.0)
+
+v2.8.0 multi-active features:
+- 活跃需求集合存 state.json 的 features 映射，前台 = last_touched 最大者（推导式）
+- 单活跃需求：命令缺省作用于前台，体验与旧版完全一致
+- 多活跃 + 推进/破坏性命令（apply/archive/reset/iterate/auto 系列/record-*）
+  未指名 → 拒绝并列出活跃需求，须带 --feature 重试（防错需求）
+- 多活跃 + 只读命令（status/auto-status/sticky）→ 全部活跃需求输出，无需指名
+- 归档仅终结该需求（features 移除 + auto_base/<slug>.json 清理），
+  其余活跃不受影响，前台自动切到剩余 last_touched 最大者
 
 Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.md):
-    auto-status [--design-doc <path>] [--instruction "<desc>"]
+    auto-status [--design-doc <path>] [--instruction "<desc>"] [--feature <slug>]
                                  三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）；
                                  响应携带 clarification 视图（上一轮澄清 ceiling + pending_input 停靠保护）
-    auto new-round [--design-doc <path>] [--instruction "<desc>"]
+    auto new-round [--design-doc <path>] [--instruction "<desc>"] [--feature <slug>]
                                  受控轮次切换：stage → propose、feature 锁定、rounds 落盘（auto 专用）
-    auto clarify --ceiling <full|explore> [--report <路径>]
-                                 需求澄清结论登记（写/刷新 auto_base.json 的 clarification 字段，
+    auto clarify --ceiling <full|explore> [--report <路径>] [--feature <slug>]
+                                 需求澄清结论登记（写/刷新该需求 auto_base 的 clarification 字段，
                                  resume 凭据；见 docs/auto-clarification-plan.md）
-    iterate [--design-doc <path>] [--instruction "<desc>"]
+    iterate [--design-doc <path>] [--instruction "<desc>"] [--feature <slug>]
                                  人工模式迭代轮切换原语（由 /specpowers-propose、/specpowers-explore
-                                 重入识别确认后调用；同 new-round 但不要求 auto_base.json）
+                                 重入识别确认后调用；同 new-round 但不要求 auto_base）
 
 Internal subcommands (for CI / agent direct use):
     scan [--root <path>]         Run baseline scanner
     gate [--base <ref>]          Extract structure gate signals（v2.3.0 起附 scope 修改范围比对）
-    status                       Print current state
+    status                       Print current state（前台平铺 + features 概览，多需求全输出）
     version                      Print version
-    record-execution-mode <mode> Record apply execution mode (conductor|worktree|subagent|tdd)
-    record-design-doc <path>     Register explore design doc path (propose 前置校验凭据)
+    record-execution-mode <mode> [--feature <slug>]
+                                 Record apply execution mode (conductor|worktree|subagent|tdd)
+    record-design-doc <path> [--feature <slug>]
+                                 Register explore design doc path (propose 前置校验凭据)
     resume-probe                 Ambient resume 只读探测（SessionStart hook 消费）：
                                  活跃需求才输出续跑提示，零活跃零噪音，异常降级为空
     sticky-note                  会话粘滞锚点行（UserPromptSubmit hook 消费，v2.7.0）：
-                                 活跃需求才输出 feature/stage/Round + capability +
-                                 修改范围单行锚点，零活跃零噪音，异常降级为空
+                                 每个活跃需求一行锚点（feature/stage/Round + capability +
+                                 修改范围，前台标注），零活跃零输出，异常降级为空
     locate                       安装位置自描述（v2.6.0）：输出 CLI 包路径、候选
                                  skills 目录（插件市场/源码树与 pip 两形态）、契约文件
                                  与 bin 包装脚本的实际路径——任意 agent 工具执行一次
@@ -166,24 +182,33 @@ def _cmd_propose(args: list[str], root: Path) -> int:
 def _cmd_fast(args: list[str], root: Path) -> int:
     """Handle fast command."""
     from specpowers_cli.bridge.dispatcher import route
-    req = " ".join(args) if args else ""
+    opts, positional = _extract_kv_options(args, ("feature",))
+    req = " ".join(positional) if positional else ""
     if not req.strip():
         print("Error: fast requires a requirement description.", file=sys.stderr)
         return 2
-    return route("fast", root, extra={"requirement": req})
+    return route("fast", root, extra={
+        "requirement": req,
+        "feature": opts.get("feature", ""),
+    })
 
 
 def _cmd_apply(args: list[str], root: Path) -> int:
     """Handle apply command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("apply", root)
+    opts, _ = _extract_kv_options(args, ("feature",))
+    return route("apply", root, extra={"feature": opts.get("feature", "")})
 
 
 def _cmd_archive(args: list[str], root: Path) -> int:
     """Handle archive command."""
     from specpowers_cli.bridge.dispatcher import route
+    opts, positional = _extract_kv_options(args, ("feature",))
     force_merge = "--force-merge-check" in args
-    return route("archive", root, extra={"force_merge_check": force_merge})
+    return route("archive", root, extra={
+        "force_merge_check": force_merge,
+        "feature": opts.get("feature", "") or (" ".join(positional) if positional else ""),
+    })
 
 
 def _cmd_baseline(args: list[str], root: Path) -> int:
@@ -240,11 +265,12 @@ def _cmd_auto_status(args: list[str], root: Path) -> int:
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.dispatcher import auto_status
-    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction", "feature"))
     result = auto_status(
         root,
         design_doc=opts.get("design-doc", ""),
         instruction=opts.get("instruction", ""),
+        feature=opts.get("feature", ""),
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
@@ -256,10 +282,11 @@ def _cmd_auto_new_round(args: list[str], root: Path) -> int:
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.dispatcher import route
-    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction", "feature"))
     return route("auto-new-round", root, extra={
         "design_doc": opts.get("design-doc", ""),
         "instruction": opts.get("instruction", ""),
+        "feature": opts.get("feature", ""),
     })
 
 
@@ -269,7 +296,7 @@ def _cmd_auto_clarify(args: list[str], root: Path) -> int:
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.dispatcher import route
-    opts, _ = _extract_kv_options(args, ("ceiling", "report"))
+    opts, _ = _extract_kv_options(args, ("ceiling", "report", "feature"))
     ceiling = (opts.get("ceiling") or "").strip()
     # 旧值兼容：v1.x 登记 brainstorm（停靠在原 brainstorm 阶段）读入归一为 explore
     if ceiling == "brainstorm":
@@ -283,31 +310,33 @@ def _cmd_auto_clarify(args: list[str], root: Path) -> int:
     return route("auto-clarify", root, extra={
         "ceiling": ceiling,
         "report": opts.get("report", ""),
+        "feature": opts.get("feature", ""),
     })
 
 
 def _cmd_iterate(args: list[str], root: Path) -> int:
-    """Handle iterate command — 人工模式迭代轮入口（不要求 auto_base.json）。
+    """Handle iterate command — 人工模式迭代轮入口（不要求 auto_base）。
 
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.dispatcher import route
-    opts, _ = _extract_kv_options(args, ("design-doc", "instruction"))
+    opts, _ = _extract_kv_options(args, ("design-doc", "instruction", "feature"))
     return route("iterate", root, extra={
         "design_doc": opts.get("design-doc", ""),
         "instruction": opts.get("instruction", ""),
+        "feature": opts.get("feature", ""),
     })
 
 
 def _cmd_record_design_doc(args: list[str], root: Path) -> int:
     """Handle record-design-doc command — 登记探索设计文档路径（propose 前置校验凭据）。
 
-    Usage: record-design-doc <设计文档路径>
+    Usage: record-design-doc <设计文档路径> [--feature <slug>]
 
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.dispatcher import route
-    positional = [a for a in args if not a.startswith("--")]
+    opts, positional = _extract_kv_options(args, ("feature",))
     if not positional:
         print(
             "Error: record-design-doc requires a design doc path.",
@@ -316,20 +345,54 @@ def _cmd_record_design_doc(args: list[str], root: Path) -> int:
         return 2
     return route("record-design-doc", root, extra={
         "design_doc": " ".join(positional),
+        "feature": opts.get("feature", ""),
     })
+
+
+def _cmd_switch(args: list[str], root: Path) -> int:
+    """Handle switch command — 切换前台需求（v2.8.0 多活跃）。
+
+    touch 目标需求的 last_touched（推导式前台的唯一写入口）：
+    纯切前台，不开工不推进。锁内执行（写 state.json）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from specpowers_cli.bridge.core.lock import acquire_lock, release_lock
+    from specpowers_cli.bridge.core.fs_state import touch_feature, foreground_feature
+    opts, positional = _extract_kv_options(args, ("feature",))
+    slug = (opts.get("feature", "") or " ".join(positional)).strip()
+    if not slug:
+        print("Error: switch requires a feature slug. Usage: facade switch <slug> --root .", file=sys.stderr)
+        return 2
+    acquire_lock(root, timeout=0)
+    try:
+        touch_feature(root, slug)
+    finally:
+        release_lock(root)
+    print(f"前台已切换：{slug}（前台 = 最近操作的需求，其余活跃需求转后台不受影响）")
+    return 0
 
 
 def _cmd_reset(args: list[str], root: Path) -> int:
     """Handle reset command."""
     from specpowers_cli.bridge.dispatcher import route
-    return route("reset", root)
+    opts, _ = _extract_kv_options(args, ("feature",))
+    return route("reset", root, extra={"feature": opts.get("feature", "")})
 
 
 def _cmd_status(args: list[str], root: Path) -> int:
-    """Handle status command."""
-    from specpowers_cli.bridge.core.fs_state import load_state
+    """Handle status command — 全局 + 前台平铺 + 活跃需求概览（v2.8.0 多活跃）。
+
+    顶层字段与旧 schema 1 同名同义（前台需求展开），旧消费者不破坏；
+    新增 features 概览键（slug → stage/mode/iteration_count）与
+    foreground 键（前台推导结果）。
+    """
+    from specpowers_cli.bridge.core.fs_state import load_state, features_snapshot, foreground_feature
     state = load_state(root)
-    print(json.dumps(state, indent=2))
+    result = dict(state)
+    result["features"] = features_snapshot(root)
+    result["foreground"] = foreground_feature(root)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
 
@@ -509,34 +572,52 @@ def _cmd_version(args: list[str], root: Path) -> int:
 
 
 def _cmd_record_execution_mode(args: list[str], root: Path) -> int:
-    """记录 build 阶段用户选择的执行方式到 state.json。
+    """记录 apply 阶段用户选择的执行方式到目标需求的状态（v2.8.0 起支持 --feature）。
 
-    落地 build.md 第二步的承诺：执行方式持久化到 state（execution_mode 字段），
+    落地 apply.md 第二步的承诺：执行方式持久化（execution_mode 字段），
     并对 fast 模式做 worktree/subagent 禁用校验（确定性层纵深防御）。
+    多活跃未指名时拒绝（防记错需求），单活跃缺省前台。
 
-    Usage: record-execution-mode <conductor|worktree|subagent|tdd>
+    Usage: record-execution-mode <conductor|worktree|subagent|tdd> [--feature <slug>]
 
-    作者：005819 | 协作：GLM-5.2
+    作者：005819 | 协作：GLM-5.2（v2.8.0 多需求化：GLM-5.3）
     """
-    if not args:
+    opts, positional = _extract_kv_options(args, ("feature",))
+    if not positional:
         print(
             "Error: record-execution-mode requires an execution mode "
             "(conductor|worktree|subagent|tdd).",
             file=sys.stderr,
         )
         return 2
-    mode = args[0]
-    from specpowers_cli.bridge.core.fs_state import load_state
+    mode = positional[0]
+    from specpowers_cli.bridge.core.fs_state import load_state, list_features, foreground_feature
     from specpowers_cli.bridge.core.lock import acquire_lock, release_lock
     from specpowers_cli.bridge.modules.mode_controller import set_execution_mode
     # 写 state 需获取锁，防止并发 stage 操作交叉写入
     acquire_lock(root, timeout=0)
     try:
-        state = load_state(root)
+        feature = (opts.get("feature") or "").strip()
+        if not feature:
+            active = list_features(root)
+            if not active:
+                from specpowers_cli.bridge.core.errors import StateError
+                print("Error: no active feature. Run a stage that sets feature first.", file=sys.stderr)
+                return 2
+            if len(active) > 1:
+                from specpowers_cli.bridge.core.errors import StateError
+                print(
+                    f"Error: multiple active features, --feature required: "
+                    f"{', '.join(active)}.",
+                    file=sys.stderr,
+                )
+                return 2
+            feature = foreground_feature(root)
+        state = load_state(root, feature)
         state = set_execution_mode(root, state, mode)
     finally:
         release_lock(root)
-    print(f"执行方式已记录：{state['execution_mode']}")
+    print(f"执行方式已记录（feature '{feature}'）：{state['execution_mode']}")
     return 0
 
 
@@ -604,6 +685,7 @@ def main(argv: list[str] | None = None) -> int:
         "archive": _cmd_archive,
         "baseline": _cmd_baseline,
         "reset": _cmd_reset,
+        "switch": _cmd_switch,
         "status": _cmd_status,
         "scan": _cmd_scan,
         "gate": _cmd_gate,

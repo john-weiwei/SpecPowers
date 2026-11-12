@@ -76,13 +76,23 @@ def test_fast_constraint_hint_mentions_upgrade():
     assert "升级" in hint or "完整流程" in hint
 
 
+
+def _seed_active_feature(root: Path, mode: str = "full") -> dict:
+    """构造一个活跃需求(feat-demo, stage=apply)并返回前台视图。"""
+    state = dict(load_state(root))
+    state.update({"feature": "feat-demo", "stage": "apply", "mode": mode})
+    save_state(root, state)
+    return load_state(root)
+
+
 # ---------- set_execution_mode 单元测试 ----------
 
 def test_set_execution_mode_writes_state(tmp_path: Path):
     """set_execution_mode 应把执行方式写入 state.json。"""
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
+    init_state(root)
+    state = _seed_active_feature(root)
 
     set_execution_mode(root, state, "tdd")
 
@@ -94,7 +104,8 @@ def test_set_execution_mode_normalizes_case(tmp_path: Path):
     """set_execution_mode 应把大写执行方式规范化为小写存盘。"""
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
+    init_state(root)
+    state = _seed_active_feature(root)
 
     set_execution_mode(root, state, "Subagent")
 
@@ -105,9 +116,8 @@ def test_set_execution_mode_rejects_fast_subagent(tmp_path: Path):
     """fast 模式下 set_execution_mode 选 subagent 应抛 ValueError。"""
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
-    state["mode"] = "fast"
-    save_state(root, state)
+    init_state(root)
+    state = _seed_active_feature(root, mode="fast")
 
     with pytest.raises(ValueError):
         set_execution_mode(root, state, "subagent")
@@ -117,7 +127,8 @@ def test_set_execution_mode_rejects_unknown(tmp_path: Path):
     """未知执行方式应抛 ValueError。"""
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
+    init_state(root)
+    state = _seed_active_feature(root)
 
     with pytest.raises(ValueError):
         set_execution_mode(root, state, "random")
@@ -136,8 +147,9 @@ def test_init_state_has_empty_execution_mode(tmp_path: Path):
     """init_state 后 execution_mode 应为空串。"""
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
-    assert state["execution_mode"] == ""
+    init_state(root)
+    # v2.8.0：execution_mode 是需求级字段（无活跃需求时视图展开默认空串）
+    assert load_state(root)["execution_mode"] == ""
 
 
 def test_reset_state_clears_execution_mode(tmp_path: Path):
@@ -145,9 +157,9 @@ def test_reset_state_clears_execution_mode(tmp_path: Path):
     from specpowers_cli.bridge.core.fs_state import reset_state
     root = tmp_path
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
-    state["execution_mode"] = "subagent"
-    save_state(root, state)
+    init_state(root)
+    state = _seed_active_feature(root)
+    state = set_execution_mode(root, state, "subagent")
 
     new_state = reset_state(root)
     assert new_state["execution_mode"] == ""
@@ -168,6 +180,7 @@ def test_facade_record_execution_mode_success(tmp_path: Path):
     root = _create_temp_git_repo(tmp_path)
     (root / ".specpowers").mkdir(exist_ok=True)
     init_state(root)
+    _seed_active_feature(root)
 
     rc = main(["record-execution-mode", "conductor", "--root", str(root)])
     assert rc == 0
@@ -190,9 +203,8 @@ def test_facade_record_execution_mode_fast_rejects_subagent(tmp_path: Path):
     from specpowers_cli.bridge.facade import main
     root = _create_temp_git_repo(tmp_path)
     (root / ".specpowers").mkdir(exist_ok=True)
-    state = init_state(root)
-    state["mode"] = "fast"
-    save_state(root, state)
+    init_state(root)
+    _seed_active_feature(root, mode="fast")
 
     rc = main(["record-execution-mode", "subagent", "--root", str(root)])
     assert rc != 0

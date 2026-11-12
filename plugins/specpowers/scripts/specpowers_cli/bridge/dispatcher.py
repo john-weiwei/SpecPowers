@@ -21,10 +21,81 @@ from specpowers_cli.bridge.core.errors import (
 )
 from specpowers_cli.bridge.core.fs_state import (
     load_state, save_state, init_state, reset_state, atomic_write_json,
+    load_feature, list_features, foreground_feature, delete_feature,
+    clear_features, auto_base_path,
 )
 from specpowers_cli.bridge.core.lock import acquire_lock, release_lock, force_unlock
 from specpowers_cli.bridge.core.git_util import is_git_repo, has_commits, is_detached_head, git_ref_of
 from specpowers_cli.bridge.modules.artifact_registry import required_for
+
+
+def _resolve_target_feature(root: Path, extra: dict, kind: str) -> str:
+    """解析命令的目标需求 slug（v2.8.0 多活跃需求核心路由规则）。
+
+    优先级：--feature 显式指定 > 前台（last_touched 最大）。
+    - kind="advance"（推进/破坏性命令：apply/archive/iterate/auto 系列/
+      record-*）：多活跃且未指名 → StateError 列出活跃需求与阶段，要求
+      带 --feature 重试（确定性层兜底认知层忘带名，防错需求写错文件）
+    - kind="read"（只读命令：auto-status）：缺省作用于前台，不拒绝
+      （输出携带 feature 名，模型可见作用对象）
+
+    Args:
+        root: 项目根目录。
+        extra: 命令参数（取 "feature" 键）。
+        kind: "advance" | "read"。
+
+    Returns:
+        目标需求 slug（advance 类必有活跃需求）。
+
+    Raises:
+        StateError: 显式指定了不活跃的 slug；多活跃未指名；无活跃需求。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    explicit = (extra.get("feature") or "").strip()
+    if explicit:
+        from specpowers_cli.bridge.modules.path_resolver import sanitize_feature_slug
+        feature = sanitize_feature_slug(explicit)
+        if load_feature(root, feature) is None:
+            active = _describe_active(root)
+            raise StateError(
+                f"'{feature}' 不是活跃需求。当前活跃：{active}。"
+                f"请从活跃需求中选择，或先经 explore/fast 开工新需求。"
+            )
+        return feature
+
+    fg = foreground_feature(root)
+    if not fg:
+        raise StateError(
+            "当前无活跃需求，无法执行该命令。"
+            "开始新需求：人工模式 /specpowers-explore 或 /specpowers-fast，"
+            "无人值守 /specpowers-auto。"
+        )
+    if kind == "advance":
+        others = [slug for slug in list_features(root) if slug != fg]
+        if others:
+            raise StateError(
+                f"存在多个活跃需求，推进类命令必须显式 --feature 指定目标。"
+                f"当前活跃：{_describe_active(root)}。"
+                f"请带 --feature <slug> 重试（前台为 '{fg}'，仅作参考不作默认）。"
+            )
+    return fg
+
+
+def _describe_active(root: Path) -> str:
+    """活跃需求清单的紧凑描述（slug(stage[,Round N]) 逗号分隔）。"""
+    parts = []
+    for slug in list_features(root):
+        fs = load_feature(root, slug)
+        if fs is None:
+            continue
+        desc = f"{slug}({fs.get('stage', '?')}"
+        rounds = int(fs.get("iteration_count", 0) or 0)
+        if rounds >= 1:
+            desc += f", Round {rounds}"
+        desc += ")"
+        parts.append(desc)
+    return ", ".join(parts) if parts else "（无）"
 
 
 # ---- State machine validation ----
@@ -102,31 +173,31 @@ def _finalize_feature_slug(slug: str) -> str:
 
 # ---- auto 模式多轮迭代（方案 docs/auto-iteration-plan.md） ----
 
-def _auto_base_path(root: Path) -> Path:
-    """Return path to .specpowers/auto_base.json."""
-    return root / ".specpowers" / "auto_base.json"
+def _auto_base_path(root: Path, feature: str) -> Path:
+    """Return path to auto_base/<feature>.json（v2.8.0 起按需求隔离）。"""
+    return auto_base_path(root, feature)
 
 
-def _load_auto_base(root: Path) -> dict | None:
-    """读取 auto_base.json；不存在返回 None，损坏抛 FatalError 引导人工处理。
+def _load_auto_base(root: Path, feature: str) -> dict | None:
+    """读取需求的 auto_base；不存在返回 None，损坏抛 FatalError 引导人工处理。
 
     作者：005819 | 协作：GLM-5.3
     """
-    path = _auto_base_path(root)
+    path = _auto_base_path(root, feature)
     if not path.exists():
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as e:
         raise FatalError(
-            f"auto_base.json 解析失败: {e}。"
-            "请人工检查或删除该文件后重试 /specpowers-auto。"
+            f"auto_base（feature '{feature}'）解析失败: {e}。"
+            f"请人工检查或删除 {path} 后重试 /specpowers-auto。"
         )
 
 
-def _write_auto_base(root: Path, data: dict) -> None:
-    """原子写 auto_base.json（复用 fs_state.atomic_write_json，与 state.json 同一保障）。"""
-    atomic_write_json(_auto_base_path(root), data)
+def _write_auto_base(root: Path, feature: str, data: dict) -> None:
+    """原子写需求的 auto_base（复用 fs_state.atomic_write_json，与 state 同一保障）。"""
+    atomic_write_json(_auto_base_path(root, feature), data)
 
 
 def _design_doc_hash(design_doc: str) -> str | None:
@@ -203,37 +274,58 @@ def _clarification_view(base: dict | None, has_new_input: bool) -> dict | None:
     }
 
 
-def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict:
+def auto_status(root: Path, design_doc: str = "", instruction: str = "", feature: str = "") -> dict:
     """auto 模式重入三分判定：fresh / resume / iterate（facade auto-status 子命令入口）。
 
-    需求身份由归档状态唯一决定，与设计文档解耦：
-    - fresh：无活跃 feature（已归档或从未开始）；发现 auto_base.json 残留则顺带清理
+    需求身份由归档状态唯一决定（per-feature 粒度），与设计文档解耦：
+    - fresh：无活跃需求（feature 解析为空——目标/前台均不存在）；发现
+      残留 auto_base（无活跃需求对应的文件）则顺带清理
     - resume：活跃需求 + 无任何新输入（文档 hash 未变、无指令）→ 断点续跑
     - iterate：活跃需求 + 任一新输入（文档实质变更 / 口头指令）→ 同需求新迭代轮
 
-    判定只读 state 与产物，不做状态跃迁；轮次切换必须走 auto new-round。
+    判定只读状态与产物，不做状态跃迁；轮次切换必须走 auto new-round。
     响应携带 clarification 视图（上一轮澄清结论 + pending_input），供契约层
     做 resume 停靠保护与迭代轮增量澄清。
 
+    Args:
+        root: 项目根目录。
+        design_doc: 本次重入携带的设计文档路径（空 = 未携带）。
+        instruction: 本次重入携带的口头指令（空 = 未携带）。
+        feature: 目标需求 slug（空 = 前台；多活跃时输出标明作用对象）。
+
     作者：005819 | 协作：GLM-5.3
     """
-    state = load_state(root)
-    feature = (state.get("feature") or "").strip()
-    base = _load_auto_base(root)
+    # 目标需求解析（read 类：缺省前台，多活跃不拒绝；显式指定不活跃 → 报错防误判）
+    feature = (feature or "").strip()
+    if feature:
+        fs = load_feature(root, feature)
+        if fs is None:
+            raise StateError(
+                f"'{feature}' 不是活跃需求。当前活跃：{_describe_active(root)}。"
+                f"auto-status 只对活跃需求做三分判定。"
+            )
+    else:
+        feature = foreground_feature(root)
+        fs = load_feature(root, feature) if feature else None
+    base = _load_auto_base(root, feature) if feature else None
 
-    # fresh：无活跃 feature（archive 后 stage=ready 且 feature 空，或从未开始）
-    if not feature and state["stage"] in ("ready", "init"):
-        removed = False
-        if base is not None:
-            # 上一需求的 auto_base.json 残留（旧版本归档清理缺失所遗留）→ 清理后按全新执行
-            _auto_base_path(root).unlink()
+    # fresh：无活跃需求（已归档或从未开始）
+    if fs is None:
+        # 无活跃需求时的残留清理：auto_base/ 目录全部 + 旧版（v2.7.0 及以前）
+        # 顶层 auto_base.json 孤儿（迁移仅在 feature 非空时搬走，无活跃时无人认领）
+        from specpowers_cli.bridge.core.fs_state import cleanup_auto_base
+        removed = cleanup_auto_base(root, keep=[]) > 0
+        legacy_base = root / ".specpowers" / "auto_base.json"
+        if legacy_base.exists():
+            legacy_base.unlink()
             removed = True
+        state_view = load_state(root)
         return {
             "mode": "fresh",
             "feature": "",
             "round": 0,
             "iteration_count": 0,
-            "stage": state["stage"],
+            "stage": state_view["stage"],
             "scope_hint": "",
             "reason": "无活跃 feature，按全新需求执行（设计文档必填）",
             "design_doc_exists": None,
@@ -246,11 +338,11 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
         return {
             "mode": "iterate",
             "feature": feature,
-            "round": state.get("iteration_count", 0) + 1,
-            "iteration_count": state.get("iteration_count", 0),
-            "stage": state["stage"],
+            "round": int(fs.get("iteration_count", 0)) + 1,
+            "iteration_count": int(fs.get("iteration_count", 0)),
+            "stage": fs.get("stage", ""),
             "scope_hint": "full",
-            "reason": "存在未归档的活跃 feature 但缺 auto_base.json（人工流程接管），保守按全量迭代执行并补建基线",
+            "reason": "存在未归档的活跃 feature 但缺 auto_base（人工流程接管），保守按全量迭代执行并补建基线",
             "design_doc_exists": None,
             "auto_base_missing": True,
             "clarification": None,
@@ -275,16 +367,16 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
                 doc_changed = (not old_doc) or (not _same_path(old_doc, design_doc))
     has_new_input = bool(instruction.strip()) or doc_changed
 
-    round_now = state.get("iteration_count", 0)
+    round_now = int(fs.get("iteration_count", 0))
     if not has_new_input:
         return {
             "mode": "resume",
             "feature": feature,
             "round": round_now,
             "iteration_count": round_now,
-            "stage": state["stage"],
+            "stage": fs.get("stage", ""),
             "scope_hint": "",
-            "reason": "无新输入（文档未变且无指令），按断点续跑：读 state stage + 产物存在性定位断点，已完成阶段不重做",
+            "reason": "无新输入（文档未变且无指令），按断点续跑：读需求 stage + 产物存在性定位断点，已完成阶段不重做",
             "design_doc_exists": design_doc_exists,
             "clarification": _clarification_view(base, has_new_input=False),
         }
@@ -301,7 +393,7 @@ def auto_status(root: Path, design_doc: str = "", instruction: str = "") -> dict
         "feature": feature,
         "round": round_now + 1,
         "iteration_count": round_now,
-        "stage": state["stage"],
+        "stage": fs.get("stage", ""),
         "scope_hint": scope_hint,
         "reason": reason,
         "design_doc_exists": design_doc_exists,
@@ -366,7 +458,7 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
     # 仅从 explore 进入 propose 时校验（跳过探索直入 propose 的 ready 路径、
     # apply fallback 路径、迭代续作自环路径均不要求）。
     if stage == "propose" and mode == "full" and from_stage == "explore":
-        _check_design_doc_registered(root)
+        _check_design_doc_registered(root, feature)
 
     # proposal 内容校验：倒逼 propose 必须承接 explore 探索结论（防架空）。
     # 进入 apply 时，proposal 除存在外，还必须含「数据流契约」段头或「无跨链路字段」声明。
@@ -396,32 +488,33 @@ def _run_pre_stage_checks(root: Path, stage: str, mode: str, feature: str = "", 
                 )
 
 
-def _check_design_doc_registered(root: Path) -> None:
-    """校验 explore 阶段的设计文档已登记（propose 从 explore 进入时的硬依赖）。
+def _check_design_doc_registered(root: Path, feature: str) -> None:
+    """校验目标需求的设计文档已登记（propose 从 explore 进入时的硬依赖）。
 
     防止探索被架空：explore 落盘设计文档后经 `facade record-design-doc` 登记路径到
-    state.design_doc。agent 若跳过 specpowers-explore 探索直接收口，不会产生设计文档，
-    本校验将其拦在 propose 之外，强制回 explore 完成探索。
+    需求的 design_doc 字段。agent 若跳过 specpowers-explore 探索直接收口，不会产生
+    设计文档，本校验将其拦在 propose 之外，强制回 explore 完成探索。
 
     Args:
         root: 项目根路径。
+        feature: 目标需求 slug（v2.8.0 起按需求查登记，非前台）。
 
     Raises:
-        ArtifactMissingError: state.design_doc 为空，或登记的文件不存在。
+        ArtifactMissingError: 需求的 design_doc 为空，或登记的文件不存在。
 
     作者：005819 | 协作：GLM-5.3
     """
-    state = load_state(root)
-    design_doc = (state.get("design_doc") or "").strip()
+    fs = load_feature(root, feature)
+    design_doc = (fs.get("design_doc") or "").strip() if fs else ""
 
     if not design_doc:
         raise ArtifactMissingError(
-            "explore 阶段的设计文档未登记（state.design_doc 为空）。"
+            f"explore 阶段的设计文档未登记（需求 '{feature}' 的 design_doc 为空）。"
             "这是 propose 从 explore 进入的硬依赖——说明 explore 探索未完成"
             "（specpowers-explore 可能被跳过）。"
             "请回到 /specpowers-explore 调用内置 specpowers-explore 技能完成需求探索，"
             "设计文档落盘 docs/specpowers/design/ 后调 "
-            "`facade record-design-doc <设计文档路径>` 登记，再进入 /specpowers-propose"
+            f"`facade record-design-doc <设计文档路径> --feature {feature}` 登记，再进入 /specpowers-propose"
         )
 
     if not Path(design_doc).is_file():
@@ -489,19 +582,18 @@ def _check_proposal_data_flow_contract(root: Path, feature: str, artifacts: list
 
 
 def _check_init_conflict(root: Path):
-    """Check if init command would discard an in-progress feature."""
-    state = load_state(root)
-    if state.get("stage") != "init":
+    """Check if init command would discard in-progress features."""
+    active = list_features(root)
+    if active:
         # Interactive confirmation needed — in CI mode, auto-confirm
         if is_ci_mode():
-            print("[CI] Auto-confirming init re-generation (would discard feature "
-                  f"'{state.get('feature', '')}')", file=sys.stderr)
+            print(f"[CI] Auto-confirming init re-generation (would discard active "
+                  f"features: {', '.join(active)})", file=sys.stderr)
         else:
-            feature = state.get("feature", "")
             raise StateError(
-                f"Current feature '{feature}' is in progress (stage: {state.get('stage')}). "
-                f"Use --force to discard and rebuild constitution, "
-                f"or /specpowers-reset to start fresh."
+                f"Active features in progress: {_describe_active(root)}. "
+                f"Use --force to discard all of them and rebuild constitution, "
+                f"or /specpowers-reset --feature <slug> to abandon a specific one."
             )
 
 
@@ -527,22 +619,20 @@ def _log_verbose(msg: str):
 def _handle_init(root: Path, extra: dict) -> int:
     """Handle init stage."""
     force = extra.get("force", False)
-    state = load_state(root)
 
-    # 幂等放行：已归档的空转状态（stage=ready 且无 feature）重复 init 不报错、
-    # 不重建。auto.md 第 2 步承诺 /specpowers-init 幂等执行，而 auto 判定 fresh
-    # 的常见起点恰是 stage=ready——无幂等语义时无人值守流程必然撞
+    # 幂等放行：已归档的空转状态（无活跃需求）重复 init 不报错、不重建。
+    # auto.md 第 2 步承诺 /specpowers-init 幂等执行，而 auto 判定 fresh
+    # 的常见起点恰是无活跃需求——无幂等语义时无人值守流程必然撞
     # _check_init_conflict 的 StateError，或被迫 --force 重建团队已评审的 constitution
     if (
         not force
-        and state.get("stage") == "ready"
-        and not (state.get("feature") or "").strip()
+        and not list_features(root)
         and (root / ".specpowers" / "baseline.json").exists()
     ):
-        print("Init skipped (idempotent): no feature in progress and baseline already exists.")
+        print("Init skipped (idempotent): no active feature in progress and baseline already exists.")
         return 0
 
-    if not force and state.get("stage") != "init":
+    if not force and list_features(root):
         _check_init_conflict(root)
 
     _log_verbose("Running baseline scanner...")
@@ -556,41 +646,62 @@ def _handle_init(root: Path, extra: dict) -> int:
             baseline_path.unlink()
         scan(root)
 
-    # Transition: init → ready
-    # design_doc 一并清空：init 重置意味着放弃当前 feature 流水线，
-    # 探索指针不应泄给下一需求（下一需求的 explore 会重新登记）
-    new_state = load_state(root)
-    new_state["stage"] = "ready"
-    new_state["mode"] = "full"
-    new_state["feature"] = ""
-    new_state["design_doc"] = ""
-    save_state(root, new_state)
+    # 走到这里：无活跃需求，或 --force / CI 自动确认（放弃全部活跃需求）。
+    # init 重置意味着放弃当前全部需求流水线（探索指针等需求级状态一并终结），
+    # 全局字段（fallback_count/last_archive_ref）保留——clear_features 内部
+    # 兼容 state.json 不存在的全新项目（按默认顶层落盘）
+    clear_features(root)
 
     print("Constitution + baseline ready. Stage: ready")
     return 0
 
 
-def _handle_explore(root: Path, extra: dict) -> int:
-    """Handle explore stage."""
-    req = extra.get("requirement", "")
-    state = load_state(root)
+def _resolve_entry_feature(root: Path, extra: dict, req: str) -> tuple[str, dict | None]:
+    """开新入口（explore/propose/fast）的目标需求解析 + 续作命中规则。
 
-    _validate_transition(state["stage"], "explore")
+    v2.8.0 多活跃需求规则（slug 即身份）：
+    - --feature 显式指定优先（auto 多轮迭代用首轮 slug 锁定 change 目录，
+      防止 requirement 措辞变化导致 slug 漂移）
+    - normalize(requirement) 后命中活跃映射 = 该需求的续作请求
+      （返回其分片，由调用方按 from_stage 做转换校验）
+    - 未命中 = 新需求（from ready 语义，由调用方写入新条目）
 
-    # feature 锁定：--feature 显式指定优先（auto 模式多轮迭代用首轮 slug 锁定 change 目录，
-    # 防止 requirement 措辞变化导致 slug 漂移、调整脱离当前 spec 文件），
-    # 其次 normalize requirement 兜底。
-    # 作者：005819 | 协作：GLM-5.3
+    Returns:
+        (feature slug, 已存在的需求分片 dict 或 None)。None 表示新需求。
+
+    作者：005819 | 协作：GLM-5.3
+    """
     explicit_feature = (extra.get("feature") or "").strip()
     if explicit_feature:
         feature = _finalize_feature_slug(explicit_feature)
     else:
         feature = normalize_feature(req)
+    return feature, load_feature(root, feature)
+
+
+def _handle_explore(root: Path, extra: dict) -> int:
+    """Handle explore stage."""
+    req = extra.get("requirement", "")
+
+    # slug 命中活跃映射 = 续作请求：explore 仅允许对新需求（或 ready 态需求）
+    # 执行，重入非法——错误信息给多需求语境的可执行指引
+    feature, existing = _resolve_entry_feature(root, extra, req)
+    if existing is not None:
+        raise StateError(
+            f"feature '{feature}' 已在活跃集中（当前 stage: {existing.get('stage')}）。"
+            "explore 仅对新需求执行；该需求续作请走 /specpowers-propose（propose 重入）"
+            "或 facade iterate（迭代轮）；若确为新需求，请调整需求描述"
+            f"或显式 --feature <其他slug>（当前活跃：{_describe_active(root)}）。"
+        )
 
     _check_prerequisites(root)
     _run_pre_stage_checks(root, "explore", "full", feature)
 
-    # Update state
+    # 新需求：写入 features 映射（save 刷新 last_touched → 自动成为前台，
+    # 旧前台需求转后台，分片状态不受影响）。需求级字段从零开始，
+    # 不继承前台的 execution_mode/迭代轮/设计文档指针
+    state = load_state(root)
+    state.update({"execution_mode": "", "iteration_count": 0, "design_doc": ""})
     state["stage"] = "explore"
     state["mode"] = "full"
     state["feature"] = feature
@@ -601,7 +712,7 @@ def _handle_explore(root: Path, extra: dict) -> int:
           "procedure to explore the requirement, "
           "write the design doc under docs/specpowers/design/ "
           "(incl. data-flow conclusions), register it via "
-          f"`facade record-design-doc <path>`, then continue to /specpowers-propose")
+          f"`facade record-design-doc <path> --feature {feature}`, then continue to /specpowers-propose")
     return 0
 
 
@@ -613,8 +724,23 @@ def _handle_propose(root: Path, extra: dict) -> int:
     确定性层只做状态机与前置校验）。
     """
     req = extra.get("requirement", "")
-    state = load_state(root)
-    from_stage = state["stage"]
+
+    # Feature 解析（v2.8.0 多活跃）：--feature 显式 > slug 命中活跃（续作）>
+    # normalize 当前 requirement 兜底（新需求，from ready）
+    explicit_feature = (extra.get("feature") or "").strip()
+    if explicit_feature:
+        feature = _finalize_feature_slug(explicit_feature)
+        existing = load_feature(root, feature)
+    else:
+        normalized = normalize_feature(req)
+        existing = load_feature(root, normalized)
+        if existing is not None:
+            feature = normalized
+        else:
+            fg = foreground_feature(root)
+            existing = load_feature(root, fg) if fg else None
+            feature = fg if fg else normalized
+    from_stage = existing.get("stage", "ready") if existing else "ready"
 
     _validate_transition(from_stage, "propose")
 
@@ -623,6 +749,7 @@ def _handle_propose(root: Path, extra: dict) -> int:
     # 流程可无限次往返抖动。此处把承诺落地为确定性层硬校验
     # 作者：005819 | 协作：GLM-5.3
     if from_stage == "apply":
+        state = load_state(root)
         fallback_count = state.get("fallback_count", 0)
         if fallback_count >= 1:
             # 文案必须与真实语义一致：归档/reset 均不清除计次（reset_state 显式保留），
@@ -633,23 +760,21 @@ def _handle_propose(root: Path, extra: dict) -> int:
                 "（归档/reset 均不清除计次，新 feature 不恢复额度）。"
                 "如确需再次回退，请手动编辑 .specpowers/state.json 将 fallback_count 置 0。"
             )
+        # 仅更新全局字段（视图 feature 置空 → save 不触碰任何分片）
+        state["feature"] = ""
         state["fallback_count"] = fallback_count + 1
-
-    # Feature 锁定：--feature 显式指定 > state 已有 feature（同一流程文件名前缀一致）>
-    # normalize 当前 requirement 兜底。
-    # 作者：005819 | 协作：GLM-5.3
-    explicit_feature = (extra.get("feature") or "").strip()
-    existing_feature = state.get("feature", "")
-    if explicit_feature:
-        feature = _finalize_feature_slug(explicit_feature)
-    elif existing_feature and existing_feature.strip():
-        feature = existing_feature
-    else:
-        feature = normalize_feature(req)
+        save_state(root, state)
 
     _check_prerequisites(root)
     _run_pre_stage_checks(root, "propose", "full", feature, from_stage=from_stage)
 
+    # 写目标需求分片（save 刷新 last_touched → 操作即前台）：
+    # 续作展开该需求（其余需求级字段保留原值），新需求从零开始不继承前台
+    if existing is not None:
+        state = load_state(root, feature)
+    else:
+        state = load_state(root)
+        state.update({"execution_mode": "", "iteration_count": 0, "design_doc": ""})
     state["stage"] = "propose"
     state["mode"] = "full"
     state["feature"] = feature
@@ -662,18 +787,19 @@ def _handle_propose(root: Path, extra: dict) -> int:
 def _handle_fast(root: Path, extra: dict) -> int:
     """Handle fast mode entry."""
     req = extra.get("requirement", "")
-    state = load_state(root)
 
     # fast 不是状态机的真实目标 stage（它把状态设为 ready+mode=fast），
-    # 因此不能用 _validate_transition(state["stage"], "fast")——VALID_TRANSITIONS
-    # 里没有 "fast" 键，会误拒绝所有合法调用。fast 的合法入口与 explore 一致，
-    # 仅允许从 ready 进入。
-    # 作者：005819 | 协作：GLM-5.2
-    valid_fast_from = ["ready"]
-    if state["stage"] not in valid_fast_from:
+    # 合法入口与 explore 一致：仅新需求（或 ready 态需求的 fast 重入）。
+    # slug 命中活跃 = 续作请求：非 ready 态拒绝（该需求已在推进中，
+    # 续作走对应阶段命令），ready 态放行（fast 重入）
+    # 作者：005819 | 协作：GLM-5.3
+    feature, existing = _resolve_entry_feature(root, extra, req)
+    if existing is not None and existing.get("stage") != "ready":
         raise StateError(
-            f"Cannot start fast mode from '{state['stage']}'. "
-            f"Valid from stages: {', '.join(valid_fast_from)}"
+            f"Cannot start fast mode for feature '{feature}' "
+            f"(current stage: {existing.get('stage')}). "
+            f"Fast mode is only valid for new features or features in ready stage; "
+            f"该需求已在推进中，续作请走对应阶段命令。"
         )
 
     _check_prerequisites(root)
@@ -682,13 +808,12 @@ def _handle_fast(root: Path, extra: dict) -> int:
     # （未初始化统一兜底，v2.5.0），fast 内不再单独检查
     # 作者：005819 | 协作：GLM-5.3
 
-    # Feature 锁定：优先复用已有 feature，仅空时才 normalize
-    existing_feature = state.get("feature", "")
-    if existing_feature and existing_feature.strip():
-        feature = existing_feature
+    # 续作展开该需求；新需求从零开始不继承前台的需求级字段
+    if existing is not None:
+        state = load_state(root, feature)
     else:
-        feature = normalize_feature(req)
-
+        state = load_state(root)
+        state.update({"execution_mode": "", "iteration_count": 0, "design_doc": ""})
     state["stage"] = "ready"
     state["mode"] = "fast"
     state["feature"] = feature
@@ -701,23 +826,27 @@ def _handle_fast(root: Path, extra: dict) -> int:
 
 def _handle_apply(root: Path, extra: dict) -> int:
     """Handle apply stage."""
-    state = load_state(root)
-    mode = state.get("mode", "full")
-    from_stage = state["stage"]
-    feature = state.get("feature", "")
+    # 推进类命令：显式 --feature > 前台；多活跃未指名 → 拒绝并列出活跃需求
+    feature = _resolve_target_feature(root, extra, kind="advance")
+    fs = load_feature(root, feature)
+    mode = (fs or {}).get("mode", "full")
+    from_stage = (fs or {}).get("stage", "ready")
 
     _validate_transition(from_stage, "apply")
 
     _check_prerequisites(root)
     _run_pre_stage_checks(root, "apply", mode, feature)
 
+    # 写目标需求分片（操作即前台；其余需求级字段保留）
+    state = load_state(root, feature)
     state["stage"] = "apply"
+    state["feature"] = feature
     save_state(root, state)
 
     if mode == "fast":
-        print("Apply stage (fast mode). Agent will run: code extraction → structure gate → execute → verify.")
+        print(f"Apply stage (fast mode) for feature '{feature}'. Agent will run: code extraction → structure gate → execute → verify.")
     else:
-        print("Apply stage (full mode). Agent will run: structure gate → ability pool → execute → verify.")
+        print(f"Apply stage (full mode) for feature '{feature}'. Agent will run: structure gate → ability pool → execute → verify.")
     return 0
 
 
@@ -726,24 +855,31 @@ def _handle_archive(root: Path, extra: dict) -> int:
 
     full 和 fast 统一：调 openspec archive 合并主规格 + change 移到 archive 快照。
     产物（proposal/specs/tasks）由 propose 阶段一次性写入 change 目录，archive 零转换。
+    v2.8.0 起多活跃：--feature 指定归档目标（多活跃未指名拒绝）；归档即该
+    需求完结——features 映射移除该键 + auto_base 清理，其余活跃需求不受
+    影响，前台自动切换为剩余 last_touched 最大者。
     """
-    state = load_state(root)
-    force_merge = extra.get("force_merge_check", False)
-    mode = state.get("mode", "full")
-    feature = state.get("feature", "")
+    # 推进类命令：显式 --feature > 前台；多活跃未指名 → 拒绝并列出活跃需求
+    feature = _resolve_target_feature(root, extra, kind="advance")
+    fs = load_feature(root, feature)
+    mode = (fs or {}).get("mode", "full")
+    from_stage = (fs or {}).get("stage", "ready")
 
-    _validate_transition(state["stage"], "archive")
+    _validate_transition(from_stage, "archive")
 
     # Duplicate check: has this feature already been archived?
     from specpowers_cli.bridge.modules.archive_auditor import is_feature_archived
     if feature and is_feature_archived(root, feature):
         raise ArchiveDuplicateError(
             f"Feature '{feature}' already has an archive commit. "
-            f"Run: git pull && /specpowers-reset to sync."
+            f"Run: git pull && /specpowers-reset --feature {feature} to sync."
         )
 
     _check_prerequisites(root)
     _run_pre_stage_checks(root, "archive", mode, feature)
+
+    state = load_state(root)
+    force_merge = extra.get("force_merge_check", False)
 
     # Merge check（仅检测并提示，归档本身不依赖它）
     from specpowers_cli.bridge.modules.archive_auditor import merge_check_detect
@@ -774,23 +910,15 @@ def _handle_archive(root: Path, extra: dict) -> int:
         archived_as = archive_result.get("archivedAs", feature)
         specs_updated = archive_result.get("specsUpdated", False)
 
-        # 归档成功：刷新 state，stage 跃迁到 ready
-        # 清空 execution_mode：本 feature 的执行模式不应被下一轮 feature 继承
-        # iteration_count 清零：归档即新需求，下一轮从首轮开始（方案第 5 节）
-        # design_doc 清空：设计文档指针随需求生命周期终结，不泄给下一轮
-        # 作者：005819 | 协作：GLM-5.3
+        # 归档成功：刷新全局 last_archive_ref（merge check 基准）
         state["last_archive_ref"] = git_ref_of(root)
-        state["stage"] = "ready"
         state["feature"] = ""
-        state["mode"] = "full"
-        state["execution_mode"] = ""
-        state["iteration_count"] = 0
-        state["design_doc"] = ""
         save_state(root, state)
 
-        # 归档即需求生命周期终结：清理 auto_base.json（手动 archive 与 auto --archive
-        # 双通道统一生效），保证下一轮 /specpowers-auto 必然判定为 fresh，不被残留基线误判为续跑
-        auto_base_removed = _cleanup_auto_base(root)
+        # 归档即该需求生命周期终结：features 映射移除该需求 +
+        # auto_base/<feature>.json 一并清理（手动 archive 与 auto --archive
+        # 双通道统一生效），保证该需求的下一次 auto 判定必然 fresh
+        delete_feature(root, feature)
 
         print(f"Archive 完成。Feature '{feature}' 已归档为 '{archived_as}'。")
         if specs_updated:
@@ -798,12 +926,18 @@ def _handle_archive(root: Path, extra: dict) -> int:
         else:
             print(f"  - 主规格合并：（无 delta 需合并）")
         print(f"  - change 快照：openspec/changes/archive/{archived_as}/")
-        if auto_base_removed:
-            print(f"  - auto 基线：.specpowers/auto_base.json 已清理（归档即新需求）")
-        print(f"准备下一轮开发：/specpowers-explore | /specpowers-propose | /specpowers-fast")
+
+        # 多活跃：归档一个不影响其余；前台自动切到剩余 last_touched 最大者
+        remaining = list_features(root)
+        if remaining:
+            fg = foreground_feature(root)
+            print(f"剩余活跃需求：{_describe_active(root)}（前台：{fg}）。")
+            print(f"续推指定需求：阶段命令带 --feature {fg}（或其他 slug）。")
+        else:
+            print(f"准备下一轮开发：/specpowers-explore | /specpowers-propose | /specpowers-fast")
         return 0
 
-    # feature 为空：不应发生（archive 要求 state 有 feature），兜底报错
+    # feature 为空：不应发生（_resolve_target_feature 已保证活跃），兜底报错
     raise FatalError("Cannot archive: no active feature in state. Run a stage that sets feature first.")
 
 
@@ -817,38 +951,52 @@ def _handle_baseline(root: Path, extra: dict) -> int:
 
 
 def _handle_reset(root: Path, extra: dict) -> int:
-    """Handle reset — 委托 fs_state.reset_state 保证 state 结构与 DEFAULT_STATE 一致。
+    """Handle reset — 按需求粒度放弃流水线状态（v2.8.0 多活跃）。
+
+    - reset --feature <slug>：放弃指定需求（features 移除该键 + auto_base
+      清理），其余活跃需求不受影响
+    - 无 --feature 且活跃 >1：StateError 要求显式指名（防误清全部）
+    - 无 --feature 且 0/1 个活跃：全清（等价旧行为，fallback_count 仍保留）
 
     reset 跳过 route 的锁获取（见 route），但需主动清理可能残留的锁文件。
-    原实现硬编码 state 字典，与 DEFAULT_STATE 脱钩：若 DEFAULT_STATE 演进新增 key，
-    这里不会同步，导致 reset 后的 state 缺 key。改委托 reset_state 避免重复实现。
-    作者：005819 | 协作：GLM-5.2
+    作者：005819 | 协作：GLM-5.2（v2.8.0 多需求化：GLM-5.3）
     """
     # 清理可能残留的锁文件（reset 跳过 route 的 acquire_lock，直接 force_unlock）
     force_unlock(root)
 
-    # 委托 fs_state：load→保留 fallback_count→save，结构与 DEFAULT_STATE 始终一致
+    feature_opt = (extra.get("feature") or "").strip()
+    if feature_opt:
+        from specpowers_cli.bridge.modules.path_resolver import sanitize_feature_slug
+        feature = sanitize_feature_slug(feature_opt)
+        if not delete_feature(root, feature):
+            raise StateError(
+                f"'{feature}' 不是活跃需求，无法 reset。"
+                f"当前活跃：{_describe_active(root)}。"
+            )
+        remaining = list_features(root)
+        print(f"Feature '{feature}' 已放弃（状态与 auto 基线清理完毕）。")
+        if remaining:
+            print(f"剩余活跃需求：{_describe_active(root)}（前台：{foreground_feature(root)}）。")
+        else:
+            print("State reset to ready. (fallback_count preserved)")
+        return 0
+
+    active = list_features(root)
+    if len(active) > 1:
+        raise StateError(
+            f"存在多个活跃需求，reset 必须显式指名目标（防误清全部）。"
+            f"当前活跃：{_describe_active(root)}。"
+            f"用法：facade reset --feature <slug> --root .；"
+            f"确认放弃全部则逐个 reset，或手动清空 .specpowers/state.json 的 features。"
+        )
+
+    # 单活跃/零活跃：全清（委托 fs_state.reset_state，保留 fallback_count）
     reset_state(root)
 
     print("State reset to ready. (fallback_count preserved)")
     # reset 强制清锁：若此刻有并发实例在运行，其锁已被清除，需提示避免双写
     print("Note: reset force-clears the lock; avoid running it while another specpowers instance is active.")
     return 0
-
-
-def _cleanup_auto_base(root: Path) -> bool:
-    """归档成功后清理 auto_base.json（auto_base 缺失时 _load_auto_base 返回 None，无需重复清理）。
-
-    Returns:
-        是否实际删除了文件。
-
-    作者：005819 | 协作：GLM-5.3
-    """
-    path = _auto_base_path(root)
-    if path.exists():
-        path.unlink()
-        return True
-    return False
 
 
 def _handle_auto_new_round(root: Path, extra: dict) -> int:
@@ -875,26 +1023,25 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     """同需求新迭代轮的受控轮次切换（auto new-round / iterate 共用实现）。
 
     受控跃迁：不走 VALID_TRANSITIONS 常规校验，本处理器自身即受控重置入口。
-    前置：活跃 feature 未归档（auto 入口额外要求 auto_base.json 存在）；
-    动作：stage → propose、feature 锁定不变、iteration_count += 1、execution_mode 清空
-    （新轮执行方式在 apply 阶段重新确认，不继承上一轮）；
-    落盘：auto_base.json 存在时追加本轮 rounds 记录（旧格式按 round 1 兼容迁移）并刷新文档指针。
+    前置：目标需求活跃且未归档（auto 入口额外要求该需求的 auto_base 存在）；
+    动作：stage → propose、feature 锁定不变、iteration_count += 1、execution_mode
+    清空（新轮执行方式在 apply 阶段重新确认，不继承上一轮）；
+    落盘：auto_base 存在时追加本轮 rounds 记录（旧格式按 round 1 兼容迁移）并刷新文档指针。
+    v2.8.0 起多活跃：--feature 指定目标（多活跃未指名拒绝），轮次是目标
+    需求自己的 iteration_count，与其他活跃需求互不影响。
 
     作者：005819 | 协作：GLM-5.3
     """
-    state = load_state(root)
-    feature = (state.get("feature") or "").strip()
+    # 推进类命令：显式 --feature > 前台；多活跃未指名 → 拒绝并列出活跃需求
+    feature = _resolve_target_feature(root, extra, kind="advance")
+    fs = load_feature(root, feature) or {}
 
-    base = _load_auto_base(root)
+    base = _load_auto_base(root, feature)
     if require_auto_base and base is None:
         raise StateError(
-            "auto new-round 需要 .specpowers/auto_base.json（auto 模式需求基线）。"
+            f"auto new-round 需要 feature '{feature}' 的 auto_base"
+            f"（.specpowers/auto_base/{feature}.json，auto 模式需求基线）。"
             "该文件不存在说明本次不是 auto 模式需求，请走全新 /specpowers-auto。"
-        )
-    if not feature:
-        raise StateError(
-            "当前 state 无活跃 feature，无法开启迭代轮。"
-            "若要开始新需求：无人值守用 /specpowers-auto，人工模式用 /specpowers-explore 或 /specpowers-propose。"
         )
     from specpowers_cli.bridge.modules.archive_auditor import is_feature_archived
     if is_feature_archived(root, feature):
@@ -909,21 +1056,23 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     # 旧格式兼容：无 rounds 字段 → 首轮记录按 round 1 迁移，
     # 并把轮次基线校正为 1（迁移记录代表历史已跑过一轮），保证新轮号不与迁移记录冲突
     if base is not None and not isinstance(base.get("rounds"), list):
-        if state.get("iteration_count", 0) < 1:
-            state["iteration_count"] = 1
+        if int(fs.get("iteration_count", 0)) < 1:
+            fs["iteration_count"] = 1
 
     # 受控跃迁：stage 置回 propose（propose 起全量/轻量重跑），feature 身份锁定不变
-    new_round = state.get("iteration_count", 0) + 1
+    new_round = int(fs.get("iteration_count", 0)) + 1
+    state = load_state(root, feature)
     state["iteration_count"] = new_round
     state["stage"] = "propose"
     state["mode"] = "full"
     state["execution_mode"] = ""
+    state["feature"] = feature
     save_state(root, state)
 
-    _append_round_record(root, base, feature, new_round, design_doc, instruction)
+    _append_round_record(root, feature, base, new_round, design_doc, instruction)
 
     label = "auto 模式" if entry == "auto" else "人工模式"
-    print(f"迭代轮已开启（{label}）：Round {new_round}，feature '{feature}' 锁定不变，stage → propose")
+    print(f"迭代轮已开启（{label}）：feature '{feature}' Round {new_round}，锁定不变，stage → propose")
     if entry == "auto":
         print("Agent 应按 prompts/auto.md 迭代轮编排继续：深度判定（full/light）→ propose → apply → specpowers-review")
     else:
@@ -934,11 +1083,11 @@ def _enter_new_round(root: Path, extra: dict, require_auto_base: bool, entry: st
     return 0
 
 
-def _append_round_record(root: Path, base: dict | None, feature: str,
+def _append_round_record(root: Path, feature: str, base: dict | None,
                          new_round: int, design_doc: str, instruction: str) -> None:
-    """auto_base.json 存在时追加本轮 rounds 记录并刷新文档指针（含旧格式迁移）。
+    """需求的 auto_base 存在时追加本轮 rounds 记录并刷新文档指针（含旧格式迁移）。
 
-    base 为 None（人工模式无 auto 基线）时跳过落盘，仅 state.iteration_count 已承载轮次。
+    base 为 None（人工模式无 auto 基线）时跳过落盘，仅需求的 iteration_count 已承载轮次。
 
     作者：005819 | 协作：GLM-5.3
     """
@@ -972,7 +1121,7 @@ def _append_round_record(root: Path, base: dict | None, feature: str,
     })
     base["feature"] = base.get("feature") or feature
     base["rounds"] = rounds
-    _write_auto_base(root, base)
+    _write_auto_base(root, feature, base)
 
 
 def _handle_auto_clarify(root: Path, extra: dict) -> int:
@@ -993,12 +1142,15 @@ def _handle_auto_clarify(root: Path, extra: dict) -> int:
     if ceiling not in ("full", "explore"):
         raise FatalError(
             f"clarification ceiling 非法：'{ceiling}'（仅允许 full | explore）。"
-            "用法：facade auto clarify --ceiling <full|explore> [--report <澄清报告路径>]"
+            "用法：facade auto clarify --ceiling <full|explore> [--report <澄清报告路径>] [--feature <slug>]"
         )
-    base = _load_auto_base(root)
+    # 推进类命令：显式 --feature > 前台；多活跃未指名 → 拒绝并列出活跃需求
+    feature = _resolve_target_feature(root, extra, kind="advance")
+    base = _load_auto_base(root, feature)
     if base is None:
         raise StateError(
-            "auto clarify 需要 .specpowers/auto_base.json（第 0 步基点记录的产物）。"
+            f"auto clarify 需要 feature '{feature}' 的 auto_base"
+            f"（.specpowers/auto_base/{feature}.json，第 0 步基点记录的产物）。"
             "该文件不存在说明澄清先于基点记录执行，请按 prompts/auto.md 顺序先跑第 0 步。"
         )
     base["clarification"] = {
@@ -1006,8 +1158,8 @@ def _handle_auto_clarify(root: Path, extra: dict) -> int:
         "report_path": (extra.get("report") or "").strip(),
         "checked_at": _utc_now_iso(),
     }
-    _write_auto_base(root, base)
-    print(f"澄清结论已登记：ceiling={ceiling}")
+    _write_auto_base(root, feature, base)
+    print(f"澄清结论已登记（feature '{feature}'）：ceiling={ceiling}")
     if ceiling == "explore":
         print("推进上限为 explore：跑完 init → explore 产出未收敛草案后停靠，"
               "等待用户带方案结论（--instruction）或补充文档重入")
@@ -1054,10 +1206,13 @@ def _handle_record_design_doc(root: Path, extra: dict) -> int:
     except OSError as e:
         print(f"警告（advisory）：设计文档内容读取失败，跳过章节检查：{e}")
 
-    state = load_state(root)
+    # 推进类命令：显式 --feature > 前台；多活跃未指名 → 拒绝并列出活跃需求。
+    # 登记目标需求的 design_doc（v2.8.0 起按需求，explore 后台需求也能登记）
+    feature = _resolve_target_feature(root, extra, kind="advance")
+    state = load_state(root, feature)
     state["design_doc"] = design_doc
     save_state(root, state)
-    print(f"探索设计文档已登记：{design_doc}")
+    print(f"探索设计文档已登记（feature '{feature}'）：{design_doc}")
     print("propose 阶段将以此为探索凭据（缺失会被前置校验拦回 explore）")
     return 0
 

@@ -4,7 +4,7 @@
 
 当用户调用 `/specpowers-archive [--force-merge-check]` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 来自 state.json 的 feature 字段（explore/fast 阶段确定并锁定，同一流程不变）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
 ## 前置校验
 
@@ -73,7 +73,7 @@ dispatcher 执行：
    - openspec 内置 delta 合并：把 change 的 delta 合并进主规格
      `openspec/specs/<capability>/spec.md`
    - openspec 把 change 移到 `openspec/changes/archive/YYYY-MM-DD-<feature>/`
-3. **刷新 state**：`last_archive_ref` = 当前 HEAD，stage → `ready`，feature 清空
+3. **刷新 state**：`last_archive_ref` = 当前 HEAD；该需求从 features 映射移除（v2.8.0 per-feature 终结：iteration_count/design_doc/execution_mode 随之终结，无需逐字段清空）；若仍有其他活跃需求，前台自动切到剩余 last_touched 最大者
 
 > 产物（proposal.md/specs/**/spec.md/tasks.md）由 propose 阶段一次性写入 change 目录
 > （承接 explore 设计文档结论），archive 只负责归档，无转换。
@@ -103,8 +103,8 @@ dispatcher 已提示是否触发 merge check，agent 如需额外校验：
 - **只转人工、不打回**（archive 是收尾，不打回重做）
 - **不提交代码**：archive 只做归档动作（openspec archive + state 跃迁），不执行 `git add` / `git commit`，代码与产物的提交由用户自行完成
 - 重复归档检测：防止同一 feature 被多人重复归档。**注意**：检测依据是 git log 中含 `specpowers.*<feature>` 的 commit——归档完成后请用户提交时在 commit message 中包含 feature 名（推荐格式 `specpowers: <feature>`），否则重复归档检测对该 feature 不生效
-- **归档即新需求**（auto 多轮迭代语义）：归档成功后确定性层自动清理 `.specpowers/auto_base.json` 并将 `iteration_count` 清零——下一轮 `/specpowers-auto` 无论带什么输入都判定为全新需求，不会被残留基线误判为续跑；裁决历史 `.specpowers/auto_decisions/<feature>.md` 保留作审计
-- 完成后 stage 跃迁到 `ready`，feature 清空
+- **归档即该需求终结**（auto 多轮迭代语义，per-feature）：归档成功后确定性层自动清理该需求的 `.specpowers/auto_base/<feature>.json`（v2.8.0 起按 slug 隔离），iteration_count 随映射移除一并终结——该需求的下一轮 `/specpowers-auto` 必然判定为 fresh，不被残留基线误判为续跑；其余活跃需求各自的 auto_base 不受影响；裁决历史 `.specpowers/auto_decisions/<feature>.md` 保留作审计
+- 完成后该需求从活跃映射移除（无剩余活跃需求时项目回到 ready 空转态）
 
 ## 通知用户
 

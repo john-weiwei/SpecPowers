@@ -189,6 +189,22 @@ EXPLORE_HARD_DELIVERABLES_ANCHORS = [
     "record-design-doc",
 ]
 
+# v2.8.0 多活跃需求：主技能多需求契约锚点（前台推导/--feature 硬条款/per-feature 解除/归档语义）
+MULTI_FEATURE_MAIN_ANCHORS = [
+    "多活跃硬条款",
+    "必须显式 `--feature",
+    "命中哪个需求就按哪个需求的阶段契约处理",
+    "解除条件（per-feature）",
+    "归档即**该需求**完结",
+    "features 映射",
+]
+# v2.8.0 多活跃需求：四份阶段契约的 feature 来源句锚点（防回潮成单需求 state.feature 表述）
+MULTI_FEATURE_PROMPT_ANCHORS = [
+    "`--feature` 参数或前台推导确定",
+    "slug 即身份",
+]
+MULTI_FEATURE_PROMPTS = ("explore.md", "propose.md", "apply.md", "archive.md")
+
 # 引擎技能身份的残留表述（防回潮；README 版本变更记录历史条目除外）
 BUILTIN_EXPLORE_SKILL_PHRASES = [
     "内置 specpowers-explore 技能",
@@ -424,6 +440,27 @@ def test_hooks_register_user_prompt_submit():
     assert (PLUGIN_ROOT / "hooks" / "session-sticky").is_file(), (
         "hooks/session-sticky 脚本缺失——UserPromptSubmit 注册指向不存在的脚本"
     )
+
+
+def test_multi_feature_main_skill_anchors():
+    """v2.8.0 多活跃需求防回潮：主技能必须含前台推导/--feature 硬条款/per-feature 解除锚点。"""
+    content = (SKILLS_ROOT / "specpowers" / "SKILL.md").read_text(encoding="utf-8")
+    for anchor in MULTI_FEATURE_MAIN_ANCHORS:
+        assert anchor in content, (
+            f"skills/specpowers/SKILL.md 缺少多活跃需求锚点「{anchor}」——"
+            "多需求路由规则/前台推导/归档语义断链（v2.8.0）"
+        )
+
+
+def test_multi_feature_prompt_anchors():
+    """v2.8.0 四份阶段契约的 feature 来源句必须为多需求表述（防回潮成单需求 state.feature）。"""
+    for name in MULTI_FEATURE_PROMPTS:
+        content = (SKILLS_ROOT / "specpowers" / "prompts" / name).read_text(encoding="utf-8")
+        for anchor in MULTI_FEATURE_PROMPT_ANCHORS:
+            assert anchor in content, (
+                f"prompts/{name} 缺少多活跃需求锚点「{anchor}」——"
+                "feature 来源句回潮成单需求 state.json 字段表述（v2.8.0）"
+            )
 
 
 def test_no_builtin_explore_skill_references():
