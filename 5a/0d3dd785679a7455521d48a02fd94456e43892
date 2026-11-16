@@ -1,0 +1,113 @@
+plugins/specpowers/scripts/specpowers_cli/bridge/core/lock.py
+  s_767a8c2e6b661f::t_4f5b30ca9c69e8 141,165,195
+plugins/specpowers/skills/specpowers-maintain/SKILL.md
+  s_767a8c2e6b661f::t_a8b42feb1f3c43 1-44
+marketplace.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 13
+tests/test_builtin_skills.py
+  s_767a8c2e6b661f::t_c8fcdf148ea002 17
+  s_767a8c2e6b661f::t_7602ee51350e22 13
+  s_767a8c2e6b661f::t_2ee0cace2b2617 379-400
+  s_767a8c2e6b661f::t_ed59ea71f0284a 55,66,69
+  s_767a8c2e6b661f::t_425a06fecf4212 27
+  s_767a8c2e6b661f::t_254a905f60e063 232
+  s_767a8c2e6b661f::t_39ee1919b7ac72 368
+  s_767a8c2e6b661f::t_a10e4c1058dc50 1
+  s_767a8c2e6b661f::t_1ea82d1b8c9e65 80,89
+  s_767a8c2e6b661f::t_ea73545c0a58ab 125
+  s_767a8c2e6b661f::t_5f0627f4fb551a 173-183
+  s_767a8c2e6b661f::t_48872979c9736f 312
+.claude-plugin/marketplace.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 13
+pyproject.toml
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+plugins/specpowers/skills/specpowers/prompts/refs/auto-explore-halt.md
+  s_767a8c2e6b661f::t_a72dde14b5476d 15
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_767a8c2e6b661f::t_55df316f8cc514 80
+  s_767a8c2e6b661f::t_68629e58046663 124
+  s_767a8c2e6b661f::t_41558025b9d452 12
+  s_767a8c2e6b661f::t_a3c8e19613e112 49
+  s_767a8c2e6b661f::t_f8c31f0e6ad60e 4
+README.md
+  s_767a8c2e6b661f::t_59fc6e55342978 233
+  s_767a8c2e6b661f::t_b11d236fac8a91 260
+  s_767a8c2e6b661f::t_61aca0113f2b9a 35
+  s_767a8c2e6b661f::t_7ddbdc2885ab5b 196
+  s_767a8c2e6b661f::t_7034e8b688226c 323
+  s_767a8c2e6b661f::t_fc12ca17d85b44 65
+  s_767a8c2e6b661f::t_024fa737dce262 308,312,314
+  s_767a8c2e6b661f::t_07d25978a7caca 14
+  s_767a8c2e6b661f::t_1dc7bca30c6ba2 7
+  s_767a8c2e6b661f::t_fe83ab181157e0 69,74
+plugins/specpowers/.claude-plugin/plugin.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_767a8c2e6b661f::t_77ad7d04fa7d08 59
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_767a8c2e6b661f::t_5e9ced0e688df0 596,875
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/resume_probe.py
+  s_767a8c2e6b661f::t_a25ae986a00d0e 135,189,204
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+docs/GETTING-STARTED.md
+  s_767a8c2e6b661f::t_a2dfd8b82a59c4 208
+  s_767a8c2e6b661f::t_5991dff990d475 269
+  s_767a8c2e6b661f::t_9c9fb4cd3d2862 106,110,112
+  s_767a8c2e6b661f::t_de16f6d3dcf251 47,51,56
+  s_767a8c2e6b661f::t_63d1d55f9a8366 10
+  s_767a8c2e6b661f::t_66ccedb5e82d8d 289
+  s_767a8c2e6b661f::t_d359630d96555c 312
+  s_767a8c2e6b661f::t_ef8a399d86306c 318-319
+  s_767a8c2e6b661f::t_0d6371c9dae9ca 275-276,278
+  s_767a8c2e6b661f::t_06bb4874aa6f81 335
+  s_767a8c2e6b661f::t_6aa71cc4971a17 177
+tests/test_resume_probe.py
+  s_767a8c2e6b661f::t_fa987b554f7e73 167,204
+.codebuddy-plugin/marketplace.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 16
+tests/test_multi_feature.py
+  s_767a8c2e6b661f::t_2ddbdb9f928938 435
+plugins/specpowers/scripts/specpowers_cli/bridge/core/fs_state.py
+  s_767a8c2e6b661f::t_d9b5639f7bf755 199,207
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/baseline_scanner.py
+  s_767a8c2e6b661f::t_76c39cdd5a8313 188,194
+plugins/specpowers/plugin.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 4
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_767a8c2e6b661f::t_540142bb37f412 17
+plugins/specpowers/scripts/specpowers_cli/main.py
+  s_767a8c2e6b661f::t_ba3400bef35b06 377
+  s_767a8c2e6b661f::t_feb7d592a2a2a2 276
+  s_767a8c2e6b661f::t_c7a42c1bd681e3 359
+  s_767a8c2e6b661f::t_c28e99a8e8fa95 261,265
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+tests/test_installer.py
+  s_767a8c2e6b661f::t_5ab87017e2b937 20,31
+  s_767a8c2e6b661f::t_170941df5e347d 43-44
+  s_767a8c2e6b661f::t_3ff85fc417c4be 80
+  s_767a8c2e6b661f::t_6723d66cb84367 6
+plugins/specpowers/.codex-plugin/plugin.json
+  s_767a8c2e6b661f::t_6cf98031ebf81b 3
+plugins/specpowers/skills/specpowers-auto/SKILL.md
+  s_767a8c2e6b661f::t_fdf2f6a35cdac8 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a0d3dd785679a7455521d48a02fd94456e43892",
+  "prompts": {},
+  "sessions": {
+    "s_767a8c2e6b661f": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_1408dcdd-92f0-4c3f-9fc3-2fdcc6650c2a",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
