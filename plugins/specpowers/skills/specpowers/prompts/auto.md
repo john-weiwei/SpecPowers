@@ -56,7 +56,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 ### 分支 B：`resume`（断点续跑）
 
 1. 读该需求的 `.specpowers/auto_base/<feature>.json`（基点 + 八要素 + clarification；v2.8.0 起按 slug 隔离）——不重复解析
-2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按 `refs/auto-explore-halt.md` 停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-reset`
+2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按 `refs/auto-explore-halt.md` 停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-maintain reset`
 3. 读 `state.json` 当前 stage + 各阶段产物存在性（constitution.md → 设计文档 → proposal.md → spec.md → tasks.md → apply 产物）定位断点
 4. 从断点阶段继续，**已完成阶段不重做**；澄清凭 `clarification` 字段**不重做**（字段缺失：旧格式 auto_base.json / 人工流程接管 → 补做全量澄清并登记后继续）
 5. 默认**不归档**，跑完本轮止于 specpowers-review；若用户显式 `--archive` → 跑完后走 `refs/auto-review.md`「归档收口」

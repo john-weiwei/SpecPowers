@@ -593,7 +593,7 @@ def _check_init_conflict(root: Path):
             raise StateError(
                 f"Active features in progress: {_describe_active(root)}. "
                 f"Use --force to discard all of them and rebuild constitution, "
-                f"or /specpowers-reset --feature <slug> to abandon a specific one."
+                f"or /specpowers-maintain reset --feature <slug> to abandon a specific one."
             )
 
 
@@ -872,7 +872,7 @@ def _handle_archive(root: Path, extra: dict) -> int:
     if feature and is_feature_archived(root, feature):
         raise ArchiveDuplicateError(
             f"Feature '{feature}' already has an archive commit. "
-            f"Run: git pull && /specpowers-reset --feature {feature} to sync."
+            f"Run: git pull && /specpowers-maintain reset --feature {feature} to sync."
         )
 
     _check_prerequisites(root)

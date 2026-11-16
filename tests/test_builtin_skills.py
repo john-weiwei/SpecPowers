@@ -1,4 +1,4 @@
-"""内置技能资源完整性测试 —— 11 个技能（主技能 + review + 9 个阶段技能）随插件分发的资源校验。
+"""内置技能资源完整性测试 —— 10 个技能（主技能 + review + 8 个阶段技能）随插件分发的资源校验。
 
 v2.1.0 起 review 审查改用内置 specpowers-review 技能（替代用户级 codex-review 预装），
 本用例锁定内置技能的关键资源不被误删，并防止清单重新引入 codex-review 预装依赖。
@@ -10,11 +10,11 @@ v2.3.1 起契约分层按需加载（省 token），追加锁定：
 
 v2.4.0 起 9 条阶段命令转为阶段技能（命令目录删除，slash 名不变），追加锁定：
 
-  - 11 个技能目录的 SKILL.md 存在且 frontmatter name 与目录名一致
+  - 10 个技能目录的 SKILL.md 存在且 frontmatter name 与目录名一致
   - 阶段技能完整性：正文引用对应 prompts/<stage>.md 契约不断链、
     无命令时代残留（$ARGUMENTS 占位符 / handoffs / allowed-tools）
   - 防回潮：commands/ 目录不存在、三端清单（zcode/claude/codebuddy）无顶层 "commands" 键
-  - 探索引擎并入防断链：skills/ 目录集合恰为 11 个（无 -engine 残留目录）、
+  - 探索引擎并入防断链：skills/ 目录集合恰为 10 个（无 -engine 残留目录）、
     prompts/explore.md 含探索引擎细则章节与三模板锚点、
     插件本体与两份用户文档无「内置 specpowers-explore 技能」残留表述
     （README 版本变更记录表中的历史条目除外）
@@ -24,7 +24,7 @@ v2.5.0 起初始化前置（用户不 init 直接开工不再静默劣化），�
   - 5 个流水线薄入口（explore/propose/apply/archive/fast）含第 0 步
     「Init check first」：constitution/baseline 任一缺失 = 未初始化，
     自动补跑 specpowers-init 后继续原技能（auto 编排内置 init 不需要，
-    baseline/reset/init 为维护或初始化动作不适用）
+    maintain/init 为维护或初始化动作不适用）
 
 v2.5.1 起跨端契约遵从（WorkBuddy 读不到契约文件导致 explore 不守约），追加锁定：
 
@@ -52,7 +52,7 @@ PLUGIN_MANIFESTS = [
     ".codebuddy-plugin/plugin.json",
 ]
 
-# 全部 11 个技能 → frontmatter 期望的 name（v2.4.0 起 9 条命令转为阶段技能）
+# 全部 10 个技能 → frontmatter 期望的 name（v2.9.0 起 baseline/reset 合并为 maintain）
 ALL_SKILLS = {
     "specpowers": "specpowers",
     "specpowers-review": "specpowers-review",
@@ -63,11 +63,10 @@ ALL_SKILLS = {
     "specpowers-archive": "specpowers-archive",
     "specpowers-fast": "specpowers-fast",
     "specpowers-auto": "specpowers-auto",
-    "specpowers-baseline": "specpowers-baseline",
-    "specpowers-reset": "specpowers-reset",
+    "specpowers-maintain": "specpowers-maintain",
 }
 
-# 9 个阶段技能 → 对应 prompts/ 契约（baseline/reset 为确定性命令薄入口，无独立契约）
+# 8 个阶段技能 → 对应 prompts/ 契约（maintain 为确定性命令薄入口，无独立契约）
 STAGE_SKILL_CONTRACTS = {
     "specpowers-init": "prompts/init.md",
     "specpowers-explore": "prompts/explore.md",
@@ -78,7 +77,7 @@ STAGE_SKILL_CONTRACTS = {
     "specpowers-auto": "prompts/auto.md",
 }
 
-# 全部 9 个阶段技能（转换规则统一适用，含无独立契约的 baseline/reset）
+# 全部 8 个阶段技能（转换规则统一适用，含无独立契约的 maintain）
 STAGE_SKILLS = {
     "specpowers-init",
     "specpowers-explore",
@@ -87,8 +86,7 @@ STAGE_SKILLS = {
     "specpowers-archive",
     "specpowers-fast",
     "specpowers-auto",
-    "specpowers-baseline",
-    "specpowers-reset",
+    "specpowers-maintain",
 }
 
 # specpowers-review 的关键资源（审查规则 / 收集脚本 / 回归测试 / 使用说明）
@@ -124,7 +122,7 @@ EXPLORE_ENGINE_ANCHORS = [
 ]
 
 # v2.5.0 初始化前置：5 个流水线薄入口必须含第 0 步检测
-# （auto 编排内置 init 步骤不需要；baseline/reset/init 为维护或初始化动作不适用）
+# （auto 编排内置 init 步骤不需要；maintain/init 为维护或初始化动作不适用）
 INIT_CHECK_SKILLS = {
     "specpowers-explore",
     "specpowers-propose",
@@ -172,6 +170,17 @@ ITERATION_OVERWRITE_REGRESSION_MARKERS = ["设计文档覆盖", "更新后须重
 
 # v2.7.0 会话粘滞：主技能六级判定锚点 + 薄入口粘滞行（auto 单会话直通不适用）
 SESSION_STICKY_MAIN_ANCHORS = ["会话粘滞", "拿不准 → 一律按相关", "UserPromptSubmit"]
+
+# v2.9.0 维护技能合并（reset + baseline → maintain）：两分支命令 + 三层分流 +
+# 用户零学习成本表述，防止合并后能力丢失或分流规则被简化掉
+MAINTAIN_SKILL_ANCHORS = [
+    "facade reset",
+    "facade baseline",
+    "分流规则（三层判定）",
+    "意图不明 → 必问",
+    "用户无需记忆任何参数",
+]
+
 SESSION_STICKY_SKILLS = {
     "specpowers-explore",
     "specpowers-propose",
@@ -220,7 +229,7 @@ def _frontmatter_field(skill_md_text, field):
 
 
 def test_builtin_skill_frontmatters():
-    """11 个技能的 SKILL.md 必须存在且 frontmatter name 与目录名一致。"""
+    """10 个技能的 SKILL.md 必须存在且 frontmatter name 与目录名一致。"""
     for rel_dir, expected_name in ALL_SKILLS.items():
         skill_md = SKILLS_ROOT / rel_dir / "SKILL.md"
         assert skill_md.is_file(), f"技能缺失：skills/{rel_dir}/SKILL.md"
@@ -300,7 +309,7 @@ def test_stage_skills_locate_main_skill_directory():
     （如 WorkBuddy）上解析不到真实文件——阶段技能只拿到自身薄入口正文，
     方案对比/落盘登记等硬规则全部丢失。定位句锚点缺失即断链回潮。
     """
-    # 基础锚点对全部 9 个阶段技能适用（baseline/reset 为缩短版定位句）
+    # 基础锚点对全部 8 个阶段技能适用（maintain 为缩短版定位句）
     for rel_dir in STAGE_SKILLS:
         content = (SKILLS_ROOT / rel_dir / "SKILL.md").read_text(encoding="utf-8")
         for anchor in STAGE_SKILL_LOCATION_ANCHORS:
@@ -356,7 +365,7 @@ def test_manifests_have_no_commands_key():
 
 
 def test_skills_dir_exact_set():
-    """探索引擎并入防断链：skills/ 目录集合恰为 11 个（无 -engine 残留、无多余目录）。"""
+    """探索引擎并入防断链：skills/ 目录集合恰为 10 个（无 -engine 残留、无多余目录）。"""
     actual = {p.name for p in SKILLS_ROOT.iterdir() if p.is_dir()}
     expected = set(ALL_SKILLS)
     assert actual == expected, (
@@ -364,6 +373,28 @@ def test_skills_dir_exact_set():
     )
     assert not any(name.endswith("-engine") for name in actual), (
         "skills/ 下存在 -engine 结尾目录——内部引擎不以技能身份暴露（v2.4.0 方案 C）"
+    )
+
+
+def test_maintain_skill_branches():
+    """v2.9.0 维护合并防回潮：maintain 技能必须保留两分支命令与三层分流规则。
+
+    reset + baseline 合并后，分支命令（facade reset / facade baseline）、
+    三层分流（意图判断 → 显式子动作词 → 拿不准必问）与「用户无需记忆参数」
+    的零学习成本表述任一缺失，都会让模型在维护场景下失去可执行指引。
+    """
+    content = (SKILLS_ROOT / "specpowers-maintain" / "SKILL.md").read_text(encoding="utf-8")
+    for anchor in MAINTAIN_SKILL_ANCHORS:
+        assert anchor in content, (
+            f"skills/specpowers-maintain/SKILL.md 缺少维护合并锚点「{anchor}」——"
+            "合并后能力丢失或分流规则被简化（v2.9.0 防回潮）"
+        )
+    # 旧技能目录不得回潮（slash 名已移除，统一入口为 specpowers-maintain）
+    assert not (SKILLS_ROOT / "specpowers-reset").exists(), (
+        "skills/specpowers-reset/ 仍存在——v2.9.0 已合并入 specpowers-maintain"
+    )
+    assert not (SKILLS_ROOT / "specpowers-baseline").exists(), (
+        "skills/specpowers-baseline/ 仍存在——v2.9.0 已合并入 specpowers-maintain"
     )
 
 

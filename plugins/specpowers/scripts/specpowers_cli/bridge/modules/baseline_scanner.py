@@ -185,13 +185,13 @@ def load_baseline(root: Path) -> dict:
         from specpowers_cli.bridge.core.errors import FatalError
         raise FatalError(
             f"baseline.json is corrupted: {e}. "
-            f"Run 'specpowers baseline' (or /specpowers-baseline) to re-scan."
+            f"Run 'specpowers baseline' (or /specpowers-maintain baseline) to re-scan."
         )
     if not isinstance(data, dict):
         from specpowers_cli.bridge.core.errors import FatalError
         raise FatalError(
             "baseline.json is corrupted: top level must be a JSON object. "
-            "Run 'specpowers baseline' (or /specpowers-baseline) to re-scan."
+            "Run 'specpowers baseline' (or /specpowers-maintain baseline) to re-scan."
         )
     return data
 

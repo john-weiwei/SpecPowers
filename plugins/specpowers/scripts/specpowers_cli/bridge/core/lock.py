@@ -138,7 +138,7 @@ def _acquire_fcntl(lock_path: Path, timeout: float) -> bool:
             if time.time() >= deadline:
                 raise LockAcquireError(
                     "Another SpecPowers instance is running. "
-                    "Wait for it to finish or run /specpowers-reset to force-clear."
+                    "Wait for it to finish or run /specpowers-maintain reset to force-clear."
                 )
         else:
             return _recover_stale_fcntl(lock_path)
@@ -162,7 +162,7 @@ def _recover_stale_fcntl(lock_path: Path) -> bool:
         if _check_lock_holder_alive(lock_path) or time.time() >= deadline:
             raise LockAcquireError(
                 "Another SpecPowers instance is running. "
-                "Wait for it to finish or run /specpowers-reset to force-clear."
+                "Wait for it to finish or run /specpowers-maintain reset to force-clear."
             )
         time.sleep(0.1)
 
@@ -192,7 +192,7 @@ def _acquire_windows(lock_path: Path, timeout: float) -> bool:
             if time.time() >= deadline:
                 raise LockAcquireError(
                     "Another SpecPowers instance is running (PID in .lock). "
-                    "Wait for it to finish or run /specpowers-reset to force-clear."
+                    "Wait for it to finish or run /specpowers-maintain reset to force-clear."
                 )
         else:
             # 死锁恢复：持有者已死，删除旧锁后原子重建

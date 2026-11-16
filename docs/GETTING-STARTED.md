@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.8.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.9.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -44,16 +44,16 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ### 方式二：pip（Cursor / Copilot / Windsurf 等无插件市场的工具）
 
-这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（复制 11 个技能到对应 skills 目录 + 在项目根 `AGENTS.md` 写入引导段）；不在列表内的任意工具用 `specpowers init --skills-root <路径>` 指定自己的技能目录（v2.6.0）：
+这些工具不支持插件市场，需通过 pip 安装并在项目里初始化（复制 10 个技能到对应 skills 目录 + 在项目根 `AGENTS.md` 写入引导段）；不在列表内的任意工具用 `specpowers init --skills-root <路径>` 指定自己的技能目录（v2.6.0）：
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.9.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.8.0
+# → SpecPowers CLI v2.9.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -103,13 +103,13 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.8.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.9.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.8.0
+# → SpecPowers CLI v2.9.0
 
-# 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（命令名已全部更新）
+# 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（技能清单已更新——reset/baseline 合并为 maintain）
 cd my-project
 specpowers init --force
 ```
@@ -174,7 +174,7 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 - **人工模式**：直接重入 `/specpowers-propose "调整描述"`（场景/范围调整）或 `/specpowers-explore`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）；方案变更轮 v2.7.0 起**不再改写基线设计文档**，改为在 change 目录新落 `design-round-<N>.md` 简易设计文档（只写本轮增量：输入/方案对比/详细设计变更点/修改范围增量，归档时随 change 整体归档）——省 token 关键：基线冻结不再逐轮重读重写整份文档，且设计文档的唯一下游消费者 propose 的迭代轮读取清单同步锁死（现有 proposal + 最新 design-round，基线仅按需局部查阅）
 - **auto 模式**：重入 `/specpowers-auto`（新文档 / 原文档 / `--instruction "口头调整"`），自动三分判定全新（fresh）/ 续跑（resume）/ 迭代轮（iterate）
 
-> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
+> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-maintain reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
 
 > **会话粘滞（v2.7.0）**：对话中用过 specpowers 技能且需求未归档时，后续消息默认先做相关性判定——相关消息走流程、无关消息照常回答+末尾一行活跃需求提醒、拿不准一律按相关；解除条件 = 归档或 reset。ZCode/Claude/Codex 由 UserPromptSubmit hook 逐轮注入锚点行（feature/stage/Round + capability + 修改范围，零活跃零注入），WorkBuddy/pip 形态靠技能正文条款。与「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
 
@@ -205,8 +205,7 @@ init ─▶ ready ─┬─ explore → propose → apply → archive → ready
 | `/specpowers-archive` | apply | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<capability>/spec.md`（主规格，fast 模式下 capability = feature）+ `openspec/changes/archive/`（快照） |
 | `/specpowers-fast "需求"` | init | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 explore/propose，直接编码 → apply → archive | 验收清单 3-5 条 |
 | `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后先做**需求澄清**（五维检查 → 推进深度上限：方案未定等缺陷不停摆，停靠 explore 产出未收敛草案待补结论），再依次驱动 init → explore → propose → apply → specpowers-review（内置审查技能），**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口，`--archive` 先过收口前置检查）；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（澄清结论/产物清单/审查结论/编译测试/遗留风险） |
-| `/specpowers-baseline` | — | 手动刷新结构基线，重新扫描项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json` | 更新 `baseline.json` |
-| `/specpowers-reset` | — | 重置流水线状态：清除 `state.json` 和 `.lock`，回到 `ready` 重新开始（不丢 baseline） | — |
+| `/specpowers-maintain` | — | 维护入口（按用户意图分流，自然语言调用无需参数）：重置流水线状态（清除 `state.json` 和 `.lock` 回到 `ready`，多活跃须 `--feature`，不丢 baseline）或刷新结构基线（重扫项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json`） | 状态重置无产物；基线刷新更新 `baseline.json` |
 
 ### 四条路径对比
 
@@ -267,16 +266,16 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 | Windsurf | pip + `specpowers init --integration windsurf` | 技能目录 + AGENTS.md 引导 |
 | 其他任意工具 | pip + `specpowers init --skills-root <路径>` | AGENTS.md 引导（v2.6.0 零枚举接入） |
 
-> 插件市场方式享受完整体验（9 个阶段技能，slash 直调 `/specpowers-xxx`，四端统一入口 + SessionStart 依赖检测）；pip 方式把 11 个技能复制到对应 skills 目录并在项目根 `AGENTS.md` 写入引导段（幂等标记段，引导 agent 按流水线执行），功能等价但无原生 slash 入口。
+> 插件市场方式享受完整体验（8 个阶段技能，slash 直调 `/specpowers-xxx`，四端统一入口 + SessionStart 依赖检测）；pip 方式把 10 个技能复制到对应 skills 目录并在项目根 `AGENTS.md` 写入引导段（幂等标记段，引导 agent 按流水线执行），功能等价但无原生 slash 入口。
 
 ## 架构
 
 ```
 ┌──────────────────────────────────────┐
-│  认知层 (11 skills + 7 prompts/)     │  ← agent 加载执行
-│  主技能（路由层）+ 9 个阶段技能      │
+│  认知层 (10 skills + 7 prompts/)     │  ← agent 加载执行
+│  主技能（路由层）+ 8 个阶段技能      │
 │  init/explore/propose/apply/archive/ │
-│  fast/auto/baseline/reset（薄入口）  │
+│  fast/auto/maintain（薄入口）        │
 │  + review 审查技能                   │
 ├──────────────────────────────────────┤
 │  确定性层 (Python, 仅 stdlib)        │  ← skill 通过 Bash 调用
@@ -287,7 +286,7 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 └──────────────────────────────────────┘
 ```
 
-- **认知层**：纯 Markdown 指令集——主技能（路由层 + prompts/ + templates/）、9 个阶段技能（薄入口：slash 名即技能名，加载主技能上下文后跟随 `prompts/<stage>.md` 契约）、review 审查技能（探索引擎细则内联于 explore 契约，不以技能形态暴露），作为 skill 插件被 agent 加载
+- **认知层**：纯 Markdown 指令集——主技能（路由层 + prompts/ + templates/）、8 个阶段技能（薄入口：slash 名即技能名，加载主技能上下文后跟随 `prompts/<stage>.md` 契约）、review 审查技能（探索引擎细则内联于 explore 契约，不以技能形态暴露），作为 skill 插件被 agent 加载
 - **确定性层**：Python 内部 helper，执行基线扫描、状态机、文件锁、git 操作等确定逻辑
 
 ---
@@ -310,14 +309,14 @@ specpowers/
 │       ├── .codex-plugin/plugin.json     ← Codex 清单
 │       ├── .codebuddy-plugin/plugin.json ← WorkBuddy 清单
 │       ├── assets/icon.png      ← 插件图标（市场条目 icon URL / Codex composerIcon 共用）
-│       ├── skills/              ← 11 个技能（v2.4.0 起 9 条阶段命令转为技能）
+│       ├── skills/              ← 10 个技能（v2.4.0 起 9 条阶段命令转为技能，v2.9.0 维护技能合并）
 │       │   ├── specpowers/      ← 主编排 skill（路由层 + prompts/ + templates/）
 │       │   │   ├── SKILL.md
 │       │   │   ├── prompts/     ← 7 个阶段契约（init/explore/propose/apply/archive/fast_mode/auto）
 │       │   │   │   └── refs/    ← auto 低频细则按需加载（迭代轮/review 编排/裁决表/explore 停靠，省 token）
 │       │   │   └── templates/   ← constitution/auto 汇总/澄清报告模板
-│       │   ├── specpowers-init|explore|propose|apply|archive|fast|auto|baseline|reset/
-│       │   │                    ← 9 个阶段技能（薄入口：加载主技能上下文 + 跟随 prompts/<stage>.md；
+│       │   ├── specpowers-init|explore|propose|apply|archive|fast|auto|maintain/
+│       │   │                    ← 8 个阶段技能（薄入口：加载主技能上下文 + 跟随 prompts/<stage>.md；
 │       │   │                      探索引擎细则内联于 prompts/explore.md 第一步，不以技能形态暴露）
 │       │   └── specpowers-review/   ← 内置代码审查技能（auto 模式 review 环节 + 独立审查）
 │       │   ├── SKILL.md
@@ -333,7 +332,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（356 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（357 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

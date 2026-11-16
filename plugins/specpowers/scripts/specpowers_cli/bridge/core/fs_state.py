@@ -196,7 +196,7 @@ def _read_json_object(path: Path, label: str) -> dict:
     except json.JSONDecodeError as e:
         raise FatalError(
             f"{label} is corrupted: {e}. "
-            f"Run /specpowers-reset to recover."
+            f"Run /specpowers-maintain reset to recover."
         )
     # 顶层类型校验：合法 JSON 但非对象（数组/字符串/数字）时后续合并
     # 逻辑会抛意外异常或静默混入错误结构，显式拒绝并引导 reset
@@ -204,7 +204,7 @@ def _read_json_object(path: Path, label: str) -> dict:
         raise FatalError(
             f"{label} is corrupted: top level must be a JSON object, "
             f"got {type(data).__name__}. "
-            f"Run /specpowers-reset to recover."
+            f"Run /specpowers-maintain reset to recover."
         )
     return data
 

@@ -3,7 +3,7 @@
 v2.5.1 修复 pip 形态 9 个阶段技能从未被安装的断链：安装器第 2 段仍指向
 v2.4.0 已删除的 commands/ 目录（commands_dir.exists() 恒为 False，静默跳过），
 pip 安装的项目里只有主技能、没有任何阶段入口。本用例锁定安装产物与插件
-市场形态的 11 技能集合一致、阶段技能定位链闭合，并锁 bin 包装脚本
+市场形态的 10 技能集合一致、阶段技能定位链闭合，并锁 bin 包装脚本
 ASCII-only——cmd 按当前代码页解码 bat，非 ASCII 注释在 cp936（中文
 Windows 默认）下导致整个脚本解析失败，WorkBuddy 上 CLI fallback 直接崩。
 
@@ -17,7 +17,7 @@ from specpowers_cli.main import main as installer_main
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_ROOT = REPO_ROOT / "plugins" / "specpowers"
 
-# 安装产物必须覆盖的全部 11 个技能（与插件市场形态 skills/ 集合一致）
+# 安装产物必须覆盖的全部 10 个技能（与插件市场形态 skills/ 集合一致；v2.9.0 起 baseline/reset 合并为 maintain）
 EXPECTED_INSTALLED_SKILLS = {
     "specpowers",
     "specpowers-review",
@@ -28,8 +28,7 @@ EXPECTED_INSTALLED_SKILLS = {
     "specpowers-archive",
     "specpowers-fast",
     "specpowers-auto",
-    "specpowers-baseline",
-    "specpowers-reset",
+    "specpowers-maintain",
 }
 
 
@@ -41,8 +40,8 @@ def _run_workbuddy_install(tmp_path):
     return project / ".workbuddy" / "skills"
 
 
-def test_installer_copies_all_eleven_skills(tmp_path):
-    """pip 安装必须落齐 11 个技能目录（v2.5.1 前阶段技能从未被安装）。"""
+def test_installer_copies_all_ten_skills(tmp_path):
+    """pip 安装必须落齐 10 个技能目录（v2.5.1 前阶段技能从未被安装）。"""
     skills_root = _run_workbuddy_install(tmp_path)
     installed = {p.name for p in skills_root.iterdir() if p.is_dir()}
     assert installed == EXPECTED_INSTALLED_SKILLS, (
@@ -78,7 +77,7 @@ def test_bin_wrapper_ascii_only():
 # ---------- v2.6.0 任意工具通用接入 ----------
 
 def test_installer_custom_skills_root(tmp_path):
-    """--skills-root 任意工具一步接入：自定义目录落齐 11 技能 + AGENTS.md 引导段。"""
+    """--skills-root 任意工具一步接入：自定义目录落齐 10 技能 + AGENTS.md 引导段。"""
     project = tmp_path / "customproj"
     rc = installer_main(["init", str(project), "--skills-root", ".foocode/skills"])
     assert rc == 0, "--skills-root 安装应成功"

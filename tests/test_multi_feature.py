@@ -432,7 +432,7 @@ def test_sticky_note_multi_feature_lines(tmp_path):
     assert lines[1].startswith("活跃需求 feat-a（")
     # 每行锚点含各自的解除指引（per-feature 粒度）
     assert "/specpowers-archive --feature feat-b" in lines[0]
-    assert "/specpowers-reset --feature feat-a" in lines[1]
+    assert "/specpowers-maintain reset --feature feat-a" in lines[1]
 
 
 def test_sticky_note_truncates_beyond_three(tmp_path):

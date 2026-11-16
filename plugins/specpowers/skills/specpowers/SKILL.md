@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.8.0
+version: 2.9.0
 ---
 
 # SpecPowers 桥接插件
@@ -9,6 +9,7 @@ version: 2.8.0
 > **定位**：薄桥接层（Facade + Adapter + Dispatcher），不重写任何框架引擎。只复用 OpenSpec + superpowers 原生能力，补上两条它们都没有的硬约束：**结构一致性门禁**、**实时卡转人工**。
 > **v2.0.0 阶段重命名**：constitution→init、brainstorm→explore、build→apply；specify+plan 合并为 **propose**（一站式三件套，存储路径不变）。旧项目 state.json 自动惰性迁移。
 > **v2.8.0 多活跃需求**：state.json 升级 schema 2（features 映射，多需求并存互不覆盖，前台 = last_touched 推导）；命令支持 `--feature` 指定目标（多活跃未指名的推进类命令会被拒绝并列出活跃清单）；auto_base 按需求隔离（`.specpowers/auto_base/<slug>.json`）；旧 schema 1 读出即迁移。
+> **v2.9.0 维护技能合并**：specpowers-reset 与 specpowers-baseline 合并为 **specpowers-maintain**（原两个 slash 名移除）——按用户意图分流（自然语言即可，无需记忆参数），`facade reset` / `facade baseline` 子命令不变。
 
 ## ⚠️ 前置依赖（必装）
 
@@ -45,7 +46,7 @@ propose 一站式生成三件套到 `openspec/changes/<feature>/`：proposal.md�
 | 消息判定 | 处理 |
 |---------|------|
 | ① 相关 | 按**锚点命中的那个需求**的当前阶段技能/契约处理（未归档调整 = 同需求迭代轮，走重入识别） |
-| ② 无关（闲聊/其他任务） | 照常回答，回复**末尾加一行提醒**：当前活跃需求清单（前台 \<feature\>（\<stage\>），后台…），脱离流程前建议按需求 `/specpowers-archive --feature <slug>` 或 `/specpowers-reset --feature <slug>` |
+| ② 无关（闲聊/其他任务） | 照常回答，回复**末尾加一行提醒**：当前活跃需求清单（前台 \<feature\>（\<stage\>），后台…），脱离流程前建议按需求 `/specpowers-archive --feature <slug>` 或 `/specpowers-maintain reset --feature <slug>` |
 | ③ 要开新需求 | 与用户确认 slug 后**直接开工**（`/specpowers-explore`，旧活跃需求自动转后台不受影响）；slug 命中已有活跃需求则按①走续作（slug 即身份） |
 
 **多活跃硬条款**：锚点或 status 显示活跃需求 >1 时，认知层所有 facade 命令**必须显式 `--feature <slug>`** 指定目标（推进/破坏性命令未指名会被确定性层拒绝并列出活跃清单——模型读到该报错即带名重试，不会写错文件）；单活跃时命令缺省作用于前台，体验与旧版完全一致。`facade switch <slug>` 可纯切前台（会话焦点转移的显式入口）。
@@ -76,8 +77,7 @@ v2.4.0 起 9 条阶段命令全部转为**阶段技能**（`skills/specpowers-<s
 | `/specpowers-fast` | `"<需求>" [--feature <slug>]` | 判小跳 explore/propose，用户编码后直进 apply（fast→full 回退消耗生命周期唯一 1 次额度） |
 | `/specpowers-apply` | `[--feature <slug>]` | 执行构建 + 实时门禁三态（结构基线 + 修改范围比对）+ 能力池调度 + Scenario 验证 |
 | `/specpowers-archive` | `[--force-merge-check] [--feature <slug>]` | 收尾归档（openspec delta 合并 + 场景覆盖核查）；归档即**该需求**完结（映射移除 + auto_base 清理 + 迭代计数随之终结），其余活跃需求不受影响，前台自动切换 |
-| `/specpowers-baseline` | — | 手动刷新结构基线 |
-| `/specpowers-reset` | `[--feature <slug>]` | 按需求放弃流水线状态 + lock；多活跃未指名会被拒绝（防误清全部），单活跃等价旧行为全清 |
+| `/specpowers-maintain` | `[reset|baseline] [--feature <slug>]` | 维护入口（按用户意图分流，自然语言调用无需参数）：重置流水线状态 + lock（多活跃未指名拒绝，fallback_count 保留，baseline 不受影响）或刷新结构基线（重扫覆盖，提示提交 git） |
 
 多活跃时的目标路由规则（确定性层统一执行）：`--feature` 显式指定 > 前台；推进/破坏性命令（apply/archive/reset/iterate/auto 系列/record-*）多活跃未指名 → 拒绝并列出活跃清单（模型带名重试）；只读命令（status/auto-status/sticky）多需求全输出。`facade switch <slug>` 纯切前台。合法 from_stage 由 facade 按目标需求分片校验（如 apply 仅 propose / ready(fast) 可入），详见各阶段契约。
 
@@ -121,7 +121,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
 | `prompts/auto.md` | 无人值守主契约（八要素解析落盘 + 需求澄清五维 + 阶段编排表 + 硬阻断）；**四类低频细则按需读 `prompts/refs/`**：迭代轮 `auto-iteration.md`、review 编排与归档收口 `auto-review.md`、完整裁决规则表 `auto-adjudication.md`、explore 停靠 `auto-explore-halt.md` |
 | `templates/` | constitution / auto-summary / clarification 三份生成模板 |
 
-技能组成（`skills/` 下共 11 个）：主技能 `specpowers`（本文件，路由层 + prompts/ + templates/）、9 个阶段技能 `specpowers-init/explore/propose/apply/archive/fast/auto/baseline/reset`（薄入口，见上方技能参考）、内置审查技能 `specpowers-review`（Codex 式审查；规则唯一来源 `references/review-guidelines.md`，Pass 4 / 单方法两份细则同样按需加载）。探索引擎已内联于 `prompts/explore.md` 第一步（v2.4.0 起不以技能形态暴露）。
+技能组成（`skills/` 下共 10 个）：主技能 `specpowers`（本文件，路由层 + prompts/ + templates/）、8 个阶段技能 `specpowers-init/explore/propose/apply/archive/fast/auto/maintain`（薄入口，见上方技能参考）、内置审查技能 `specpowers-review`（Codex 式审查；规则唯一来源 `references/review-guidelines.md`，Pass 4 / 单方法两份细则同样按需加载）。探索引擎已内联于 `prompts/explore.md` 第一步（v2.4.0 起不以技能形态暴露）。
 
 ## 安全底线
 

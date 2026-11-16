@@ -164,7 +164,7 @@ def test_sticky_note_active_pipeline_with_anchors(tmp_path):
     # 注释闭合符不得泄漏进修改范围取值（tasks.md 声明行在 HTML 注释块内）
     assert "-->" not in msg.split("修改范围=", 1)[1].split(" —— ")[0]
     assert "/specpowers-archive" in msg
-    assert "/specpowers-reset" in msg
+    assert "/specpowers-maintain reset" in msg
 
 
 def test_sticky_note_first_round_without_round_note(tmp_path):
@@ -201,7 +201,7 @@ def test_sticky_note_fast_mode_hint(tmp_path):
     msg = sticky_note(tmp_path)
     assert "fast 优化模式进行中" in msg
     assert "/specpowers-apply" in msg
-    assert "/specpowers-reset" in msg
+    assert "/specpowers-maintain reset" in msg
 
 
 def test_sticky_note_survives_corrupt_state(tmp_path):

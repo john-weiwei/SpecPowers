@@ -258,11 +258,11 @@ def _write_agents_md_section(project_dir: Path, skills_root_rel: str) -> None:
 
     作者：SpecPowers Team 2026-11-03（ZCode / GLM-5.3）
     """
-    # 引导段正文：11 技能入口表 + 契约位置 + CLI 调用方式（路径保持 POSIX 风格）
+    # 引导段正文：10 技能入口表 + 契约位置 + CLI 调用方式（路径保持 POSIX 风格）
     section = f"""{AGENTS_MD_BEGIN}
 ## SpecPowers 流水线
 
-spec-driven 开发流水线已安装到本项目的 `{skills_root_rel}/`（11 个技能：主技能 specpowers + 9 个阶段技能 + specpowers-review 审查）。**新需求先走探索阶段**。
+spec-driven 开发流水线已安装到本项目的 `{skills_root_rel}/`（10 个技能：主技能 specpowers + 8 个阶段技能 + specpowers-review 审查）。**新需求先走探索阶段**。
 
 | 阶段 | 技能入口（SKILL.md） |
 |------|---------------------|
@@ -273,7 +273,7 @@ spec-driven 开发流水线已安装到本项目的 `{skills_root_rel}/`（11 �
 | 归档收尾 | `{skills_root_rel}/specpowers-archive/SKILL.md` |
 | 小改动快速通道 | `{skills_root_rel}/specpowers-fast/SKILL.md` |
 | 无人值守全流程 | `{skills_root_rel}/specpowers-auto/SKILL.md` |
-| 基线刷新 / 状态重置 | `{skills_root_rel}/specpowers-baseline/SKILL.md`、`{skills_root_rel}/specpowers-reset/SKILL.md` |
+| 基线刷新 / 状态重置（按意图分流） | `{skills_root_rel}/specpowers-maintain/SKILL.md` |
 | 独立审查 | `{skills_root_rel}/specpowers-review/SKILL.md` |
 
 阶段契约与模板位于 `{skills_root_rel}/specpowers/prompts/`（如 `prompts/explore.md`）；主技能总览 `{skills_root_rel}/specpowers/SKILL.md`。
@@ -356,7 +356,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"Initializing SpecPowers v{__version__}")
     print(f"  Project: {target}")
     print(f"  Agent:   {integration['name']} ({integration_name})")
-    print(f"  Skills:  {integration['skills_root']}/  (11 skills: specpowers + 10 specpowers-*)")
+    print(f"  Skills:  {integration['skills_root']}/  (10 skills: specpowers + 9 specpowers-*)")
 
     _copy_agent_files(target, integration)
     _copy_runtime_files(target, integration)
@@ -374,7 +374,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print()
     print("All skills: $specpowers-init $specpowers-explore $specpowers-propose")
     print("            $specpowers-apply $specpowers-archive")
-    print("            $specpowers-fast $specpowers-auto $specpowers-baseline $specpowers-reset")
+    print("            $specpowers-fast $specpowers-auto $specpowers-maintain")
     return 0
 
 

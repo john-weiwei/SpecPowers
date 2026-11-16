@@ -132,7 +132,7 @@ def probe_resume(root: Path) -> str:
         names = ", ".join(changes)
         return (
             f"📌 检测到未归档的 change：{names}（本机流水线状态未接管）。"
-            "继续该需求：/specpowers-propose（重入确认为迭代轮）；放弃：/specpowers-reset。"
+            "继续该需求：/specpowers-propose（重入确认为迭代轮）；放弃：/specpowers-maintain reset。"
         )
     return ""
 
@@ -186,7 +186,7 @@ def _sticky_line(root: Path, slug: str, fs: dict, fg: bool) -> str:
     if stage == "ready" and mode == "fast":
         return (
             f"fast 优化模式进行中：{slug}{fg_note}。编码完成后 /specpowers-apply 验收；"
-            f"放弃该需求请 /specpowers-reset --feature {slug}"
+            f"放弃该需求请 /specpowers-maintain reset --feature {slug}"
         )
 
     round_note = f"，Round {rounds}" if rounds >= 1 else ""
@@ -201,7 +201,7 @@ def _sticky_line(root: Path, slug: str, fs: dict, fg: bool) -> str:
         f"活跃需求 {slug}{fg_note}（{stage}{round_note}）{anchors} —— "
         "相关消息按 specpowers 流程处理（判定规则见主技能 SKILL.md「会话粘滞」，"
         "命中哪个需求就按哪个需求的阶段契约处理），"
-        f"脱离该需求请先 /specpowers-archive --feature {slug} 或 /specpowers-reset --feature {slug}"
+        f"脱离该需求请先 /specpowers-archive --feature {slug} 或 /specpowers-maintain reset --feature {slug}"
     )
 
 
