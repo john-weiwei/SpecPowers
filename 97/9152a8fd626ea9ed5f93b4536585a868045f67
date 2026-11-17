@@ -1,0 +1,57 @@
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_891310154aba5f::t_8002a26a5deec6 378-387
+  s_891310154aba5f::t_24ea3f42701fde 149
+  s_891310154aba5f::t_5842500d694316 357,359-360,365-367,370-373,400
+  s_891310154aba5f::t_5ec868df8bd7b0 399,401-406,408-416
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+plugins/specpowers/.codex-plugin/plugin.json
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+marketplace.json
+  s_891310154aba5f::t_62f7fcf393b0c7 13
+docs/GETTING-STARTED.md
+  s_891310154aba5f::t_62f7fcf393b0c7 10,51,56,106,110,335
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+plugins/specpowers/plugin.json
+  s_891310154aba5f::t_62f7fcf393b0c7 4
+.claude-plugin/marketplace.json
+  s_891310154aba5f::t_62f7fcf393b0c7 13
+plugins/specpowers/skills/specpowers/prompts/apply.md
+  s_891310154aba5f::t_e8429ad4918952 156-157
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+.codebuddy-plugin/marketplace.json
+  s_891310154aba5f::t_62f7fcf393b0c7 16
+pyproject.toml
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+README.md
+  s_891310154aba5f::t_b215234188d4f9 323
+  s_891310154aba5f::t_62f7fcf393b0c7 7,14,69,74,308,312
+plugins/specpowers/skills/specpowers/prompts/refs/auto-iteration.md
+  s_891310154aba5f::t_c7ede2f76bd877 42
+plugins/specpowers/.claude-plugin/plugin.json
+  s_891310154aba5f::t_62f7fcf393b0c7 3
+tests/test_builtin_skills.py
+  s_891310154aba5f::t_2989d876198075 191-215
+  s_891310154aba5f::t_322beb16b15100 529-560
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_891310154aba5f::t_5c2522a2bfb892 4
+  s_891310154aba5f::t_ef008f3bb48b02 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "979152a8fd626ea9ed5f93b4536585a868045f67",
+  "prompts": {},
+  "sessions": {
+    "s_891310154aba5f": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_54aead55-39a0-41a2-bba6-cc29189d3f0b",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
