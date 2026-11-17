@@ -20,7 +20,7 @@ Load the specpowers skill context (`SKILL.md`), then follow the contract `prompt
 
 1. **静默探索，禁止提问循环**：先读项目代码再出方案；全程不逐个向用户提问，需用户决策的事项收集后在探索结论之后一次性批量提出，或打「需用户裁决」标记
 2. **方案对比必须展示在对话中**：2-3 个方案 × 统一维度（核心思路/复杂度/性能影响/兼容性/推荐度）对比表 + 唯一推荐方案与推荐理由（禁止"都可以"）
-3. **设计文档必须落盘**（不只在对话中展示）：Write 到 `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`，中文，含 项目上下文/需求分析/方案对比/详细设计（架构/组件/数据流/接口/错误处理）/修改范围 章节，无 TBD/TODO 占位
+3. **设计文档必须落盘**（不只在对话中展示）：Write 到 `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`，中文，含 决策摘要/方案对比/相关既有模式/详细设计（架构/数据流/接口/错误处理）/修改范围 章节（v2.10.0 瘦身 5 章：禁止复述 baseline/constitution 事实源内容，完整对比过程留对话、文档每格一句话级），无 TBD/TODO 占位
 4. **落盘后必须登记**（propose 硬依赖，未登记的设计文档 propose 阶段拒收）；`python -m` 执行失败时改用包装脚本 fallback（见主技能 SKILL.md「执行方式」节）
 
 You will:

@@ -121,6 +121,26 @@ EXPLORE_ENGINE_ANCHORS = [
     "探索结论输出模板",
 ]
 
+# v2.10.0 设计文档瘦身：模板必须含的 5 章锚点 + 精简纪律锚点
+DESIGN_DOC_SLIM_ANCHORS = [
+    "## 决策摘要",
+    "## 方案对比",
+    "## 相关既有模式",
+    "## 修改范围",
+    "精简纪律",
+    "唯一事实源",
+    "禁止复述",
+]
+
+# v2.10.0 设计文档瘦身防回潮：旧复述章节标题不得再出现在设计文档模板中
+# （「项目上下文」「需求分析」「组件划分」是 baseline/constitution 复述或重叠章节，
+#  删除后由「相关既有模式」≤6 行与「架构（含组件职责）」承接）
+DESIGN_DOC_SLIM_REGRESSION_MARKERS = [
+    "## 项目上下文",
+    "## 需求分析",
+    "### 组件划分",
+]
+
 # v2.5.0 初始化前置：5 个流水线薄入口必须含第 0 步检测
 # （auto 编排内置 init 步骤不需要；maintain/init 为维护或初始化动作不适用）
 INIT_CHECK_SKILLS = {
@@ -406,6 +426,45 @@ def test_explore_contract_contains_engine_details():
     for anchor in EXPLORE_ENGINE_ANCHORS:
         assert anchor in content, (
             f"prompts/explore.md 缺少探索引擎细则锚点「{anchor}」——引擎细则被误删即断链"
+        )
+
+
+def test_design_doc_slim_template_anchors():
+    """v2.10.0 设计文档瘦身防断链：5 章模板 + 精简纪律锚点必须在契约中。
+
+    「项目上下文」「需求分析」「组件划分」是 baseline/constitution 复述或
+    相互重叠的冗余章节（写侧 token 大头），删除后由「相关既有模式」≤6 行
+    与「架构（含组件职责）」承接；锚点缺失即瘦身语义断链。
+    """
+    content = (SKILLS_ROOT / "specpowers" / "prompts" / "explore.md").read_text(
+        encoding="utf-8"
+    )
+    for anchor in DESIGN_DOC_SLIM_ANCHORS:
+        assert anchor in content, (
+            f"prompts/explore.md 缺少设计文档瘦身锚点「{anchor}」——"
+            "5 章模板或精简纪律被误删（v2.10.0 修复回潮）"
+        )
+    for marker in DESIGN_DOC_SLIM_REGRESSION_MARKERS:
+        assert marker not in content, (
+            f"prompts/explore.md 残留旧复述章节「{marker}」——"
+            "该章节是 baseline/constitution 的纯复述或重叠内容，已由瘦身模板"
+            "「相关既有模式」/「架构（含组件职责）」承接（v2.10.0）"
+        )
+
+
+def test_propose_design_doc_partial_read():
+    """v2.10.0 propose 读侧纪律：人工模式局部读取设计文档，禁止默认整份重读。
+
+    与 auto 模式路径（auto_base.json 八要素 + Grep 局部回查）对齐——
+    人工模式若整份重读，写侧瘦身的读侧收益全部落空。
+    """
+    content = (SKILLS_ROOT / "specpowers" / "prompts" / "propose.md").read_text(
+        encoding="utf-8"
+    )
+    for anchor in ("局部读取 state.json `design_doc` 登记的设计文档", "禁止默认整份重读"):
+        assert anchor in content, (
+            f"prompts/propose.md 缺少读侧纪律锚点「{anchor}」——"
+            "人工模式退回整份重读设计文档，读侧 token 收益落空（v2.10.0 修复回潮）"
         )
 
 
