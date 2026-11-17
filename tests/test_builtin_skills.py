@@ -188,6 +188,31 @@ ITERATION_DESIGN_ROUND_ANCHORS = {
 # 「覆盖更新」是有意保留的规则，不在扫描范围）
 ITERATION_OVERWRITE_REGRESSION_MARKERS = ["设计文档覆盖", "更新后须重新"]
 
+# v2.11.0 迭代轮 token 收敛：proposal 迭代历史表格化封顶滚动（消 O(N) 增长）+
+# spec/tasks 骨架两级读取 + Edit 化修订（降常数）+ apply 侧不局部化边界声明
+ITERATION_TOKEN_SLIM_ANCHORS = {
+    "specpowers/prompts/propose.md": [
+        "| 轮次 | 日期 | 输入 | 变化点 |",
+        "封顶滚动",
+        "旧格式自动收敛",
+        "骨架两级读取",
+        "^### Requirement:|^#### Scenario:",
+        "^### Task|^## Round|^## 已作废",
+        "修订用 Edit 而非整份重写",
+        "回退全文读取",
+    ],
+    "specpowers/prompts/apply.md": [
+        "apply 侧读取不局部化",
+    ],
+    "specpowers/prompts/refs/auto-iteration.md": [
+        "propose.md 迭代轮小节为准",
+    ],
+}
+
+# v2.11.0 防回潮：proposal 迭代历史旧多行小节模板不得回潮
+# （每轮 5-8 行的 ### Round 小节随轮次线性变长，是迭代轮 token 增长点）
+ITERATION_HISTORY_REGRESSION_MARKER = "### Round <N>（<日期>）"
+
 # v2.7.0 会话粘滞：主技能六级判定锚点 + 薄入口粘滞行（auto 单会话直通不适用）
 SESSION_STICKY_MAIN_ANCHORS = ["会话粘滞", "拿不准 → 一律按相关", "UserPromptSubmit"]
 
@@ -499,6 +524,38 @@ def test_iteration_no_overwrite_regression():
                 f"skills/{rel_path} 残留旧覆盖语义标记「{marker}」——"
                 "迭代轮应新落 design-round-<N>.md，不再覆盖重写基线设计文档（v2.7.0）"
             )
+
+
+def test_iteration_token_slim_anchors():
+    """v2.11.0 迭代轮 token 收敛防断链：历史表格封顶 + 骨架两级读取 + Edit 化锚点。
+
+    迭代轮 IO 从「三件套全读全写」收敛为「proposal 全读（历史封顶后规模恒定）+
+    spec/tasks 骨架 + 命中项 Edit」；apply 侧明确不局部化（全量回归是质量边界）。
+    锚点缺失意味着模型被引导回全读全写旧行为。
+    """
+    for rel_path, anchors in ITERATION_TOKEN_SLIM_ANCHORS.items():
+        content = (SKILLS_ROOT / rel_path).read_text(encoding="utf-8")
+        for anchor in anchors:
+            assert anchor in content, (
+                f"skills/{rel_path} 缺少 v2.11.0 迭代轮 token 收敛锚点「{anchor}」——"
+                "历史表格封顶/骨架两级读取/Edit 化语义断链（v2.11.0 修复回潮）"
+            )
+
+
+def test_iteration_history_multiline_regression():
+    """防回潮：propose 契约不得残留旧的多行迭代历史小节模板。
+
+    每轮 5-8 行的 ### Round 小节使 proposal 随轮次线性变长，v2.11.0 起由
+    单行表格 + 封顶滚动替代（明细事实源：design-round-N.md 与 spec/tasks 轮次痕迹）。
+    """
+    content = (SKILLS_ROOT / "specpowers" / "prompts" / "propose.md").read_text(
+        encoding="utf-8"
+    )
+    assert ITERATION_HISTORY_REGRESSION_MARKER not in content, (
+        "prompts/propose.md 残留旧多行迭代历史模板「"
+        + ITERATION_HISTORY_REGRESSION_MARKER
+        + "」——应使用单行表格 + 封顶滚动格式（v2.11.0）"
+    )
 
 
 def test_session_sticky_main_skill_anchors():

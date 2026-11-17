@@ -39,7 +39,7 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 各阶段调用方式与人工模式完全一致（先调 facade 确定性层，再按对应 `prompts/<stage>.md` 契约执行认知任务），各阶段**迭代轮语义**以对应契约文件的「迭代轮」小节为准（该语义为 auto 与人工模式通用）：
 
 - explore：方案变了才重跑，**新落简易设计文档 `openspec/changes/<feature>/design-round-<N>.md`**（基线设计文档冻结不动、`state.design_doc` 仍指向基线，**不重新 `facade record-design-doc`**——propose 前置校验天然满足；模板与四节结构见 explore.md 迭代轮小节）。**注意**：这是认知任务直接落盘，**不调 `facade explore`**（其 from_stage 仅 ready，与迭代轮 stage=propose 冲突；stage 保持 propose 即可）
-- propose：proposal/spec/tasks 三件套**增量修订**（spec 增量修订场景 + tasks 分轮演进 Round N 小节 + 作废留痕）
+- propose：proposal/spec/tasks 三件套**增量修订**（proposal 迭代历史表格化追加 + spec 骨架两级读取 Edit 化修订 + tasks 分轮演进 Round N 小节 + 作废留痕；读取与修订方式以 propose.md 迭代轮小节为准）
 - apply：只执行未勾选且未作废的任务
 - specpowers-review：范围 = 首轮基点 → 当前（累计审查，编排细则读 `refs/auto-review.md`）
 

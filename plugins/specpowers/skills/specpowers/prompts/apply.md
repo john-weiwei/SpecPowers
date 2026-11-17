@@ -153,6 +153,8 @@ Build 完成。下一步：/specpowers-archive
 - 本轮新增任务的执行方式仍按第二步确认（新轮 `execution_mode` 已被确定性层清空，按 tasks.md 顶部推荐或默认 conductor 重新确认并 `record-execution-mode` 记录）
 - 验证阶段（第六步）按**当前 delta spec 全量 Scenario** 验证（含历史轮场景回归），确保迭代未破坏既有行为
 
+> **读取边界（v2.11.0）**：propose 侧三件套修订已局部化（骨架两级读取 + Edit 化，见 propose.md 迭代轮小节），但 **apply 侧读取不局部化**——tasks.md 全文（执行清单漏读的代价不对称：漏执行/执行错任务）与 delta spec 全量 Scenario（第六步含历史轮回归验证）是执行与验证的质量硬边界，禁止在此做局部化裁剪。
+
 ## 后续步骤
 
 完成后 stage 跃迁到 `apply`，下一步：`/specpowers-archive [--force-merge-check]`

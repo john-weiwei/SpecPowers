@@ -4,14 +4,14 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.10.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.11.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
 - **结构一致性门禁** — AI 写代码不能"无中生有"建目录/加依赖
 - **实时卡转人工** — 遇到不确定性立刻暂停等人工判定，不静默跳过
 
-> 🧪 **质量保障**：359 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
+> 🧪 **质量保障**：361 个测试用例守护清单/文档/状态机契约一致性（用例数与清单版本由测试自动校验同步）。
 
 > 📖 **完整指南**：前置依赖详解、四条路径对比、架构、项目结构等完整内容见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)。
 
@@ -66,12 +66,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.10.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.11.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.10.0
+# → SpecPowers CLI v2.11.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -305,11 +305,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.10.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.11.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.10.0
+# → SpecPowers CLI v2.11.0
 
 # 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（技能清单已更新——reset/baseline 合并为 maintain）
 cd my-project
@@ -320,6 +320,7 @@ specpowers init --force
 
 | 版本 | 变更内容 |
 |------|---------|
+| v2.11.0 | **迭代轮 token 收敛（proposal 历史表格化封顶 + spec/tasks 骨架两级读取 + Edit 化修订）**：① proposal.md 迭代历史从「每轮追加 5-8 行 `### Round` 多行小节」（随轮次线性变长，读写两侧同步膨胀）改为**单行表格 + 封顶滚动**——每轮 1 行（轮次/日期/输入/变化点关键词 ≤30 字），明细 >5 行时最旧连续轮次聚合为 1 行（指向 design-round-1~M.md），表格恒 ≤7 行、proposal 全文规模不随轮次增长；每轮完整明细的事实源本就是 design-round-N.md（方案变更轮）与 spec 末尾轮次注释行、tasks 的 Round 小节与已作废留痕，迭代历史只是速览不承载明细；旧多行格式读到即自动收敛无需迁移；② spec.md/tasks.md 迭代轮读取与修订**骨架两级读取 + Edit 化**——第一级 Grep 模式串提取结构清单（spec：requirement 分组 + 场景名 + WHEN 首行，受 OpenSpec validator 硬约束；tasks：任务号 + 勾选状态 + 轮次/作废边界 + 修改范围声明 + 场景引用，受 task-brief 脚本切分硬约束——锚点不漂移是局部化的结构前提），第二级仅对命中项（待更新场景/作废判定任务）局部读详情，无变化项保留 = 不动；修订落点从「读全文 → 整份重写」改为 Edit 精准操作（spec：场景段替换/删段/追加；tasks：作废移段、新任务插入 Round 小节、范围声明行替换为并集）；骨架命中数与文件规模明显不符（格式异常/损坏）时回退全文读取整份重写（降级路径写进契约防静默漏读）；③ 边界裁定——proposal 迭代轮仍全文读（覆盖更新语义需要全文，且①落地后规模已 O(1) 封顶）；**apply 侧读取不局部化**（tasks 全文执行清单漏读代价不对称、delta spec 全量 Scenario 含历史轮回归验证是质量硬边界，apply.md 写明禁止裁剪）；④ 确定性层零改动（gate 修改范围并集/archive_auditor 场景覆盖/task-brief 切分/openspec archive 合并均为脚本文本解析，非 LLM 消费方）；auto-iteration.md 迭代轮编排措辞对齐（以 propose.md 迭代轮小节为准）；⑤ 测试新增防回潮断言（历史表格表头 + 封顶滚动 + 旧格式自动收敛 + 两条骨架 Grep 模式串 + Edit 化 + 降级路径 + apply 不局部化锚点；旧多行历史模板 `### Round <N>（<日期>）` 不得回潮），用例数同步 361 |
 | v2.10.0 | **设计文档 token 瘦身（写侧模板 6 章→5 章 + 读侧局部读取）**：① 写侧去冗余——删除三个纯复述章节：「项目上下文」（复述 baseline.json/constitution.md 已有内容，下游自行读取事实源，改为「相关既有模式」≤6 行只写与本需求直接相关的复用点/代码位置）、「需求分析」（并入「决策摘要」）、「组件划分」（并入「架构」，各组件职责一句话）；**「方案对比」章节保留**（对比表 + 推荐理由，跨会话决策依据可追溯）；决策摘要定稿为三要素（目标/方案选择/边界与约束，替代方案否决理由由方案对比章节承载不再重复）；② 精简纪律三条——禁止复述事实源（技术栈清单/项目结构/项目原则）、方案对比表每格一句话级 + 不展开落选方案详细设计、禁止粘贴大段代码（接口只写签名，定位「文件路径 + 类.方法」不用裸行号）；③ 读侧对齐——propose 人工模式从「必然读取设计文档」（整份读）改为与 auto 模式路径一致的局部读取：Grep 定位「决策摘要 + 数据流」章节（含 capability frontmatter）局部读取，其余小节按需回查，禁止默认整份重读；④ 探索结论输出模板「项目上下文」小节改要点式（2-3 行相关代码位置，不复述技术栈/结构）；⑤ 安全边界不动——数据流字段卡片五标签格式（propose/apply 硬依赖）、确定性层零改动（record-design-doc 只查登记+存在性）、auto 八要素解析（全文检索非章节绑定）、迭代轮 design-round 增量文档；⑥ 测试新增防回潮断言（5 章模板锚点 + 精简纪律锚点 + 旧章节「## 项目上下文」「## 需求分析」「### 组件划分」不得回潮 + propose 局部读取锚点），用例数同步 359 |
 | v2.9.0 | **维护技能合并：specpowers-reset + specpowers-baseline → specpowers-maintain（技能数 11→10、阶段技能 9→8）**：① 合并动机——两个维护类技能均为无独立 prompts 契约的确定性命令薄入口，合并减少技能列表常驻 token 与条目数；② specpowers-maintain 按用户意图分流，**用户零学习成本**（自然语言调用无需记忆参数）——三层判定：意图语义判断为主路径（放弃/卡死/锁残留 → reset；结构变更/基线过期 → baseline）→ args/触发语境含显式子动作词直接按词分流（快捷形态，模型照抄确定性层报错文案零推断）→ 意图不明必问不执行（reset 破坏性、baseline 覆盖性，均不可猜）；③ 确定性层零逻辑改动——`facade reset` / `facade baseline` 子命令、handler、路由表、多活跃 `--feature` 路由全部不动，仅 12 处报错/锚点文案改锚定新入口（lock 3 / fs_state 2 / dispatcher 2 / resume_probe 3 / baseline_scanner 2）；④ **行为变更**——`/specpowers-reset` 与 `/specpowers-baseline` 两个 slash 名移除，统一为 `/specpowers-maintain`（pip 老用户重装刷新 AGENTS.md 引导段）；⑤ 测试新增 maintain 防回潮锚点断言（两分支命令 + 三层分流 + 零学习成本表述 + 旧技能目录不得回潮），技能集合断言 11→10 适配（installer/builtin_skills），用例数同步 357 |
 | v2.8.0 | **多活跃需求原生支持（state.json schema 2：features 映射 + 推导式前台）**：① 数据模型——需求级状态（stage/mode/execution_mode/iteration_count/design_doc）从仓库级单 feature 字段迁入 `state.json` 的 `features` 映射（每需求一份，多需求并存互不覆盖；借鉴 OpenSpec「目录即队列 + 状态推导」哲学但保留 SpecPowers 阶段状态机/迭代轮等真状态承载），前台 = `last_touched` 最大者**推导式不落盘**（与 `openspec list --sort recent` 同构，操作即前台，多会话并行无指针争抢写点），全局仅留 fallback_count/last_archive_ref；死字段 fallback_used 借迁移清除；schema 1（v2.7.0 及以前扁平顶层）读出即迁移（feature 非空迁入映射 + 顶层 auto_base.json 原子搬入分片，幂等）；② auto_base 按需求隔离——`.specpowers/auto_base/<slug>.json`（认知层第 0 步直接写盘不持锁，多需求并行必须物理隔离，是唯一按需求拆分的状态文件），auto 三分判定/迭代轮/澄清全链路 per-feature；③ slug 即身份——开新入口（explore/propose/fast）解析出的 slug 命中活跃映射 = 该需求续作请求（走 from_stage 转换校验，explore 重入自然拒绝并给续作指引），未命中 = 新需求（from ready）——不需要专门查重逻辑；④ 多活跃路由三层设计——单活跃命令缺省作用于前台（体验与旧版零差异）/ 多活跃 + 推进类命令（apply/archive/reset/iterate/auto 系列/record-*）未指名 → **拒绝并列出活跃需求与阶段**（模型带 --feature 重试，确定性层兜底防错需求）/ 只读命令（status/auto-status/sticky）多需求全输出；新增 `facade switch <slug>` 纯切前台（touch last_touched）；⑤ 归档按需求终结——features 映射移除该键 + 该需求 auto_base 清理，其余活跃需求不受影响、前台自动切到剩余 last_touched 最大者；`reset --feature <slug>` 按需求放弃（多活跃未指名拒绝防误清全部）；⑥ 粘滞多需求化——sticky_note/probe_resume 每活跃需求一行锚点（前台标注、前台排首行，≤3 全列 >3 前台+汇总行控 token），六级判定第 2 级「命中哪个需求就按哪个需求处理」、第 4 级新需求直接开工（旧需求自动转后台）、解除条件 per-feature；⑦ 归档按序条款（README 多活跃小节）——多需求改动同一 capability 时归档是短临界区按序执行，后归档方对齐主规格（openspec delta 合并按 requirement 逐条应用，不同 requirement 天然不冲突）；⑧ 兼容层关键设计——load_state 返回「全局 + 前台展开」扁平视图（旧结构超集）/ save_state 按视图 feature 拆回映射，上层 handler 与 mode_controller 零感知；修复实现期抓到的 `_load_raw` 浅拷贝跨目录状态串扰 bug（DEFAULT_GLOBAL_STATE.features 被写入污染）；⑨ 测试新增 26 用例（迁移 4 + 并存路由 7 + 归档/reset 5 + 粘滞/probe 4 + auto 分片 2 + facade status/record 3 + 多活跃拒绝含在路由内）并适配既有用例到新模型（fs_state 结构断言/execution_mode 活跃需求构造/auto_base 新路径/fast 重入语义/record_design_doc 活跃目标），用例数同步 356 |

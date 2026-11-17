@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.10.0
+version: 2.11.0
 ---
 
 # SpecPowers 桥接插件
@@ -11,6 +11,7 @@ version: 2.10.0
 > **v2.8.0 多活跃需求**：state.json 升级 schema 2（features 映射，多需求并存互不覆盖，前台 = last_touched 推导）；命令支持 `--feature` 指定目标（多活跃未指名的推进类命令会被拒绝并列出活跃清单）；auto_base 按需求隔离（`.specpowers/auto_base/<slug>.json`）；旧 schema 1 读出即迁移。
 > **v2.9.0 维护技能合并**：specpowers-reset 与 specpowers-baseline 合并为 **specpowers-maintain**（原两个 slash 名移除）——按用户意图分流（自然语言即可，无需记忆参数），`facade reset` / `facade baseline` 子命令不变。
 > **v2.10.0 设计文档瘦身**：explore 设计文档模板 6 章 → 5 章（删复述章节「项目上下文」「需求分析」，「组件划分」并入架构；方案对比保留）+ 精简纪律（禁复述 baseline/constitution 事实源、禁贴大段代码）；propose 人工模式读侧对齐 auto 模式——Grep 局部读「决策摘要 + 数据流」，禁止默认整份重读。
+> **v2.11.0 迭代轮 token 收敛**：proposal 迭代历史表格化 + 封顶滚动（单行表格 ≤7 行，消随轮次线性增长；明细事实源 = design-round-N.md 与 spec/tasks 轮次痕迹）；spec/tasks 迭代轮改**骨架两级读取**（第一级 Grep 结构清单，仅命中项局部读详情）+ **Edit 化修订**（替换/删段/插入，不整份重写，格式锚点受 validator/task-brief 硬约束）；骨架与文件规模不符时回退全文；apply 侧读取不局部化（全量回归是质量边界）。
 
 ## ⚠️ 前置依赖（必装）
 
