@@ -1,0 +1,61 @@
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_6408d859b9c4f3::t_34edc0fc85afb4 13
+  s_6408d859b9c4f3::t_bcecaacd2767b6 4
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_6408d859b9c4f3::t_b59aece922ad84 3
+.claude-plugin/marketplace.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 13
+plugins/specpowers/skills/specpowers/prompts/explore.md
+  s_6408d859b9c4f3::t_81b84c1cd7b2e2 155,164,166,168,170,176-180,184,190,193,203-209
+  s_6408d859b9c4f3::t_c3400f7c499844 211,216,218-219
+  s_6408d859b9c4f3::t_34901e0b84420e 101-103,210
+  s_6408d859b9c4f3::t_e8c5cea46baf49 279
+  s_6408d859b9c4f3::t_6f52d594bef399 54
+  s_6408d859b9c4f3::t_abab27721ba1ac 261,263
+marketplace.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 13
+README.md
+  s_6408d859b9c4f3::t_894a5fad1c2a6a 323
+  s_6408d859b9c4f3::t_e2bddf030fecc5 7,69,74,308,312
+  s_6408d859b9c4f3::t_b59aece922ad84 14
+tests/test_builtin_skills.py
+  s_6408d859b9c4f3::t_83d003bb96a9e0 124-143
+  s_6408d859b9c4f3::t_05427f9e118670 432-470
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 3
+plugins/specpowers/.codex-plugin/plugin.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 3
+plugins/specpowers/.claude-plugin/plugin.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 3
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_6408d859b9c4f3::t_e15e383b2f4385 58
+pyproject.toml
+  s_6408d859b9c4f3::t_6f4d52f395d02b 3
+docs/GETTING-STARTED.md
+  s_6408d859b9c4f3::t_8260b0f8f0bfcc 335
+  s_6408d859b9c4f3::t_e2bddf030fecc5 10,51,56,106,110
+plugins/specpowers/skills/specpowers-explore/SKILL.md
+  s_6408d859b9c4f3::t_c600424a968752 23
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_6408d859b9c4f3::t_6f4d52f395d02b 3
+.codebuddy-plugin/marketplace.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 16
+plugins/specpowers/plugin.json
+  s_6408d859b9c4f3::t_6f4d52f395d02b 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f046acae83aa7a0851254386500794ed29d961b3",
+  "prompts": {},
+  "sessions": {
+    "s_6408d859b9c4f3": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_8fb0365e-bf35-4293-a34e-d9336f81a055",
+        "model": "builtin:bigmodel-coding-plan/GLM-5.3"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
