@@ -227,7 +227,7 @@ TDD：[推荐 / 可选 / 不推荐]
 ### Task 1: [任务描述]
 
 - [ ] 实现内容：<具体步骤>
-- 场景引用：<关联 delta spec 的 Scenario 名 + 该 Scenario 的 WHEN-THEN 原文摘录，供无 spec 上下文时核对>
+- 场景引用：<关联 delta spec 的 Scenario 名列表，顿号分隔，如「下单成功、库存不足」；**不抄 WHEN-THEN 原文**（v3.1.0）——conductor/TDD 主会话有 spec 全文，subagent 由 task_brief 脚本确定性附上；无关联场景写 无>
 - 验收标准：<本任务验收标准>
 - 依赖：<前置任务，无则写 无>
 - 并行：<是/否；若可与其他任务并行，列出可并行的兄弟任务号，如「是，可与 Task 3/5 并行」；否则写 否>
@@ -236,7 +236,7 @@ TDD：[推荐 / 可选 / 不推荐]
 ### Task 2: [任务描述]
 
 - [ ] 实现内容：<具体步骤>
-- 场景引用：<Scenario 名 + WHEN-THEN 原文摘录>
+- 场景引用：<Scenario 名列表，顿号分隔>
 - 验收标准：<本任务验收标准>
 - 依赖：Task 1
 - 并行：<是/否 + 可并行的兄弟任务号；否则写 否>
@@ -249,7 +249,7 @@ TDD：[推荐 / 可选 / 不推荐]
 ### Task N: [任务描述]
 
 - [ ] 实现内容：<具体步骤>
-- 场景引用：<Scenario 名 + WHEN-THEN 原文摘录>
+- 场景引用：<关联 delta spec 的 Scenario 名列表，顿号分隔；**不抄 WHEN-THEN 原文**（v3.1.0）——apply 派发时 task_brief 脚本 `--spec` 自动抽取对应 Scenario 段落附在 brief 末尾，subagent 零上下文也能核对；无关联场景写 无>
 - 验收标准：<本任务验收标准>
 - 检查点：<本任务完成后 subagent 须自验的内容，如「编译通过+对应单测绿色」或「无」；controller 在 spec-reviewer 审查前据此判断是否放行>
 - 依赖：<前置任务编号，无则写 无>
@@ -264,7 +264,7 @@ TDD：[推荐 / 可选 / 不推荐]
 - 卡住升级：<连续编译失败 2 次 / 找不到 API 签名 / 数据来源不明 → 返回主 session 问用户，禁止瞎猜>
 ```
 
-> subagent 档字段覆盖了 7 类缺口：第4类场景原文、第1类代码锚点、第2类 API 契约、第3类数据来源、第7类前置产出、第8类验证+升级路径。第5类测试模板与第6类项目编码规范及其余项目原则（质量/测试/UX/性能）走 constitution.md 统一管道——apply 阶段 controller 从 `.specpowers/constitution.md` 摘录全部原则注入每个 task 的 Context（subagent 隔离上下文，看不到 AGENTS.md/CLAUDE.md/constitution.md，必须显式注入），不重复进 task。
+> subagent 档字段覆盖了 7 类缺口：第4类场景原文（v3.1.0 起名字进 tasks.md、原文由 task_brief 脚本从 delta spec 确定性附上）、第1类代码锚点、第2类 API 契约、第3类数据来源、第7类前置产出、第8类验证+升级路径。第5类测试模板与第6类项目编码规范及其余项目原则（质量/测试/UX/性能）走 constitution.md 统一管道——apply 阶段 controller 从 `.specpowers/constitution.md` 按 task 相关性摘录注入每个 task 的 Context（编码规范必带；subagent 隔离上下文，看不到 AGENTS.md/CLAUDE.md/constitution.md，必须显式注入），不重复进 task。
 
 #### 字段填充指引（各字段数据来源，避免凭空填写）
 
@@ -272,7 +272,7 @@ TDD：[推荐 / 可选 / 不推荐]
 - **代码锚点 / 依赖 API**：查代码库（grep 类名/方法签名定位文件，摘录方法签名与唯一代码片段）。禁止写裸行号（前置任务改动会让行号漂移）。
 - **数据来源**：从 `openspec/changes/<feature>/proposal.md` 的「## 数据流契约」字段卡片逐张抄入（每张卡片含 字段名/值域/运行时来源/注入点/空值处理 五个标签）。若数据流契约未覆盖本任务所需字段，**不得自行假设**——触发第七步「跨链路入参数据来源回溯」向用户澄清。
 - **前置产出契约**：从已完成的前置 Task 小节的「实现内容」提取产出的符号（常量全名/方法签名/DTO 字段）。若前置 Task 尚未实现，契约即本 feature 对该产出的约定，后续前置 Task 实现时必须遵守。
-- **场景原文**：从 `openspec/changes/<feature>/specs/<capability>/spec.md` 摘录 WHEN-THEN 原文，不要只写 Scenario 名。
+- **场景引用**：只写 delta spec 中的 Scenario 名（顿号分隔的纯名列表），**禁止抄录 WHEN-THEN 原文**（v3.1.0）——原文消费路径已确定：conductor/TDD 主会话读 spec 全文核对，subagent 由 apply 阶段 `task_brief.py --spec` 从 spec 确定性抽取附在 brief 末尾；抄原文 = 任务数 × 场景长度的重复输出，多任务引用同一场景时反复抄写。
 - **验证命令**：查项目 build 工具（有 `pom.xml` → mvn；有 `package.json` → npm/yarn；有 `pyproject.toml` → pytest）。
 - **并行**：判断本任务是否与兄弟任务无文件冲突、无数据依赖。可并行的典型场景：不同模块的同级任务、同模块内只读不同文件的任务。注意：并行任务不得修改同一文件。
 - **检查点**：在关键集成点（如 foundational 任务完成、某 user story 闭环、跨模块对接前）设检查点。检查点内容须可独立验证（编译通过/测试绿色/接口对接成功）。
@@ -357,10 +357,19 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 
 当本轮是迭代轮（轮次 ≥ 1——v3.0 起轮次即工件推导值：design-round-N.md 与 tasks「## Round N」小节的最大值，无任何计数缓存；入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别（人工模式，目录推导自动识别，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，三件套不做盲目重写，按各自规则增量演进（方案变更时 explore 已先新落本轮简易设计文档 `design-round-<N>.md`，见 explore.md 迭代轮小节）：
 
-**本轮读取清单（锁死，防整份重读）**：现有 proposal.md（全文——迭代历史 v2.11.0 起表格化封顶滚动，规模恒定不随轮次增长）+ 最新 `openspec/changes/<feature>/design-round-<N>.md`（存在时，增量小文档直接全读）；spec.md 与 tasks.md 走**骨架两级读取**——第一级 Grep 拿结构清单，仅命中项第二级局部读详情（模式串与降级路径见下方各自条目）；基线设计文档（meta `design_doc` 指向的首轮文档）**仅按需局部查阅**——方案变更轮重提炼需要核对基线结论时读对应章节，**禁止整份重读**（v2.7.0 读侧落点；v2.11.0 迭代轮 IO 从「三件套全读全写」收敛为「proposal 全读 + spec/tasks 骨架 + 命中项 Edit」）。
+**本轮读取清单（锁死，防整份重读）**：proposal.md、spec.md、tasks.md 三件均走**骨架两级读取**——第一级 Grep 拿结构清单，仅命中项第二级局部读详情（模式串与降级路径见下方各自条目）；最新 `openspec/changes/<feature>/design-round-<N>.md`（存在时，增量小文档直接全读）；基线设计文档（meta `design_doc` 指向的首轮文档）**仅按需局部查阅**——方案变更轮重提炼需要核对基线结论时读对应章节，**禁止整份重读**（v2.7.0 读侧落点；v2.11.0 迭代轮 IO 从「三件套全读全写」收敛为「spec/tasks 骨架 + 命中项 Edit」；v3.1.0 proposal 同构收敛，字段未变的迭代轮不再整写重输出数据流契约卡片）。
 
-**proposal.md — 覆盖 + 迭代历史（表格化 + 封顶滚动）**：
-- proposal.md **覆盖更新**（以本轮有效八要素为准），文末维护「## 迭代历史」小节——**单行表格格式**（v2.11.0，替代旧多行小节）：
+**proposal.md — 增量修订（骨架两级读取 + Edit 化，v3.1.0）**：
+- **第一级骨架（必做）**：
+
+  ```bash
+  grep -nE "^## |^### 字段：" openspec/changes/<feature>/proposal.md
+  ```
+
+  得到小节结构（Why / What Changes / Capabilities / 数据流契约 / Impact / 迭代历史）+ 数据流契约全部字段卡片名——本轮差异分析的结构基准。`### 字段：<field>` 标题是收口契约的机械切分锚点（见 explore.md 数据流格式约定），骨架提取可靠
+- **第二级按需局部读**：仅对本轮变化命中的小节读整段（What Changes 待更新 / 字段卡片待增改 / Impact 受影响）；无变化小节（最典型是数据流契约字段未变）**不读详情、不重写**（保留 = 不动）
+- **修订用 Edit 而非整份重写**：迭代历史 → Edit 向「## 迭代历史」表格追加 1 行；What Changes 变化 → Edit 替换该段；字段卡片增改 → Edit 替换/追加对应 `### 字段：<field>` 小节（锚点 `### 字段：` 起、下一字段标题或下一 `##` 前，锚点不唯一时扩大上下文）；仅场景/范围调整轮 → 只追加迭代历史行，其余全部不动
+- 文末维护「## 迭代历史」小节——**单行表格格式**（v2.11.0，替代旧多行小节）：
 
 ```markdown
 ## 迭代历史
@@ -373,6 +382,8 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 - **封顶滚动**：明细行超过 5 行时，把最旧一段连续轮次聚合为一行（`| Round 1-<M> | <日期区间> | 早期 <M> 轮调整 | 明细：design-round-1~<M>.md |`；纯口头轮无 design-round 时聚合格写「明细：spec/tasks 轮次痕迹」）——表格恒 ≤7 行（表头 + 聚合行 + 5 明细行），proposal 全文规模不随轮次增长
 - **旧格式自动收敛**：读到旧格式（`### Round` 多行小节）时，本轮直接改写为表格、超限明细按聚合规则收纳——无需单独迁移
 - 变化点格遵守一句话级纪律（对齐 v2.10.0 精简纪律）：每轮完整明细的事实源是 `design-round-<N>.md`（方案变更轮）与 spec 末尾轮次注释行、tasks 的 Round 小节与已作废留痕——迭代历史只是速览，不承载明细
+- 修订基准仍以**本轮有效八要素**为准（auto 取 auto_base `parsed`，人工取本轮调整合并结果），Edit 只落差异，语义与旧「覆盖更新」一致
+- **降级路径**：骨架命中数与文件规模明显不符（如非空文件 0 命中——格式异常或损坏）→ 回退全文读取并整份重写，不做局部修订
 
 - **feature 锁定**：迭代轮 feature 锁定不变（change 目录即需求身份），proposal.md 仍写入原 change 目录（`openspec/changes/<锁定slug>/`），不新建目录
 - **调用方式**：迭代轮更新 proposal 是**认知任务直接落盘**；`facade propose` 入口校验为工件形态判定（propose 续作自环幂等，仅刷新 meta last_touched），不产生任何轮次副作用——轮次由工件承载，无需命令切换

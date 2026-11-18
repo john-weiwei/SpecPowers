@@ -1,7 +1,7 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 3.0.0
+version: 3.1.0
 ---
 
 # SpecPowers 桥接插件
@@ -13,7 +13,8 @@ version: 3.0.0
 > **v2.8.0 多活跃需求**：多需求并存互不覆盖（v2.8.0 起状态按需求隔离，v3.0 起以 change 目录为界）；命令支持 `--feature` 指定目标（多活跃未指名的推进类命令会被拒绝并列出活跃清单）；auto_base 按需求隔离（`.specpowers/auto_base/<slug>.json`）。
 > **v2.9.0 维护技能合并**：specpowers-reset 与 specpowers-baseline 合并为 **specpowers-maintain**（原两个 slash 名移除）——按用户意图分流（自然语言即可，无需记忆参数），`facade reset` / `facade baseline` 子命令不变。
 > **v2.10.0 设计文档瘦身**：explore 设计文档模板 6 章 → 5 章（删复述章节「项目上下文」「需求分析」，「组件划分」并入架构；方案对比保留）+ 精简纪律（禁复述 baseline/constitution 事实源、禁贴大段代码）；propose 人工模式读侧对齐 auto 模式——Grep 局部读「决策摘要 + 数据流」，禁止默认整份重读。
-> **v2.11.0 迭代轮 token 收敛**：proposal 迭代历史表格化 + 封顶滚动（单行表格 ≤7 行，消随轮次线性增长；明细事实源 = design-round-N.md 与 spec/tasks 轮次痕迹）；spec/tasks 迭代轮改**骨架两级读取**（第一级 Grep 结构清单，仅命中项局部读详情）+ **Edit 化修订**（替换/删段/插入，不整份重写，格式锚点受 validator/task-brief 硬约束）；骨架与文件规模不符时回退全文；apply 侧读取不局部化（全量回归是质量边界）。
+> **v2.11.0 迭代轮 token 收敛**：proposal 迭代历史表格化 + 封顶滚动（单行表格 ≤7 行，消随轮次线性增长；明细事实源 = design-round-N.md 与 spec/tasks 轮次痕迹）；spec/tasks 迭代轮改**骨架两级读取**（第一级 Grep 结构清单，仅命中项局部读详情）+ **Edit 化修订**（替换/删段/插入，不整份重写，格式锚点受 validator/task-brief 硬约束）；骨架与文件规模不符时回退全文；apply 侧读取按执行模式分流（v3.1.0 精化：conductor/TDD/worktree 主会话亲自执行，全文读是质量边界；subagent 模式主会话骨架读取，brief 由脚本直出，见下）。
+> **v3.1.0 读写 token 降耗**：① apply 读取按「谁执行」分流——subagent 模式主会话只派发与校验，tasks.md 骨架读取（任务号/勾选/依赖/并行/检查点/修改范围），执行明细由新增确定性脚本 `scripts/task_brief.py` 直出 brief（切 `### Task N` 整段 + 顶部注释块，`--spec` 从 delta spec 确定性抽取场景原文附 brief 末尾）；conductor/TDD/worktree 主会话亲自执行仍全文读；② tasks.md「场景引用」瘦身为 Scenario 名列表（不抄 WHEN-THEN 原文——conductor 有 spec 全文兜底，subagent 由脚本附原文）；③ proposal 迭代轮骨架两级读取 + Edit 化（与 spec/tasks 同构：Grep `^## |^### 字段：`，字段卡片按需 Edit，字段未变不重输出数据流契约，骨架失配降级全文）；④ explore 设计文档一次成型（数据流字段卡片 + capability frontmatter 引擎步骤 3 当场写全），收口改 Edit 增量补正不再覆盖重写，探索结论对话要点式（方案对比表 + 裁决项 + 路径，详细设计以落盘文档为准）；⑤ baseline.json 退出认知层必读（explore/apply 不再读，越界防护由 gate 确定性比对承担，契约只留纪律声明）；⑥ archive constitution 证据核查改 Grep 段标题不读全文；⑦ 确定性层输出封顶：gate 信号/越界列表超 20 条截断附计数与 report 句柄、archive 未覆盖场景封顶、resume-probe 活跃 >5 截断汇总、status/auto-status/reconcile 紧凑单行 JSON；⑧ auto 汇总报告 ≤60 行封顶（无内容段落压缩为一行）。
 
 ## ⚠️ 前置依赖（必装）
 
@@ -127,7 +128,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
 | `prompts/auto.md` | 无人值守主契约（八要素解析落盘 + 需求澄清五维 + 阶段编排表 + 硬阻断）；**四类低频细则按需读 `prompts/refs/`**：迭代轮 `auto-iteration.md`、review 编排与归档收口 `auto-review.md`、完整裁决规则表 `auto-adjudication.md`、explore 停靠 `auto-explore-halt.md` |
 | `templates/` | constitution / auto-summary / clarification 三份生成模板 |
 
-技能组成（`skills/` 下共 10 个）：主技能 `specpowers`（本文件，路由层 + prompts/ + templates/）、8 个阶段技能 `specpowers-init/explore/propose/apply/archive/fast/auto/maintain`（薄入口，见上方技能参考）、内置审查技能 `specpowers-review`（Codex 式审查；规则唯一来源 `references/review-guidelines.md`，Pass 4 / 单方法两份细则同样按需加载）。探索引擎已内联于 `prompts/explore.md` 第一步（v2.4.0 起不以技能形态暴露）。
+技能组成（`skills/` 下共 10 个）：主技能 `specpowers`（本文件，路由层 + prompts/ + templates/ + scripts/——`scripts/task_brief.py` 为 subagent 派发的确定性切分脚本，v3.1.0）、8 个阶段技能 `specpowers-init/explore/propose/apply/archive/fast/auto/maintain`（薄入口，见上方技能参考）、内置审查技能 `specpowers-review`（Codex 式审查；规则唯一来源 `references/review-guidelines.md`，Pass 4 / 单方法两份细则同样按需加载）。探索引擎已内联于 `prompts/explore.md` 第一步（v2.4.0 起不以技能形态暴露）。
 
 ## 安全底线
 

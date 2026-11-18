@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue)]()
+[![Version](https://img.shields.io/badge/version-3.1.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,12 +48,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v3.0.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v3.1.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v3.0.0
+# → SpecPowers CLI v3.1.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -66,6 +66,19 @@ specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/cod
 ## 升级
 
 已安装旧版本的用户，按安装方式选择升级命令：
+
+### v3.1.0 行为变更须知（读写 token 降耗）
+
+v3.1.0 非破坏性（无需迁移），但认知层读写行为有四处变化，升级后无需任何手动步骤：
+
+| 变化点 | v3.0.x 行为 | v3.1.0 行为 |
+|--------|------------|------------|
+| apply 读取 | 所有执行方式主会话全文读 tasks.md | 按「谁执行」分流：conductor/TDD/worktree 仍全文读；subagent 主会话骨架读取，任务 brief 由 `scripts/task_brief.py` 直出（含从 delta spec 确定性附上的场景原文） |
+| tasks.md 场景引用 | 每任务抄录 Scenario 的 WHEN-THEN 原文 | 只写 Scenario 名列表（顿号分隔）——conductor 有 spec 全文兜底，subagent 由脚本附原文 |
+| proposal 迭代轮 | 全文读 + 覆盖整写 | 骨架两级读取 + Edit 化（字段未变的迭代轮不再重输出数据流契约） |
+| baseline.json | explore/apply 必读全文 | 认知层不再读——越界防护由 gate 确定性比对承担，契约只留纪律声明 |
+
+确定性层输出同步封顶：gate/archive 列表超 20 条截断附计数（明细走落盘 report 句柄）、resume-probe 活跃 >5 截断汇总、status/auto-status/reconcile 紧凑单行 JSON、auto 汇总报告 ≤60 行。
 
 ### v3.0.0 破坏性变更须知（v2.x 用户必读）
 
@@ -136,11 +149,11 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v3.0.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v3.1.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v3.0.0
+# → SpecPowers CLI v3.1.0
 
 # 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（技能清单已更新——v3.0.0 状态机推导化，reset 语义重定义）
 cd my-project
@@ -367,7 +380,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（414 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（432 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---

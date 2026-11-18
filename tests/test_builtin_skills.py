@@ -189,7 +189,8 @@ ITERATION_DESIGN_ROUND_ANCHORS = {
 ITERATION_OVERWRITE_REGRESSION_MARKERS = ["设计文档覆盖", "更新后须重新"]
 
 # v2.11.0 迭代轮 token 收敛：proposal 迭代历史表格化封顶滚动（消 O(N) 增长）+
-# spec/tasks 骨架两级读取 + Edit 化修订（降常数）+ apply 侧不局部化边界声明
+# spec/tasks 骨架两级读取 + Edit 化修订（降常数）+ apply 侧按模式分流边界声明
+# （v3.1.0 精化：apply 侧原「不局部化」改为按「谁执行」分流，见 TOKEN_SLIM_V31_ANCHORS）
 ITERATION_TOKEN_SLIM_ANCHORS = {
     "specpowers/prompts/propose.md": [
         "| 轮次 | 日期 | 输入 | 变化点 |",
@@ -202,12 +203,51 @@ ITERATION_TOKEN_SLIM_ANCHORS = {
         "回退全文读取",
     ],
     "specpowers/prompts/apply.md": [
-        "apply 侧读取不局部化",
+        "按「谁执行」分流",
     ],
     "specpowers/prompts/refs/auto-iteration.md": [
         "propose.md 迭代轮小节为准",
     ],
 }
+
+# v3.1.0 读写 token 降耗：apply 分流读取 + task_brief 脚本直出 + 场景引用瘦身 +
+# proposal 迭代轮骨架 Edit 化 + explore 一次成型/收口 Edit + baseline 退出必读 +
+# archive grep 证据 + 确定性层输出封顶 + auto 汇总封顶
+TOKEN_SLIM_V31_ANCHORS = {
+    "specpowers/prompts/apply.md": [
+        "scripts/task_brief.py",
+        "禁止手工转写",
+        "骨架读取",
+        "baseline.json 不再读取",
+        "编码规范对每个 task 都必带",
+        "conductor/TDD/worktree 主会话亲自执行",
+    ],
+    "specpowers/prompts/propose.md": [
+        "场景引用：<关联 delta spec 的 Scenario 名列表，顿号分隔",
+        "^## |^### 字段：",
+        "禁止抄录 WHEN-THEN 原文",
+    ],
+    "specpowers/prompts/explore.md": [
+        "一次成型",
+        "Edit 增量补正",
+        "baseline.json 不再读取",
+    ],
+    "specpowers/prompts/archive.md": [
+        "不整份读取 constitution.md",
+    ],
+    "specpowers/templates/auto-summary-template.md": [
+        "≤60 行",
+    ],
+    "specpowers/SKILL.md": [
+        "v3.1.0 读写 token 降耗",
+        "task_brief.py",
+    ],
+}
+
+# v3.1.0 防回潮：tasks.md 旧场景引用模板（抄录 WHEN-THEN 原文）与 explore 收口
+# 旧覆盖语义不得回潮（原文抄录 = 任务数 × 场景长度的重复输出）
+SCENARIO_REF_REGRESSION_MARKERS = ["WHEN-THEN 原文摘录"]
+EXPLORE_OVERWRITE_REGRESSION_MARKERS = ["覆盖写入同一文件", "若文件已存在则覆盖更新"]
 
 # v2.11.0 防回潮：proposal 迭代历史旧多行小节模板不得回潮
 # （每轮 5-8 行的 ### Round 小节随轮次线性变长，是迭代轮 token 增长点）
@@ -530,8 +570,8 @@ def test_iteration_no_overwrite_regression():
 def test_iteration_token_slim_anchors():
     """v2.11.0 迭代轮 token 收敛防断链：历史表格封顶 + 骨架两级读取 + Edit 化锚点。
 
-    迭代轮 IO 从「三件套全读全写」收敛为「proposal 全读（历史封顶后规模恒定）+
-    spec/tasks 骨架 + 命中项 Edit」；apply 侧明确不局部化（全量回归是质量边界）。
+    迭代轮 IO 从「三件套全读全写」收敛为「spec/tasks 骨架 + 命中项 Edit」；
+    apply 侧按「谁执行」分流（v3.1.0 精化，原「不局部化」由分流表述取代）。
     锚点缺失意味着模型被引导回全读全写旧行为。
     """
     for rel_path, anchors in ITERATION_TOKEN_SLIM_ANCHORS.items():
@@ -541,6 +581,53 @@ def test_iteration_token_slim_anchors():
                 f"skills/{rel_path} 缺少 v2.11.0 迭代轮 token 收敛锚点「{anchor}」——"
                 "历史表格封顶/骨架两级读取/Edit 化语义断链（v2.11.0 修复回潮）"
             )
+
+
+def test_token_slim_v31_anchors():
+    """v3.1.0 读写 token 降耗防断链：分流读取 + 脚本直出 + 骨架 Edit 化锚点。
+
+    ① apply 按执行模式分流（subagent 骨架读取 + task_brief 脚本直出，
+    conductor/TDD/worktree 保持全文读）；② 场景引用瘦身为 Scenario 名列表；
+    ③ proposal 迭代轮骨架 Edit 化；④ explore 一次成型 + 收口 Edit；
+    ⑤ baseline.json 退出认知层必读；⑥ archive grep 证据；⑦ auto 汇总封顶。
+    锚点缺失意味着对应降耗语义断链，模型回退全读全写旧行为。
+    """
+    for rel_path, anchors in TOKEN_SLIM_V31_ANCHORS.items():
+        content = (SKILLS_ROOT / rel_path).read_text(encoding="utf-8")
+        for anchor in anchors:
+            assert anchor in content, (
+                f"skills/{rel_path} 缺少 v3.1.0 token 降耗锚点「{anchor}」——"
+                "读写降耗语义断链（v3.1.0 修复回潮）"
+            )
+    # task_brief.py 脚本本体必须存在（契约引用的脚本缺失 = 契约缺口）
+    script = SKILLS_ROOT / "specpowers" / "scripts" / "task_brief.py"
+    assert script.is_file(), (
+        "skills/specpowers/scripts/task_brief.py 缺失——apply.md/propose.md 引用的"
+        "brief 切分脚本不存在，subagent 派发退回手工转写（v3.1.0 修复回潮）"
+    )
+
+
+def test_token_slim_v31_regression():
+    """防回潮：旧场景引用模板（抄 WHEN-THEN 原文）与 explore 收口覆盖语义不得回潮。
+
+    原文抄录 = 任务数 × 场景长度的重复输出；收口覆盖重写 = 设计文档双倍输出。
+    """
+    tasks_contract = (SKILLS_ROOT / "specpowers" / "prompts" / "propose.md").read_text(
+        encoding="utf-8"
+    )
+    for marker in SCENARIO_REF_REGRESSION_MARKERS:
+        assert marker not in tasks_contract, (
+            f"prompts/propose.md 残留旧场景引用模板标记「{marker}」——"
+            "场景原文由 task_brief 脚本确定性附上，tasks.md 只存 Scenario 名（v3.1.0）"
+        )
+    explore_contract = (SKILLS_ROOT / "specpowers" / "prompts" / "explore.md").read_text(
+        encoding="utf-8"
+    )
+    for marker in EXPLORE_OVERWRITE_REGRESSION_MARKERS:
+        assert marker not in explore_contract, (
+            f"prompts/explore.md 残留旧覆盖语义标记「{marker}」——"
+            "设计文档一次成型，收口只做 Edit 增量补正（v3.1.0）"
+        )
 
 
 def test_iteration_history_multiline_regression():

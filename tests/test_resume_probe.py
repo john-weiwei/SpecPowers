@@ -128,6 +128,26 @@ def test_probe_foreground_first_among_multi(tmp_path):
     assert "alpha" in msg, f"后台活跃需求仍应列出: {msg}"
 
 
+def test_probe_caps_many_active_with_summary(tmp_path):
+    """v3.1.0 展示封顶：活跃 >5 时前台 + 前 4 + 一行后台汇总（hook 注入控量）。
+
+    probe 行数 ∝ 活跃需求数无理论上限，hook 输出进每会话首条消息；
+    封顶后未展示需求以汇总行列出（带名提示 --feature 指定）。
+    """
+    # 7 个活跃需求：beta 前台（last_touched 最大），其余 last_touched 递增排列
+    slugs = ["f1", "f2", "f3", "f4", "f5", "f6"]
+    for idx, slug in enumerate(slugs):
+        make_change(tmp_path, slug, meta={"last_touched": _T_EARLY})
+    make_change(tmp_path, "beta", meta={"last_touched": _T_LATE})
+    msg = probe_resume(tmp_path)
+    lines = msg.splitlines()
+    # 7 个活跃 → 展示 5 行 + 1 行汇总 = 6 行（未封顶时是 7 行）
+    assert len(lines) == 6, f"应封顶为 5 行展示 + 1 行汇总: {msg}"
+    assert "beta（前台）" in lines[0], f"前台仍应排首行: {msg}"
+    assert "另有 2 个后台活跃需求" in lines[-1], f"汇总行应列出未展示需求: {msg}"
+    assert "--feature" in lines[-1], f"汇总行应提示显式指名: {msg}"
+
+
 def test_probe_survives_legacy_corrupt_state(tmp_path):
     """遗留 state.json 损坏 → 推导不受影响（v3.0 探测零 state 读取，绝不阻断）。"""
     _write_corrupt_legacy_state(tmp_path)

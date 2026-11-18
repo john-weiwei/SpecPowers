@@ -279,7 +279,8 @@ def _cmd_auto_status(args: list[str], root: Path) -> int:
         instruction=opts.get("instruction", ""),
         feature=opts.get("feature", ""),
     )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    # 紧凑单行 JSON（v3.1.0）：输出进 LLM 上下文，去 indent 换行省 token
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 
@@ -387,7 +388,12 @@ def _cmd_reconcile(args: list[str], root: Path) -> int:
     finally:
         release_lock(root)
 
-    print(json.dumps(report, indent=2, ensure_ascii=False))
+    # 紧凑单行 JSON + warnings 封顶（v3.1.0）：warnings ∝ 损坏 meta 数无理论上限，
+    # 超限截断附计数；audit 明细同源已含于 warnings，报告体量可控
+    capped_warnings, warnings_total = _capped_str_list(report["warnings"])
+    print(json.dumps(report, ensure_ascii=False) if warnings_total <= len(capped_warnings)
+          else json.dumps({**report, "warnings": capped_warnings,
+                           "warnings_total": warnings_total}, ensure_ascii=False))
     print(f"对账完成：{len(report['active'])} 个活跃需求"
           f"{'（--feature ' + only + '）' if only else ''}；"
           f"状态唯一权威 = openspec/changes/ 工件推导（state.json 已退役）")
@@ -477,7 +483,8 @@ def _cmd_status(args: list[str], root: Path) -> int:
         }
     result["features"] = features_overview
     result["foreground"] = fg
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    # 紧凑单行 JSON（v3.1.0）：indent 换行只增 token 不增信息，LLM 消费方单行可读
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 
@@ -572,6 +579,24 @@ def _scope_assessment(root: Path, base: str) -> dict | None:
     return evaluate_scope(diff_name_only(root, base), declared)
 
 
+_LIST_OUTPUT_CAP = 20  # stdout 列表输出封顶（v3.1.0）：超限截断附计数，完整明细走落盘报告
+
+
+def _capped_str_list(items: list, cap: int = _LIST_OUTPUT_CAP) -> tuple[list, int]:
+    """字符串列表输出封顶：超限截取前 cap 条。
+
+    返回 (截断后列表, 总条数)；未超限返回原列表与长度（消费方据 total 与
+    长度是否一致判断截断）。输出会进 LLM 上下文，无界列表（越界文件/警告）
+    在大项目上随规模线性膨胀，封顶后明细由落盘报告承载。
+
+    作者：005819 | 协作：GLM
+    """
+    total = len(items)
+    if total <= cap:
+        return items, total
+    return list(items[:cap]), total
+
+
 def _cmd_gate(args: list[str], root: Path) -> int:
     """Handle internal gate command."""
     base = "HEAD~1"
@@ -609,11 +634,28 @@ def _cmd_gate(args: list[str], root: Path) -> int:
         reports_dir = root / ".specpowers" / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         report_path = reports_dir / f"gate-{datetime.now():%Y%m%d-%H%M%S}.json"
+        # 落盘完整明细（人机按 report 句柄回查），stdout 只出封顶版
         report_path.write_text(
             json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8",
         )
         result["report"] = report_path.relative_to(root).as_posix()
-    print(json.dumps(result))
+    # stdout 输出封顶（v3.1.0）：信号/越界列表超 20 条截断 + total 计数，
+    # 截断标记由 total 与列表长度差表达，明细指向 report 句柄
+    capped = dict(result)
+    capped_signals, signals_total = _capped_str_list(result.get("signals", []))
+    if signals_total > len(capped_signals):
+        capped["signals"] = capped_signals
+        capped["signals_total"] = signals_total
+    scope = result.get("scope")
+    if scope:
+        capped_scope = dict(scope)
+        for key in ("out_of_scope", "declared"):
+            items, total = _capped_str_list(scope.get(key, []))
+            if total > len(items):
+                capped_scope[key] = items
+                capped_scope[f"{key}_total"] = total
+        capped["scope"] = capped_scope
+    print(json.dumps(capped))
     return 0
 
 

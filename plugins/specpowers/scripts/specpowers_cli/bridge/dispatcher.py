@@ -901,12 +901,16 @@ def _handle_archive(root: Path, extra: dict) -> int:
     from specpowers_cli.bridge.modules.archive_auditor import scenario_coverage
     coverage = scenario_coverage(root, feature)
     if coverage["status"] == "partial":
+        # 未覆盖列表封顶（v3.1.0）：∝ 未覆盖场景数无理论上限，超 20 条截断附计数
+        uncovered = coverage["uncovered"]
         print(
             f"⚠ 场景覆盖核查：{coverage['covered']}/{coverage['total']} 个 spec 场景被任务引用。"
             "未覆盖场景（建议回 /specpowers-propose 补任务，或确认场景已作废）："
         )
-        for name in coverage["uncovered"]:
+        for name in uncovered[:20]:
             print(f"  - {name}")
+        if len(uncovered) > 20:
+            print(f"  - …共 {len(uncovered)} 个未覆盖场景，仅列前 20 个（可回 /specpowers-propose 补齐任务后复查）")
     elif coverage["status"] == "no_tasks":
         print("⚠ tasks.md 缺失，场景覆盖核查跳过（正常产物不应出现，请检查 change 目录）。")
 

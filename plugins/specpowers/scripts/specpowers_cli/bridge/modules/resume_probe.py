@@ -49,6 +49,10 @@ ACTIVE_STAGES = ("explore", "propose", "apply", "fast")
 # sticky_note 多需求展示上限：≤3 全列；>3 时前台 + 后台一行汇总（控 token）
 STICKY_MAX_LINES = 3
 
+# probe_resume 多需求展示上限（v3.1.0）：行数 ∝ 活跃需求数无理论上限，
+# >5 时前台 + 前 4 + 一行后台汇总（hook 输出进每会话首条消息，必须控量）
+PROBE_MAX_LINES = 5
+
 
 def active_changes(root: Path) -> list[str]:
     """活跃 change 目录名（v3.0 起即 active_slugs 的别名，保持旧调用方兼容）。"""
@@ -67,7 +71,9 @@ def probe_resume(root: Path) -> str:
     lines: list[str] = []
     # 前台永远排第一行（与 sticky_note 同序：模型对未指名语境的默认归属参考）
     ordered = [fg] + [slug for slug in features if slug != fg] if fg else features
-    for slug in ordered:
+    # 展示封顶（v3.1.0）：>PROBE_MAX_LINES 时截断 + 一行后台汇总（控 hook 注入量）
+    shown = ordered[:PROBE_MAX_LINES]
+    for slug in shown:
         change_dir = change_dir_of(root, slug)
         stage = derive_stage(change_dir)
         meta = read_meta(change_dir) or {}
@@ -96,6 +102,12 @@ def probe_resume(root: Path) -> str:
                 f"当前阶段 {stage}。续跑：{STAGE_NEXT[stage]}"
             )
 
+    rest = ordered[PROBE_MAX_LINES:]
+    if rest:
+        lines.append(
+            f"另有 {len(rest)} 个后台活跃需求：{'、'.join(rest)}——"
+            "续跑时命令带 --feature 指定目标"
+        )
     return "\n".join(lines) if lines else ""
 
 

@@ -187,6 +187,35 @@ def test_gate_scope_out_of_scope(tmp_path, capsys):
     assert out["scope"]["declared"] == ["README.md"]
 
 
+def test_gate_caps_long_lists_with_total(tmp_path, capsys):
+    """v3.1.0 输出封顶：越界文件超 20 条时 stdout 截断附 total（完整明细落盘 report）。
+
+    无界列表（∝ 越界文件数）在大项目上随规模线性膨胀进 LLM 上下文；
+    stdout 封顶后明细由 report 句柄承载（转人工时人机按路径回查）。
+    """
+    import json
+
+    from tests._gitrepo import commit_all
+
+    root = _create_temp_git_repo(tmp_path)
+    _seed_tasks_with_scope(root, "demo", "README.md")
+    for i in range(25):
+        (root / f"placeholder_{i}.md").write_text("out of scope change", encoding="utf-8")
+    commit_all(root, "apply change")
+
+    rc = main(["gate", "--root", str(root), "--base", "HEAD~1"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    # stdout 截断：前 20 条 + total 计数；status 判定不受截断影响
+    assert len(out["scope"]["out_of_scope"]) == 20
+    assert out["scope"]["out_of_scope_total"] == 25
+    assert out["scope"]["status"] == "out_of_scope"
+    assert "report" in out
+    # 落盘 report 为完整明细（人机按句柄回查）
+    report = json.loads((root / out["report"]).read_text(encoding="utf-8"))
+    assert len(report["scope"]["out_of_scope"]) == 25
+
+
 def test_gate_scope_pass(tmp_path, capsys):
     """改动全部落在声明范围内 → scope=pass。"""
     import json

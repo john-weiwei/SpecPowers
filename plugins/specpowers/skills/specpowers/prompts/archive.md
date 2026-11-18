@@ -22,8 +22,8 @@ Dispatcher 自动校验：
 
 ### 职责一：constitution 原则证据核查
 
-轻量检查（只查证据是否存在，不做深度审计）：
-- `.specpowers/constitution.md` 中的质量/测试/UX/性能原则是否在本次变更中有对应证据
+轻量检查（只查证据是否存在，不做深度审计；v3.1.0 起不整份读取 constitution.md）：
+- Grep `.specpowers/constitution.md` 的原则段标题（`^### `，如质量/测试/UX/性能）拿到原则清单，逐项在本次变更中核对对应证据（测试文件、日志规范落地等）——只需段标题与关键条目，无需读全文
 - 缺证据 → 提示但不阻断
 
 ### 职责二：收尾产物
@@ -81,8 +81,7 @@ dispatcher 执行：
 ### 第三步：合体后校验（如需）
 
 dispatcher 已提示是否触发 merge check，agent 如需额外校验：
-- 比对当前结构与 baseline.json
-- 检查无未预期的结构变更
+- 以 apply 阶段 gate 门禁结论为准（结构信号与修改范围比对已覆盖）；额外核对用 `git diff --stat <last_archive_ref>..HEAD` 看有无未预期的顶层结构变更，不读 baseline.json 全文
 - 有问题 → **转人工**（不打回）
 
 ### 归档产物（最终只保留两样）
