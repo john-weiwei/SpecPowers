@@ -1,0 +1,18 @@
+{
+  "git_ref": "979152a",
+  "scanned_at": "2026-11-17T08:22:48.537876+00:00",
+  "top_dirs": [
+    ".agents",
+    ".claude-plugin",
+    ".codebuddy-plugin",
+    "docs",
+    "plugins",
+    "scripts",
+    "tests"
+  ],
+  "deps": {
+    "pip_pyproject": "pyproject.toml"
+  },
+  "src_patterns": [],
+  "constitution_hash": "e8ada007649c35c677f0f59a52a88caccf89440af76ea4f9f11038e2db7f6373"
+}

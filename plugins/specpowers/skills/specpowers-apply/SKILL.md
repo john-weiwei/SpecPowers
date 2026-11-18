@@ -16,7 +16,7 @@ Load the specpowers skill context (`SKILL.md`), then follow the contract `prompt
 
 You will:
 0. **Init check first**: 检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json` 是否存在——任一缺失 = 项目未初始化：告知用户「检测到项目未初始化，先自动执行 specpowers-init」，加载 `prompts/init.md` 完整执行初始化（含提示用户提交两产物），完成后回到本技能第 1 步继续；两文件均存在则直接往下执行
-1. Read context: `.specpowers/constitution.md`, `.specpowers/baseline.json`, `openspec/changes/<feature>/tasks.md` (full mode) or delta spec (fast mode)
+1. Read context: `.specpowers/constitution.md`, `.specpowers/baseline.json`, `openspec/changes/<feature>/tasks.md` (full mode) or `openspec/changes/<feature>/checklist.md` (fast mode)
 2. **Prompt user to choose execution mode** (`tasks.md` comment block recommends, user decides):
    - `conductor` → `executing-plans` (sequential execution, default)
    - `worktree` → `using-git-worktrees` (isolated workspace)
@@ -25,7 +25,7 @@ You will:
    - fast mode: only conductor/TDD available, worktree/subagent disabled
 3. Run structure gate: `git diff` vs `.specpowers/baseline.json` → three-state judgment (pass/escalate/reject)
 4. Invoke chosen superpowers skill to execute all tasks, check off `- [x]` in tasks.md
-5. Verify: full mode checks delta spec Scenario THEN entries (cross-link fields against proposal's 「数据流契约」); fast mode checks delta spec Scenario (3-5)
+5. Verify: full mode checks delta spec Scenario THEN entries (cross-link fields against proposal's 「数据流契约」); fast mode checks `checklist.md` acceptance items (3-5)
 6. Tell user: next step is `/specpowers-archive`
 
 完成后：建议调用技能 specpowers-review（可选独立审查）与 specpowers-archive（用户直接 `/specpowers-archive` 调用，auto 模式下模型直接经 Skill 工具调用）。

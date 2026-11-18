@@ -101,7 +101,7 @@ python -m specpowers_cli.bridge.facade baseline --root .
 
 ## 后续步骤
 
-完成后 stage 跃迁到 `ready`，可执行：
+完成后项目处于就绪态（无活跃需求），可执行：
 - `/specpowers-explore "<需求>"` — 启动特性探索
 - `/specpowers-propose "<需求>"` — 直接进入提案（一站式生成三件套）
 - `/specpowers-fast "<需求>"` — 优化模式

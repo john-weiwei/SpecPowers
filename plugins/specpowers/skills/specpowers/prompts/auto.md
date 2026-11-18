@@ -18,7 +18,7 @@
 > **定位**：元编排模式——与 `/specpowers-fast`（判小跳阶段）对偶，`auto` 全阶段无人值守驱动，**任何轮次默认都不归档**（止于 specpowers-review；归档需 `--archive` 或手动 `/specpowers-archive` 显式收口）。
 > **需求澄清（输入质量门禁）**：第 1 步对设计文档做五维检查，结论是**本轮推进深度上限（ceiling）**——文档能支撑到哪一步就推进到哪一步；支撑不了的深度自然停靠在 explore（细节见 `refs/auto-explore-halt.md`）。
 > **多轮迭代（核心语义）**：**需求身份由归档状态唯一决定，与设计文档解耦**——未归档时无论带什么输入重入，都是**同一需求的新一轮迭代**，调整落在当前 change 目录；**归档即新需求**，迭代轮数不设上限。
-> 本契约不新增流水线阶段、不改状态机语义；specpowers-review 不是 specpowers 阶段，而是 build 与 archive 之间编排的**内置技能**（`skills/specpowers-review/`，随插件分发，无需预装）。
+> 本契约不新增流水线阶段、不改工件推导语义；specpowers-review 不是 specpowers 阶段，而是 build 与 archive 之间编排的**内置技能**（`skills/specpowers-review/`，随插件分发，无需预装）。
 
 ## 无人值守总原则
 
@@ -47,7 +47,7 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 ### 分支 A：`fresh`（全新需求）
 
 1. 校验设计文档：`<设计文档路径>` 必填且文件存在（`design_doc_exists=false` 或未提供 → 参数错误，硬阻断）
-2. 前置校验：依赖就绪（OpenSpec CLI、superpowers）以 SessionStart hook 的检测结果为准（`facade status --root .` 只读 state，不做依赖探测）；specpowers-review 为内置技能随插件分发，无需预装检测（仅当 Skill 调用异常时 → **降级不阻断**，review 改用最小自审 checklist，汇总报告标注「本次为降级审查」）
+2. 前置校验：依赖就绪（OpenSpec CLI、superpowers）以 SessionStart hook 的检测结果为准（`facade status --root .` 只读工件推导，不做依赖探测）；specpowers-review 为内置技能随插件分发，无需预装检测（仅当 Skill 调用异常时 → **降级不阻断**，review 改用最小自审 checklist，汇总报告标注「本次为降级审查」）
 3. **基点记录**：当前 HEAD 写入 `.specpowers/auto_base/<feature>.json` 的 `base_commit`（v2.8.0 起按需求 slug 隔离；跨轮不变，见 `refs/auto-review.md`）
 4. 解析八要素（见下节）随基点一并落盘 `parsed` 字段；`rounds` 初始化为空数组（rounds 只记录后续每次迭代轮的开启动作，fresh 首轮不单独记录）
 5. **需求澄清**（见「需求澄清（第 1 步）」小节）：五维检查 → 推进深度上限 ceiling → `facade auto clarify` 登记；功能名 null → 参数错误硬阻断
@@ -57,13 +57,13 @@ python -m specpowers_cli.bridge.facade auto-status [--design-doc <路径>] [--in
 
 1. 读该需求的 `.specpowers/auto_base/<feature>.json`（基点 + 八要素 + clarification；v2.8.0 起按 slug 隔离）——不重复解析
 2. **停靠保护**：`auto-status` 输出 `clarification.pending_input=true`（上一轮 ceiling=explore 且本次无新输入）→ **不得**从断点盲目续跑 propose；按 `refs/auto-explore-halt.md` 停靠输出四要素提示用户：带 `--instruction "<方案结论>"` 或补充设计文档重入（重入即判 iterate 收敛草案）；决定放弃需求走 `/specpowers-maintain reset`
-3. 读 `state.json` 当前 stage + 各阶段产物存在性（constitution.md → 设计文档 → proposal.md → spec.md → tasks.md → apply 产物）定位断点
+3. 读当前阶段状态 + 各阶段产物存在性定位断点（v3.0 起阶段由工件推导——`facade status` 全推导输出；推导疑虑/旧项目接管用 `facade reconcile` 输出推导核对报告并兜底旧 state 迁移；产物链：constitution.md → 设计文档 → proposal.md → spec.md → tasks.md → apply 产物）
 4. 从断点阶段继续，**已完成阶段不重做**；澄清凭 `clarification` 字段**不重做**（字段缺失：旧格式 auto_base.json / 人工流程接管 → 补做全量澄清并登记后继续）
 5. 默认**不归档**，跑完本轮止于 specpowers-review；若用户显式 `--archive` → 跑完后走 `refs/auto-review.md`「归档收口」
 
 ### 分支 C：`iterate`（同需求新迭代轮）
 
-按 `refs/auto-iteration.md` 执行四步：受控轮次切换（`facade auto new-round`：stage → propose、feature 锁定不变、`iteration_count += 1`）→ 迭代增量澄清 → 迭代深度判定（full/light，有疑义保守取全量）→ 按深度执行阶段（propose 增量修订三件套 → apply 只执行未完成任务 → review 累计审查）。轻量路径硬底线：再小的调整也必须修订 spec.md 并过 specpowers-review。
+按 `refs/auto-iteration.md` 执行四步：受控轮次切换（`facade auto new-round`：v3.0 起落 auto_base.rounds 本轮记录——轮次本身由工件推导（design-round-N / tasks Round 小节）、feature 锁定不变）→ 迭代增量澄清 → 迭代深度判定（full/light，有疑义保守取全量）→ 按深度执行阶段（propose 增量修订三件套 → apply 只执行未完成任务 → review 累计审查）。轻量路径硬底线：再小的调整也必须修订 spec.md 并过 specpowers-review。
 
 ## 八要素文档解析清单
 
@@ -142,7 +142,7 @@ python -m specpowers_cli.bridge.facade auto clarify --ceiling <full|explore> --r
 |----|------|----------------|
 | 0 | 前置校验 + HEAD 基点 + 八要素解析落盘 | — |
 | 1 | **需求澄清**：五维检查 → 深度上限 ceiling → `facade auto clarify` 登记 + 澄清报告落盘 | 见「需求澄清（第 1 步）」小节；ceiling=`full` 直通后续，ceiling=`explore` 推进到第 3 步后停靠（读 `refs/auto-explore-halt.md`）；功能名 null → 参数错误硬阻断 |
-| 2 | `/specpowers-init` | **幂等执行**（无论是否已存在都执行，确保状态机推进到 ready）；原则内容从仓库 AGENTS.md 提取编码约束自动填充，不等待用户输入 |
+| 2 | `/specpowers-init` | **幂等执行**（无论是否已存在都执行，确保项目处于就绪态——无活跃需求且 baseline 已在时确定性层自动跳过）；原则内容从仓库 AGENTS.md 提取编码约束自动填充，不等待用户输入 |
 | 3 | `/specpowers-explore "<基于 <设计文档> 实现 <功能名>（<方案名>）>" --feature <功能名slug>` | 经 explore 契约（含探索引擎细则，v2.4.0 起内联）执行；技术方案已在文档定稿 → **跳过方案取舍确认**，探索仅用于核对八要素「核心调用链」的现有代码事实；文档已定全流程 → 拒绝判小。**ceiling=`explore` 时**：探索照常，设计文档按未收敛语义落盘（细节读 `refs/auto-explore-halt.md`），**产出草案后停靠**，不进入第 4 步 |
 | 4 | `/specpowers-propose "<基于设计文档生成 <功能名> OpenSpec 提案>" --feature <功能名slug>` | **一站式生成三件套**（proposal.md + spec.md + tasks.md）：场景清单直接取自八要素「必测场景清单」，逐条覆盖，缺一不可；清单缺失（澄清遗留）→ 按已定方案推导场景，标注「推导所得，需人工确认」；任务拆分严格对照八要素「修改范围表」（缺失时按澄清遗留标注「范围以 propose 结论为准」自行拆分），每个任务标注涉及文件路径与验收要点；八要素「修改范围表」同步写为 tasks.md 顶部注释块「修改范围：」声明行（apply 门禁越界比对依据）；数据流契约从设计文档数据流章节逐字段承接 |
 | 5 | `/specpowers-apply` | 执行方式按 tasks.md 顶部推荐自行确认（默认 conductor 顺序执行）；实时门禁三态（含 scope 修改范围比对，越界按裁决规则表处理）与 TDD 照常遵守；「转人工」信号按裁决规则表处理 |
@@ -154,7 +154,7 @@ python -m specpowers_cli.bridge.facade auto clarify --ceiling <full|explore> --r
 | 类型 | 示例 |
 |------|------|
 | 外部强依赖不可用且无降级 | OpenSpec CLI 缺失导致 archive 拒绝执行且无法安装；编译环境不可用 |
-| 状态机不一致无法自愈 | facade 报非法 stage 跃迁且 reset 也无法恢复 |
+| 工件推导不一致无法自愈 | facade 工件形态判定持续拒绝（推导出的阶段与产物链矛盾）且 reset 也无法恢复 |
 | 参数错误 | fresh 模式设计文档路径不存在或未提供；**功能名 null**（澄清维度 1 判出文档无法解析出标题级功能描述，即不是合格设计文档输入） |
 
 > 文档内容缺陷（方案未定 / 关键矛盾不可判 / 边界冲突不可裁 / 场景大面积不可测）**不属于硬阻断**——按「需求澄清」深度上限停靠在 explore，产出未收敛草案等待输入（「等待输入」不是「异常」，前序产物全部有效）。

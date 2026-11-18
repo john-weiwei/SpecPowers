@@ -4,28 +4,27 @@
 
 当用户调用 `/specpowers-explore "<需求>"` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = 各 change 目录 `.specpowers-meta.json` 中 last_touched 最大者，目录推导；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
-## 定位（v2.0.0 调整）
+## 定位（v2.0.0 调整；v3.0 收口建目录）
 
-本阶段**只探索，不写流水线产物**：产物 = 探索设计文档（`docs/specpowers/design/`，由第一步内联的探索引擎细则落盘，含数据流结论），并经确定性层登记（`facade record-design-doc`）。`openspec/changes/` 目录在本阶段**不创建**——proposal.md / spec.md / tasks.md 三件套统一由下一阶段 `/specpowers-propose` 一站式生成。
+本阶段**只探索，不写流水线三件套**：产物 = 探索设计文档（`docs/specpowers/design/`，由第一步内联的探索引擎细则落盘，含数据流结论），并在收口时经确定性层登记（`facade record-design-doc`）。proposal.md / spec.md / tasks.md 三件套统一由下一阶段 `/specpowers-propose` 一站式生成。v3.0 起**登记即建目录**：`openspec/changes/<feature>/` change 目录与自包含登记 `.specpowers-meta.json`（design_doc / created_at / last_touched）随登记建立，需求自此进入活跃清单（工件推导）——explore 阶段收口后的目录推导阶段即 `explore`（仅 meta 登记态）；change 目录自包含（三件套仍归 propose，本阶段不生成）。
 
 ## 重入识别（人工模式迭代轮入口）
 
-执行前置校验**之前**，先读 `.specpowers/state.json` 判断本次调用是否为迭代重入：
+执行前置校验**之前**，先按工件推导判断本次调用是否为迭代重入（v3.0 起无 state 可读，目录即状态）：
 
-- **触发条件**：`stage` ∈ {`propose`, `apply`} 且 `feature` 非空（活跃未归档）。此时 `facade explore` 的常规入口（仅允许 from `ready`）不可用，重跑探索的唯一合理意图是：**同一个未归档需求的方案发生变更**，需要开新迭代轮更新探索结论与设计文档。
-- **交互确认**（必须，禁止静默切换轮次）：
+- **判定方法**：目标 slug 的 `openspec/changes/<slug>/` change 目录已存在（活跃未归档，目录推导 ∈ propose/apply）→ 本次重入**自动识别为迭代轮**，无需任何命令确认开轮。此时 `facade explore` 的常规入口（仅对新需求执行，slug 命中活跃清单会被确定性层拒绝）不适用，重跑探索的唯一合理意图是：**同一个未归档需求的方案发生变更**，需要开新迭代轮更新探索结论与设计文档。
+- **意图歧义确认**（仅在用户重入描述像新需求时——例如全新能力目标、与既有需求修改范围无语义重叠；描述明确指向既有需求的调整时直接按迭代轮继续，禁止静默当作新需求）：
 
   ```
-  检测到未归档需求 <feature>（stage=<stage>，当前 Round <iteration_count>）。
-  重跑探索意味着方案可能变更。是否开启 Round <iteration_count+1> 迭代轮并更新探索结论（简易设计文档）？
-  1. 是 —— 调 `facade iterate` 开轮（feature 锁定不变），探索后新落本轮简易设计文档 design-round-<N>.md（不修改基线设计文档）
-  2. 否 —— 取消（若仅是场景/范围调整，无需动方案：直接重入 /specpowers-propose 即可）
+  检测到未归档需求 <feature>（当前 Round <N>，工件推导）。本次重入意图是？
+  1. 同需求迭代轮（方案变更）——探索后新落本轮简易设计文档 design-round-<N+1>.md（不修改基线设计文档）
+  2. 另开新需求——调整需求描述或显式 --feature <其他slug>
+     （若仅是场景/范围调整，无需动方案：直接重入 /specpowers-propose 即可）
   ```
-- **确认开启**：调 `facade iterate [--instruction "<调整描述>"] --root .`（stage → `propose`、feature 锁定、`iteration_count += 1`），然后按下方「迭代轮」小节执行探索并新落简易设计文档；完成后提示用户 `/specpowers-propose` 做三件套增量修订
-- **选择取消**：不改任何状态，向用户说明可选步骤后结束
-- **未触发**（stage=`ready`）：正常流程——全新需求探索（未初始化时由薄入口第 0 步自动补跑 specpowers-init 后继续，见下方「前置校验」）
+- **迭代轮执行**：轮次由工件推导（design-round-N.md 与 tasks「## Round N」小节），本轮 N = 推导值 + 1；直接按下方「迭代轮」小节执行探索并新落简易设计文档（feature 锁定不变，change 目录不迁移）；完成后提示用户 `/specpowers-propose` 做三件套增量修订（propose 重入即由目录推导识别为迭代轮，无需开轮命令）
+- **非重入**（change 目录不存在 = 全新需求或探索进行中）：正常流程——全新需求探索（未初始化时由薄入口第 0 步自动补跑 specpowers-init 后继续，见下方「前置校验」）
 
 ## 前置校验
 
@@ -33,8 +32,8 @@
 python -m specpowers_cli.bridge.facade explore "<需求>" --root .
 ```
 
-- 确认 stage 处于 `ready`
-- feature 名已规范化并写入 state.json
+- 确认目标 slug 不在活跃清单（change 目录不存在 = 新需求；slug 命中活跃清单会被确定性层拒绝——那是迭代重入，走上方「重入识别」）
+- feature 名已规范化（登记时落 change 目录 `.specpowers-meta.json`）
 - constitution.md / baseline.json 存在性由确定性层在命令入口统一兜底：未初始化时 `facade explore` 直接拒绝并给出 init 指引（正常路径已由薄入口第 0 步先行自动补初始化，此处仅兜底）
 
 ## 执行步骤
@@ -44,7 +43,7 @@ python -m specpowers_cli.bridge.facade explore "<需求>" --root .
 <HARD-GATE>
 本阶段**必须完整执行下方「探索引擎细则」**（v2.4.0 起内联于本契约第一步，取代原独立技能形态，随插件分发无需外部依赖）完成需求探索，然后才允许收口。禁止跳过探索直接读静态文件收口。
 
-探索引擎细则的「静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`）→ 结构化探索结论交付」流程必须真实执行——这是下游 propose 阶段的硬依赖。propose 从 explore 进入时会被确定性层校验设计文档是否登记（state.design_doc 非空且文件存在），未登记会被拒收并打回 explore；proposal 的「数据流契约」质量也由设计文档的数据流结论决定（apply 入口确定性层校验段头）。
+探索引擎细则的「静默项目探索 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（`docs/specpowers/design/`）→ 结构化探索结论交付」流程必须真实执行——这是下游 propose 阶段的硬依赖。propose 从 explore 进入时确定性层校验设计文档登记（change 目录 meta 的 design_doc 已登记则校验文件存在，登记缺失视为跳过探索路径放行——防探索架空由本契约 HARD-GATE 与登记纪律承担）；proposal 的「数据流契约」质量也由设计文档的数据流结论决定（apply 入口确定性层校验段头）。
 
 **分层局限说明**：确定性层的校验只查「设计文档已登记」与「数据流契约**段头存在性**」（形式合规），无法判定探索是否**实质发生**（内容质量）。要绕过校验只需落一份空文档——因此本机制兜的是「最低底线」（连文档都没有 = 肯定没好好探索），**探索的实质质量依赖**：① 本 HARD-GATE 措辞引导真探索（认知层）；② 用户人工 review 设计文档与 proposal 内容（人工层）。三层防御，确定性层不是万能的。
 </HARD-GATE>
@@ -297,7 +296,8 @@ python -m specpowers_cli.bridge.facade record-design-doc <设计文档路径> --
 ```
 
 - 登记失败（文件不存在）会非 0 退出，须修正后重试
-- 未登记的设计文档在 propose 阶段不被承认（state.design_doc 为空 → propose 拒收并打回 explore）
+- 未登记的设计文档在 propose 阶段不受确定性层拦截（登记为空 = 无法区分探索路径与跳过探索路径，放行）；已登记但文件被移动/删除则拒收——**登记纪律（落盘即登记）是防探索架空的认知层底线**
+- v3.0 自包含登记：登记即建 change 目录并落 `openspec/changes/<feature>/.specpowers-meta.json`（确定性层自动，认知层无感）——design_doc / created_at / last_touched 全部落 meta，meta 是唯一登记处（无 state 副本）
 
 #### 未收敛 / 否决处理
 
@@ -332,10 +332,10 @@ python -m specpowers_cli.bridge.facade record-design-doc <设计文档路径> --
 
 ## 迭代轮：简易设计文档（不改基线，多轮迭代 auto 与人工模式通用）
 
-当本轮是迭代轮且**方案相对上一轮发生变更**时（人工模式由 `/specpowers-explore`、`/specpowers-propose` 重入识别与用户确认，见「重入识别」小节；auto 模式由 auto 契约按「已定方案」判定）：
+当本轮是迭代轮且**方案相对上一轮发生变更**时（人工模式由 `/specpowers-explore`、`/specpowers-propose` 重入识别——目录推导自动识别为迭代轮，见「重入识别」小节；auto 模式由 auto 契约按「已定方案」判定）：
 
-- **基线设计文档冻结不动**：`docs/specpowers/design/` 下的首轮文档只读，`state.design_doc` 永远指向它——propose 前置校验天然满足，**迭代轮不再重新 `facade record-design-doc`**（v2.7.0 起取代旧的「覆盖更新 + 追加迭代历史 + 重新登记」，消除每轮重读重写整份基线的 token 大头）
-- **新落本轮简易设计文档**到 `openspec/changes/<feature>/design-round-<N>.md`（N = 本轮 `iteration_count`，路径确定性推导），**只写增量**，固定四节、无 TBD/TODO：
+- **基线设计文档冻结不动**：`docs/specpowers/design/` 下的首轮文档只读，change 目录 meta 的 `design_doc` 永远指向它——propose 前置校验天然满足，**迭代轮不再重新 `facade record-design-doc`**（v2.7.0 起取代旧的「覆盖更新 + 追加迭代历史 + 重新登记」，消除每轮重读重写整份基线的 token 大头）
+- **新落本轮简易设计文档**到 `openspec/changes/<feature>/design-round-<N>.md`（N = 本轮轮次，即工件推导值 + 1，路径确定性推导），**只写增量**，固定四节、无 TBD/TODO：
 
 ```markdown
 # Round <N> 简易设计文档（<feature>）
@@ -357,10 +357,10 @@ python -m specpowers_cli.bridge.facade record-design-doc <设计文档路径> --
 - <本轮新增/移除的目录与文件前缀（与 tasks.md「修改范围：」声明取并集的方向一致）>
 ```
 
-- **feature 锁定**：迭代轮 feature 已由确定性层锁定（`state.json` 的 feature 字段，重入确认后的 `facade iterate` 或 `auto new-round` 轮次切换时均不改动），change 目录不迁移（`openspec/changes/<锁定slug>/` 由 propose 维护，design-round 文档与其同处、归档时随 change 整体进 archive/，设计演进链完整保留）
-- **调用方式**：迭代轮落盘简易设计文档是**认知任务直接落盘**，不调 `facade explore`（其语义是"从 ready 开新特性"，与迭代轮 stage=propose 冲突）；stage 保持 propose
+- **feature 锁定**：迭代轮 feature 锁定不变——change 目录即需求身份（`openspec/changes/<锁定slug>/` 不迁移；auto 模式经 `auto new-round` 轮次切换、人工模式经重入目录推导识别，均不改动目录），design-round 文档与三件套同处、归档时随 change 整体进 archive/，设计演进链完整保留
+- **调用方式**：迭代轮落盘简易设计文档是**认知任务直接落盘**，不调 `facade explore`（其语义是「只对新需求执行」，slug 命中活跃清单会被确定性层拒绝）；落 design-round 文档不改变三件套形态，工件推导阶段保持不变
 - 首轮（非迭代轮）行为不变：按上方执行步骤全新生成基线设计文档
 
 ## 后续步骤
 
-完成后 stage 跃迁到 `explore`，下一步：`/specpowers-propose "<需求>"`。
+完成后 change 目录推导阶段为 `explore`（仅 meta 自包含登记态），下一步：`/specpowers-propose "<需求>"`。

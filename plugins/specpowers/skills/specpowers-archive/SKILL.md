@@ -22,12 +22,12 @@ Load the specpowers skill context (`SKILL.md`), then follow the contract `prompt
 2. **Finalize artifacts**: mark `openspec/changes/<feature>/tasks.md` tasks complete.
 3. **Post-merge verification**: auto-detect multi-branch merges (merge commits or multi-author) → run structure consistency check. `--force-merge-check` forces this for rebase/squash workflows.
 
-**Full 与 Fast 模式统一**：dispatcher 调用 `openspec archive <feature> --yes --json` 归档（合并主规格 `openspec/specs/<capability>/spec.md` + change 快照 `openspec/changes/archive/YYYY-MM-DD-<feature>/`；fast 模式下 capability = feature）。强依赖 openspec CLI，CLI 不可用时拒绝归档（不降级）。full 与 fast 的唯一区别：fast 无 proposal.md（OpenSpec archive 对 proposal 内容是 informative only，不阻塞）。
+**Full 与 Fast 模式统一**：dispatcher 调用 `openspec archive <feature> --yes --json` 归档（full：合并主规格 `openspec/specs/<capability>/spec.md` + change 快照 `openspec/changes/archive/YYYY-MM-DD-<feature>/`；fast 自包含：验收清单在 `checklist.md`，主规格合并为「无 delta 需合并」，快照同样移入 archive/）。强依赖 openspec CLI，CLI 不可用时拒绝归档（不降级）。full 与 fast 的唯一区别：fast 无 proposal.md 与 specs/ delta（OpenSpec archive 对 proposal 内容是 informative only，不阻塞）。
 
-After archive (v2.8.0 per-feature): the feature is removed from the features map (its auto_base/iteration_count end with it); other active features are untouched and the foreground switches automatically. Ready for the next feature when none remain.
+After archive (v3.0 artifact-derived, per-feature): the change directory moves into the archive snapshot, so the feature instantly leaves the active list (no state deletion needed); its auto_base shard is cleaned and its iteration rounds end with the archived directory. Other active features are untouched and the foreground switches automatically (remaining meta last_touched max). Ready for the next feature when none remain.
 
-**Do NOT commit code**: archive only finalizes (openspec archive + state transition), never runs `git add` / `git commit` — committing is left to the user.
+**Do NOT commit code**: archive only finalizes (openspec archive + change dir moved to archive snapshot + runtime.json refresh), never runs `git add` / `git commit` — committing is left to the user.
 
-完成后：stage 回到 `ready`；建议用户提交代码，下一个需求可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto（按需求形态四选一）。
+完成后：该需求已从活跃清单消失（无剩余活跃需求时项目回到无活跃空转态）；建议用户提交代码，下一个需求可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto（按需求形态四选一）。
 
 会话粘滞（v2.7.0；v2.8.0 多活跃）：归档仅解除**该需求**的粘滞——若仍有其他活跃需求，锚点保留、后续消息继续按各需求锚点判定（判定规则见主技能 SKILL.md「会话粘滞」小节）。多活跃时归档命令必须显式 `--feature <slug>`。

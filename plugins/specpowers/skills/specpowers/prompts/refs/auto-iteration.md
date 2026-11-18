@@ -8,7 +8,7 @@
 python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [--instruction "<描述>"] --root .
 ```
 
-确定性层完成：校验未归档 → `stage` 置回 `propose`、**feature 锁定不变**、`iteration_count += 1`、`execution_mode` 清空；`auto_base.json` 追加本轮 `rounds` 记录（旧格式无 `rounds` 字段时自动按 round 1 迁移）。
+确定性层完成：校验未归档 → **feature 锁定不变**、`execution_mode` 清空、`auto_base.json` 追加本轮 `rounds` 记录（旧格式无 `rounds` 字段时自动按 round 1 迁移）。v3.0 起本命令无 state 写点——轮次与阶段由工件推导（design-round-N.md / tasks「## Round N」小节 / 目录形态），本命令只落本轮记录供 auto 断点与三分判定消费。
 
 **feature slug 首轮锁定，归档前不变**：后续 explore/propose 一律携带 `--feature <锁定slug>` 调用，保证同一需求永远落同一 change 目录。功能名变更只记录裁决、不改 change 目录名（汇总报告「遗留风险」注明）。
 
@@ -38,11 +38,11 @@ python -m specpowers_cli.bridge.facade auto new-round [--design-doc <路径>] [-
 
 各阶段调用方式与人工模式完全一致（先调 facade 确定性层，再按对应 `prompts/<stage>.md` 契约执行认知任务），各阶段**迭代轮语义**以对应契约文件的「迭代轮」小节为准（该语义为 auto 与人工模式通用）：
 
-- explore：方案变了才重跑，**新落简易设计文档 `openspec/changes/<feature>/design-round-<N>.md`**（基线设计文档冻结不动、`state.design_doc` 仍指向基线，**不重新 `facade record-design-doc`**——propose 前置校验天然满足；模板与四节结构见 explore.md 迭代轮小节）。**注意**：这是认知任务直接落盘，**不调 `facade explore`**（其 from_stage 仅 ready，与迭代轮 stage=propose 冲突；stage 保持 propose 即可）
+- explore：方案变了才重跑，**新落简易设计文档 `openspec/changes/<feature>/design-round-<N>.md`**（基线设计文档冻结不动、meta 的 `design_doc` 仍指向基线，**不重新 `facade record-design-doc`**——propose 前置校验天然满足；模板与四节结构见 explore.md 迭代轮小节）。**注意**：这是认知任务直接落盘，**不调 `facade explore`**（其语义是「只对新需求执行」，slug 命中活跃清单会被确定性层拒绝）；落 design-round 文档不改变三件套形态，目录推导阶段保持不变
 - propose：proposal/spec/tasks 三件套**增量修订**（proposal 迭代历史表格化追加 + spec 骨架两级读取 Edit 化修订 + tasks 分轮演进 Round N 小节 + 作废留痕；读取与修订方式以 propose.md 迭代轮小节为准）
 - apply：只执行未勾选且未作废的任务
 - specpowers-review：范围 = 首轮基点 → 当前（累计审查，编排细则读 `refs/auto-review.md`）
 
 迭代轮**默认不归档**，跑完止于 specpowers-review；`--archive` 显式收口见 `refs/auto-review.md`「归档收口」。
 
-> **人工模式同一语义**：未归档需求要调整时，重入 `/specpowers-propose`（场景/范围调整）或 `/specpowers-explore`（方案变更），经重入识别确认后调同一个 `facade iterate` 完成轮次切换（不要求 auto_base.json）；轮次切换、feature 锁定、各契约迭代轮小节与本文件完全共用。区别仅在人工模式允许与用户交互确认方案是否变更，不适用无人值守裁决规则表。
+> **人工模式同一语义**：未归档需求要调整时，重入 `/specpowers-propose`（场景/范围调整）或 `/specpowers-explore`（方案变更）——重入即由目录推导自动识别为迭代轮，无需开轮命令（不要求 auto_base.json）；feature 锁定、spec 增量修订、tasks 分轮演进、各契约迭代轮小节与本文件完全共用。区别仅在人工模式允许与用户交互确认方案是否变更（且仅在重入意图歧义时向用户确认），不适用无人值守裁决规则表。

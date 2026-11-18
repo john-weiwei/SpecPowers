@@ -8,7 +8,9 @@ v2.0.0 五阶段（init → explore → propose → apply → archive）下，ex
 - tasks     → openspec/changes/<feature>/tasks.md            （propose 产出）
 
 固定路径产物（项目级，不随 feature 变化）：
-- constitution.md / baseline.json / state.json / .lock → .specpowers/
+- constitution.md / baseline.json → .specpowers/
+- v3.0.0 起 state.json 已退役（工件推导，状态唯一权威 = openspec/changes/
+  目录形态），不再作为登记产物（原 state.json 条目删除）
 
 每个 artifact 含：
 - layer: "cognitive" 或 "deterministic"
@@ -75,13 +77,6 @@ MANIFEST: list[Artifact] = [
         "path": ".specpowers/baseline.json",
         "producer": "init",
         "consumers": ["apply", "archive", "baseline"],
-        "required": True,
-    },
-    {
-        "layer": "deterministic",
-        "path": ".specpowers/state.json",
-        "producer": "init",
-        "consumers": ["*"],
         "required": True,
     },
 ]

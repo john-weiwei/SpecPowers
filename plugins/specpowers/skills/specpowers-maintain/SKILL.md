@@ -20,16 +20,16 @@ Load the specpowers skill context (`SKILL.md`) — it lives in the **main skill 
 ### 分支 A：状态重置（reset）
 
 ```bash
-python -m specpowers_cli.bridge.facade reset [--feature <slug>] --root .
+python -m specpowers_cli.bridge.facade reset [--feature <slug>] --force --root .
 ```
 
-v2.8.0 multi-active: `--feature <slug>` abandons only that feature (removed from the features map + its auto_base cleaned); with multiple active features the slug is **required** (the command refuses to clear them all at once); single/zero active features = full clear (legacy behavior). This removes any stale lock file. The fallback count is preserved (cannot reset your way around the 1-fallback limit).
+v3.0 destructive semantics: reset **deletes** the target feature's whole change directory (`openspec/changes/<slug>/` — proposal/specs/tasks, design-round chain, meta registration) and its auto_base shard (`.specpowers/auto_base/<slug>.json`). Abandoning means deleting artifacts — keep them by archiving (`/specpowers-archive`) instead. Non-CI runs **require `--force`** as the delete-confirmation flag (the command refuses and repeats this prompt without it). v2.8.0 multi-active: `--feature <slug>` abandons only that feature; with multiple active features the slug is **required** (the command refuses to clear them all at once — confirm one by one to abandon all); single active feature without `--feature` = clear all its artifacts (still needs `--force` outside CI). This also removes any stale lock file. Project-level `.specpowers/runtime.json` fields (`fallback_count` / `last_archive_ref`) are preserved (cannot reset your way around the 1-fallback limit).
 
 Use cases: pipeline stuck mid-stage, lock file left after crash, want to abandon one of several active features (or the only one) and start fresh; archive duplicate error (remote already archived) → `git pull` then reset to sync.
 
-Note: baseline.json is NOT affected.
+Note: baseline.json is NOT affected, and other active features' change directories are untouched.
 
-完成后：stage 回到 `ready`；可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto 开启新需求。
+完成后：目标需求的 change 目录与 auto 基线已删除，其余活跃需求与 baseline 不受影响；可调用技能 specpowers-explore / specpowers-propose / specpowers-fast / specpowers-auto 开启新需求。
 
 ### 分支 B：基线刷新（baseline）
 

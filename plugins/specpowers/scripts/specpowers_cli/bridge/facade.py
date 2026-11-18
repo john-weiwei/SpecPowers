@@ -19,14 +19,14 @@ Subcommands (user-facing, called by skill slash commands):
     archive [--force-merge-check] [--feature <slug>]
                                  Finalize and archive
     baseline                     Manual baseline refresh
-    reset [--feature <slug>]     Reset state (per-feature abandon, or full clear)
-    switch <slug>                Switch foreground feature (multi-active, v2.8.0)
+    reset [--feature <slug>] [--force]
+                                 Abandon a feature（v3.0 删 change 目录 + auto_base 分片，--force 确认）
+    switch <slug>                Switch foreground feature（touch meta last_touched）
 
-v2.8.0 multi-active features:
-- 活跃需求集合存 state.json 的 features 映射，前台 = last_touched 最大者（推导式）
-- 单活跃需求：命令缺省作用于前台，体验与旧版完全一致
-- 多活跃 + 推进/破坏性命令（apply/archive/reset/iterate/auto 系列/record-*）
-  未指名 → 拒绝并列出活跃需求，须带 --feature 重试（防错需求）
+v2.8.0 multi-active features（v3.0 起活跃权威 = openspec/changes/ 目录推导）:
+- 单活跃需求：命令缺省作用于前台（meta last_touched 最大者），体验与旧版完全一致
+- 多活跃 + 推进/破坏性命令（apply/archive/reset/auto 系列/record-*）
+  未指名 → 拒绝并列出活跃需求与推导阶段，须带 --feature 重试（防错需求）
 - 多活跃 + 只读命令（status/auto-status/sticky）→ 全部活跃需求输出，无需指名
 - 归档仅终结该需求（features 移除 + auto_base/<slug>.json 清理），
   其余活跃不受影响，前台自动切到剩余 last_touched 最大者
@@ -36,23 +36,22 @@ Auto iteration subcommands (multi-round iteration, see docs/auto-iteration-plan.
                                  三分判定 fresh/resume/iterate（只读；fresh 时顺带清理归档残留）；
                                  响应携带 clarification 视图（上一轮澄清 ceiling + pending_input 停靠保护）
     auto new-round [--design-doc <path>] [--instruction "<desc>"] [--feature <slug>]
-                                 受控轮次切换：stage → propose、feature 锁定、rounds 落盘（auto 专用）
+                                 auto 迭代轮 rounds 记录（v3.0 起纯 auto_base 落盘，轮次由工件推导）
     auto clarify --ceiling <full|explore> [--report <路径>] [--feature <slug>]
                                  需求澄清结论登记（写/刷新该需求 auto_base 的 clarification 字段，
                                  resume 凭据；见 docs/auto-clarification-plan.md）
-    iterate [--design-doc <path>] [--instruction "<desc>"] [--feature <slug>]
-                                 人工模式迭代轮切换原语（由 /specpowers-propose、/specpowers-explore
-                                 重入识别确认后调用；同 new-round 但不要求 auto_base）
+    reconcile [--feature <slug>] 工件对账报告（v3.0）：活跃清单/阶段/轮次全推导核对 +
+                                 meta 审计警告；不再修复 state（state 已退役）
 
 Internal subcommands (for CI / agent direct use):
     scan [--root <path>]         Run baseline scanner
     gate [--base <ref>]          Extract structure gate signals（v2.3.0 起附 scope 修改范围比对）
-    status                       Print current state（前台平铺 + features 概览，多需求全输出）
+    status                       Print current state（v3.0 全推导：前台平铺 + 活跃需求概览）
     version                      Print version
     record-execution-mode <mode> [--feature <slug>]
                                  Record apply execution mode (conductor|worktree|subagent|tdd)
     record-design-doc <path> [--feature <slug>]
-                                 Register explore design doc path (propose 前置校验凭据)
+                                 Register explore design doc (change 目录 meta，propose 前置凭据)
     resume-probe                 Ambient resume 只读探测（SessionStart hook 消费）：
                                  活跃需求才输出续跑提示，零活跃零噪音，异常降级为空
     sticky-note                  会话粘滞锚点行（UserPromptSubmit hook 消费，v2.7.0）：
@@ -63,6 +62,13 @@ Internal subcommands (for CI / agent direct use):
                                  与 bin 包装脚本的实际路径——任意 agent 工具执行一次
                                  即完成自定位，不依赖宿主特性、不需要 --root
 
+v3.0.0 状态机推导化：
+- state.json 退役：活跃权威 = openspec/changes/ 目录扫描；阶段/轮次/前台全推导
+- 需求级登记（design_doc/mode/execution_mode/last_touched）落 change 目录 meta
+- facade iterate 已删除（重入 propose/explore 由目录推导识别为迭代轮）
+- reset 语义重定义：删除 change 目录 + auto_base 分片（--force 确认）
+- fallback_count/last_archive_ref 迁 .specpowers/runtime.json
+
 > v2.0.0 起旧子命令名（constitution/brainstorm/specify/plan/build）已移除，无别名。
 """
 
@@ -71,6 +77,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
 from specpowers_cli import __version__
 
@@ -314,20 +321,6 @@ def _cmd_auto_clarify(args: list[str], root: Path) -> int:
     })
 
 
-def _cmd_iterate(args: list[str], root: Path) -> int:
-    """Handle iterate command — 人工模式迭代轮入口（不要求 auto_base）。
-
-    作者：005819 | 协作：GLM-5.3
-    """
-    from specpowers_cli.bridge.dispatcher import route
-    opts, _ = _extract_kv_options(args, ("design-doc", "instruction", "feature"))
-    return route("iterate", root, extra={
-        "design_doc": opts.get("design-doc", ""),
-        "instruction": opts.get("instruction", ""),
-        "feature": opts.get("feature", ""),
-    })
-
-
 def _cmd_record_design_doc(args: list[str], root: Path) -> int:
     """Handle record-design-doc command — 登记探索设计文档路径（propose 前置校验凭据）。
 
@@ -349,24 +342,85 @@ def _cmd_record_design_doc(args: list[str], root: Path) -> int:
     })
 
 
-def _cmd_switch(args: list[str], root: Path) -> int:
-    """Handle switch command — 切换前台需求（v2.8.0 多活跃）。
+def _cmd_reconcile(args: list[str], root: Path) -> int:
+    """Handle reconcile command — 工件对账报告（v3.0：推导核对，不再修复 state）。
 
-    touch 目标需求的 last_touched（推导式前台的唯一写入口）：
-    纯切前台，不开工不推进。锁内执行（写 state.json）。
+    state.json 已退役（v3.0），本命令职责收缩为：
+    ① 旧 state 迁移兜底（残留 state.json 的项目顺手迁移）；
+    ② 全量推导核对报告——活跃清单/阶段/轮次/前台/meta 审计警告，机器可读。
+    锁内执行（迁移含 meta/runtime 写盘）。
 
     作者：005819 | 协作：GLM-5.3
     """
     from specpowers_cli.bridge.core.lock import acquire_lock, release_lock
-    from specpowers_cli.bridge.core.fs_state import touch_feature, foreground_feature
+    from specpowers_cli.bridge.modules.state_derivation import (
+        active_slugs, foreground_slug, derive_stage, iteration_count_of,
+        audit_artifacts, change_dir_of, migrate_legacy_state,
+    )
+
+    opts, _ = _extract_kv_options(args, ("feature",))
+    only = (opts.get("feature") or "").strip()
+
+    report: dict = {"migration": {}, "active": [], "foreground": "",
+                    "stages": {}, "rounds": {}, "audit": {}, "warnings": []}
+    acquire_lock(root, timeout=0)
+    try:
+        # ① 旧 state 迁移兜底（幂等；无旧 state 零副作用）
+        migration = migrate_legacy_state(root)
+        if migration.get("migrated"):
+            report["migration"] = migration
+            report["warnings"].extend(migration.get("warnings", []))
+
+        # ② 全量推导核对
+        slugs = active_slugs(root)
+        if only:
+            slugs = [s for s in slugs if s == only]
+        report["active"] = slugs
+        report["foreground"] = foreground_slug(root) or ""
+        for slug in slugs:
+            report["stages"][slug] = derive_stage(change_dir_of(root, slug))
+            report["rounds"][slug] = iteration_count_of(change_dir_of(root, slug))
+            audit = audit_artifacts(root, slug)
+            if audit:
+                report["audit"][slug] = audit
+                report["warnings"].extend(audit)
+    finally:
+        release_lock(root)
+
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(f"对账完成：{len(report['active'])} 个活跃需求"
+          f"{'（--feature ' + only + '）' if only else ''}；"
+          f"状态唯一权威 = openspec/changes/ 工件推导（state.json 已退役）")
+    return 0
+
+
+def _cmd_switch(args: list[str], root: Path) -> int:
+    """Handle switch command — 切换前台需求（v2.8.0 多活跃；v3.0 写 meta）。
+
+    touch 目标需求 meta 的 last_touched（推导式前台的唯一写入口）：
+    纯切前台，不开工不推进。锁内执行（meta 原子写）。
+
+    作者：005819 | 协作：GLM-5.3
+    """
+    from datetime import datetime, timezone as _tz
+    from specpowers_cli.bridge.core.lock import acquire_lock, release_lock
+    from specpowers_cli.bridge.modules.state_derivation import active_slugs, update_meta
     opts, positional = _extract_kv_options(args, ("feature",))
     slug = (opts.get("feature", "") or " ".join(positional)).strip()
     if not slug:
         print("Error: switch requires a feature slug. Usage: facade switch <slug> --root .", file=sys.stderr)
         return 2
+    if slug not in active_slugs(root):
+        print(
+            f"Error: '{slug}' 不是活跃需求。当前活跃：{', '.join(active_slugs(root)) or '（无）'}。",
+            file=sys.stderr,
+        )
+        return 2
     acquire_lock(root, timeout=0)
     try:
-        touch_feature(root, slug)
+        update_meta(root, slug, {
+            "last_touched": datetime.now(_tz.utc).isoformat(timespec="microseconds"),
+        })
     finally:
         release_lock(root)
     print(f"前台已切换：{slug}（前台 = 最近操作的需求，其余活跃需求转后台不受影响）")
@@ -374,24 +428,55 @@ def _cmd_switch(args: list[str], root: Path) -> int:
 
 
 def _cmd_reset(args: list[str], root: Path) -> int:
-    """Handle reset command."""
+    """Handle reset command（v3.0：--force 兼任删除确认跳过）。"""
     from specpowers_cli.bridge.dispatcher import route
     opts, _ = _extract_kv_options(args, ("feature",))
-    return route("reset", root, extra={"feature": opts.get("feature", "")})
+    return route("reset", root, extra={
+        "feature": opts.get("feature", ""),
+        "force": "--force" in args,
+    })
 
 
 def _cmd_status(args: list[str], root: Path) -> int:
-    """Handle status command — 全局 + 前台平铺 + 活跃需求概览（v2.8.0 多活跃）。
+    """Handle status command — 全推导拼装（v3.0：零 state 读写）。
 
-    顶层字段与旧 schema 1 同名同义（前台需求展开），旧消费者不破坏；
-    新增 features 概览键（slug → stage/mode/iteration_count）与
-    foreground 键（前台推导结果）。
+    顶层字段与旧扁平视图同名同义（前台需求展开），旧消费者不破坏；
+    features 概览键（slug → stage/mode/iteration_count）与 foreground 键
+    （前台推导结果）保留；schema 键随 state 退役删除。
     """
-    from specpowers_cli.bridge.core.fs_state import load_state, features_snapshot, foreground_feature
-    state = load_state(root)
-    result = dict(state)
-    result["features"] = features_snapshot(root)
-    result["foreground"] = foreground_feature(root)
+    from specpowers_cli.bridge.core.fs_state import load_runtime
+    from specpowers_cli.bridge.modules.state_derivation import (
+        active_slugs, foreground_slug, derive_stage, iteration_count_of,
+        read_meta, design_doc_of, change_dir_of,
+    )
+    runtime = load_runtime(root)
+    fg = foreground_slug(root) or ""
+    result = {
+        "fallback_count": runtime["fallback_count"],
+        "last_archive_ref": runtime["last_archive_ref"],
+        "feature": fg,
+        "stage": derive_stage(change_dir_of(root, fg)) if fg else "ready",
+    }
+    if fg:
+        cdir = change_dir_of(root, fg)
+        meta = read_meta(cdir) or {}
+        result["mode"] = str(meta.get("mode") or "full")
+        result["execution_mode"] = str(meta.get("execution_mode") or "")
+        result["iteration_count"] = iteration_count_of(cdir)
+        result["design_doc"] = design_doc_of(root, fg) or ""
+    else:
+        result.update({"mode": "full", "execution_mode": "", "iteration_count": 0, "design_doc": ""})
+    features_overview = {}
+    for slug in active_slugs(root):
+        cdir = change_dir_of(root, slug)
+        meta = read_meta(cdir) or {}
+        features_overview[slug] = {
+            "stage": derive_stage(cdir),
+            "mode": str(meta.get("mode") or "full"),
+            "iteration_count": iteration_count_of(cdir),
+        }
+    result["features"] = features_overview
+    result["foreground"] = fg
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
@@ -463,20 +548,19 @@ def _cmd_locate(args: list[str], root: Path) -> int:
 def _scope_assessment(root: Path, base: str) -> dict | None:
     """评估任务级修改范围比对；不适用场景返回 None（输出 JSON 不带 scope 键）。
 
-    适用前提：state 的 feature 非空（fast/CI 场景不比对）且该 feature 的
-    tasks.md 存在。声明缺失 → status=undeclared（提示 propose 补声明，
-    非硬阻断，兼容 v2.2 旧产物）。
+    适用前提：有前台活跃需求（fast/CI 场景不比对——fast 无 tasks.md 自然
+    返回 None）且该 feature 的 tasks.md 存在。声明缺失 → status=undeclared
+    （提示 propose 补声明，非硬阻断，兼容 v2.2 旧产物）。
 
     作者：005819 | 协作：GLM-5.3
     """
-    from specpowers_cli.bridge.core.fs_state import load_state
     from specpowers_cli.bridge.core.git_util import diff_name_only
     from specpowers_cli.bridge.modules.structure_gate import (
         evaluate_scope,
         parse_scope_declaration,
     )
-    state = load_state(root)
-    feature = (state.get("feature") or "").strip()
+    from specpowers_cli.bridge.modules.state_derivation import foreground_slug
+    feature = foreground_slug(root) or ""
     if not feature:
         return None
     tasks_path = root / "openspec" / "changes" / feature / "tasks.md"
@@ -591,15 +675,17 @@ def _cmd_record_execution_mode(args: list[str], root: Path) -> int:
         )
         return 2
     mode = positional[0]
-    from specpowers_cli.bridge.core.fs_state import load_state, list_features, foreground_feature
     from specpowers_cli.bridge.core.lock import acquire_lock, release_lock
     from specpowers_cli.bridge.modules.mode_controller import set_execution_mode
-    # 写 state 需获取锁，防止并发 stage 操作交叉写入
+    from specpowers_cli.bridge.modules.state_derivation import (
+        active_slugs, foreground_slug,
+    )
+    # 写 meta 需获取锁，防止并发 stage 操作交叉写入
     acquire_lock(root, timeout=0)
     try:
         feature = (opts.get("feature") or "").strip()
         if not feature:
-            active = list_features(root)
+            active = active_slugs(root)
             if not active:
                 from specpowers_cli.bridge.core.errors import StateError
                 print("Error: no active feature. Run a stage that sets feature first.", file=sys.stderr)
@@ -612,12 +698,11 @@ def _cmd_record_execution_mode(args: list[str], root: Path) -> int:
                     file=sys.stderr,
                 )
                 return 2
-            feature = foreground_feature(root)
-        state = load_state(root, feature)
-        state = set_execution_mode(root, state, mode)
+            feature = foreground_slug(root) or ""
+        normalized = set_execution_mode(root, feature, mode)
     finally:
         release_lock(root)
-    print(f"执行方式已记录（feature '{feature}'）：{state['execution_mode']}")
+    print(f"执行方式已记录（feature '{feature}'）：{normalized}")
     return 0
 
 
@@ -675,6 +760,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 2
 
+    # v3.0 旧 state 迁移钩子（所有子命令统一入口，幂等）：首次命令探测
+    # state.json → meta 齐全化 + runtime.json + 改名 .bak；无旧 state 零副作用
+    try:
+        from specpowers_cli.bridge.modules.state_derivation import migrate_legacy_state
+        migrate_legacy_state(root)
+    except Exception:
+        # 迁移失败不阻断命令（report 可经 reconcile 查看）；推导式命令本身
+        # 不依赖 state，失败仅影响旧字段保全
+        pass
+
     # Dispatch subcommand
     handlers = {
         "init": _cmd_init,
@@ -685,6 +780,7 @@ def main(argv: list[str] | None = None) -> int:
         "archive": _cmd_archive,
         "baseline": _cmd_baseline,
         "reset": _cmd_reset,
+        "reconcile": _cmd_reconcile,
         "switch": _cmd_switch,
         "status": _cmd_status,
         "scan": _cmd_scan,
@@ -696,7 +792,6 @@ def main(argv: list[str] | None = None) -> int:
         "auto-status": _cmd_auto_status,
         "auto-new-round": _cmd_auto_new_round,
         "auto-clarify": _cmd_auto_clarify,
-        "iterate": _cmd_iterate,
     }
 
     handler = handlers.get(subcommand)

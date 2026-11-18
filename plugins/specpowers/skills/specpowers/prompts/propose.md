@@ -4,7 +4,7 @@
 
 当用户调用 `/specpowers-propose "<需求>"` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = 各 change 目录 `.specpowers-meta.json` 中 last_touched 最大者，目录推导；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
 ## 定位（v2.0.0 调整）
 
@@ -22,22 +22,25 @@
 
 ## 重入识别（人工模式迭代轮入口）
 
-执行前置校验**之前**，先读 `.specpowers/state.json` 判断本次调用是否为迭代重入：
+执行前置校验**之前**，先按工件推导判断本次调用是否为迭代重入（v3.0 起无 state 可读，目录即状态）：
 
-- **触发条件**：`stage` = `apply` 且 `feature` 非空（活跃未归档——归档后 stage 已回 `ready`，不在此列）。这表明用户要在**同一个未归档需求**上做调整，需求身份由归档状态唯一决定，调整必须落在当前 change 目录的当前 spec 文件内。
-- **交互确认**（必须，禁止静默切换轮次）：
+- **判定方法**：目标 slug 的 `openspec/changes/<slug>/` change 目录已存在（活跃未归档——归档后目录已移入 archive 快照，不在此列）→ 本次重入**自动识别为迭代轮**，无需任何命令确认开轮（feature 锁定不变、spec 增量修订、tasks 分轮演进语义全部不变）。需求身份由归档状态唯一决定，调整必须落在当前 change 目录的当前 spec 文件内。
+- **工件细分路径**（目录推导阶段决定确定性层行为）：
+  - 目录推导 ∈ {`explore`（仅 meta 登记态）, `propose`（三件套进行中或齐而无执行进度）} → 重入即迭代轮**续作**，不占回退额度；
+  - 目录推导 = `apply`（三件套齐且 tasks 已有执行进度）或 `fast`（meta.mode=fast）→ 重入即触发 **apply/fast→propose 回退**：确定性层校验并消耗生命周期唯一 1 次回退额度（计次在 `.specpowers/runtime.json`，归档/reset 均不清）、mode 归 full——认知层应在调 `facade propose` 前向用户说明该额度语义。
+- **意图歧义确认**（仅在用户重入描述像新需求时——例如全新能力目标、与既有需求修改范围无语义重叠；描述明确指向既有需求的调整时直接按迭代轮继续，禁止静默当作新需求）：
 
   ```
-  检测到未归档需求 <feature>（stage=<stage>，当前 Round <iteration_count>）。本次重入意图是？
-  1. 开启 Round <iteration_count+1> 迭代轮 —— 调整/优化需求，调整记录进当前 spec 文件
+  检测到未归档需求 <feature>（当前 Round <N>，工件推导）。本次重入意图是？
+  1. 开启 Round <N+1> 迭代轮 —— 调整/优化需求，调整记录进当前 spec 文件（无需开轮命令）
   2. 取消 —— 继续现有流程（/specpowers-apply 或 /specpowers-archive）
   ```
 
-  - `stage=apply` 且 `mode=fast` 时追加选项：`3. fast→full 流程回退（原 fallback 语义：消耗整个生命周期唯一 1 次回退额度，放弃 fast 产物重新完整生成三件套）`
+  - 目录推导为 `apply`/`fast` 时追加说明：本次重入将触发 apply/fast→propose 回退（消耗整个生命周期唯一 1 次回退额度，放弃 fast 产物/apply 进度重新完整生成三件套）
   - 用户给出调整描述（命令参数）时在选项 1 中原样带入，作为本轮修订依据
-- **确认开启迭代轮**：调 `facade iterate [--instruction "<调整描述>"] --root .`（确定性层完成：stage → `propose`、feature 锁定不变、`iteration_count += 1`、不占 fallback 额度）。成功后**不要再调 `facade propose`**（状态已就位），直接按下方「迭代轮」小节增量修订三件套
+- **确认迭代轮**：无需任何开轮命令——重入即由目录推导识别为迭代轮（不占回退额度路径时），直接按下方「迭代轮」小节增量修订三件套
 - **选择取消**：不改任何状态，向用户说明当前可选步骤后结束
-- **未触发**（stage 为 `ready`/`explore`/`propose`）：走正常流程——stage=`propose` 的重跑属迭代轮**续作**（`iteration_count ≥ 1` 时按迭代轮小节执行，轮次不变），其余按前置校验常规进入
+- **非重入**（change 目录不存在 = 新需求）：走正常流程，按前置校验常规进入
 
 ## 前置校验
 
@@ -46,8 +49,8 @@ python -m specpowers_cli.bridge.facade propose "<需求>" --root .
 ```
 
 Dispatcher 自动校验：
-- 合法 from_stage：`explore` / `ready`（跳过探索）/ `apply`（fallback 回退）/ `propose`（迭代轮续作，自环幂等）
-- **从 explore 进入时**：`state.json` 的 `design_doc` 字段必须非空且文件存在（explore 阶段经 `facade record-design-doc` 登记的探索凭据，倒逼 explore 必须完成探索）
+- 入口校验 = 工件形态判定（目录推导）：可入自 `explore`（仅 meta）/ `ready`（新需求跳过探索）/ `propose`（迭代轮续作，自环幂等）/ `apply`（回退，消耗唯一 1 次额度）/ `fast`（转全流程，同额度）
+- **从 explore 进入时**：change 目录 `.specpowers-meta.json` 已登记 `design_doc` 则校验文件存在（explore 阶段经 `facade record-design-doc` 登记的探索凭据，防登记空指针）；登记缺失放行（跳过探索路径兼容，防探索架空由 explore 契约 HARD-GATE 承担）
 - `.specpowers/constitution.md` 必须存在
 
 ## 执行步骤
@@ -55,9 +58,9 @@ Dispatcher 自动校验：
 ### 第一步：读取上下文
 
 1. 读取 `.specpowers/constitution.md` — 了解项目原则
-2. 如果从 `explore` 进入 — **局部读取 state.json `design_doc` 登记的设计文档**（v2.10.0 读侧纪律，与 auto 模式路径对齐，禁止默认整份重读）：先 Grep 定位「## 决策摘要」「## 数据流」章节与顶部 frontmatter，局部读取这两处（决策摘要供 Why/What Changes/Impact 提炼；字段来源/值域是 proposal 数据流契约与 Scenario WHEN/THEN 的输入依据；capability frontmatter 决定能力归属）；「方案对比」与「详细设计」其余小节仅在任务拆分或接口细节需要时按需回查
+2. 如果从 `explore` 进入 — **局部读取 meta `design_doc` 登记的设计文档**（v2.10.0 读侧纪律，与 auto 模式路径对齐，禁止默认整份重读；v3.0 起登记在 change 目录 `.specpowers-meta.json`）：先 Grep 定位「## 决策摘要」「## 数据流」章节与顶部 frontmatter，局部读取这两处（决策摘要供 Why/What Changes/Impact 提炼；字段来源/值域是 proposal 数据流契约与 Scenario WHEN/THEN 的输入依据；capability frontmatter 决定能力归属）；「方案对比」与「详细设计」其余小节仅在任务拆分或接口细节需要时按需回查
 3. 如果从 `ready` 进入（跳过探索）— 仅读取 constitution.md，proposal 的数据流契约按与用户交互确认的结论撰写（纯本地特性声明「本特性无跨链路字段」）
-4. **auto 模式路径**（本阶段由 `/specpowers-auto` 编排进入；判据：`.specpowers/auto_base.json` 存在且对应当前 feature）— 八要素结论（已定方案 / 必测场景清单 / 修改范围表 / 硬性边界）**直接读 `auto_base.json` 的 `parsed` 字段，不全文重读设计文档**（auto 契约第 0 步已解析落盘）；设计文档仅按需回查「数据流」章节与决策摘要（数据流契约的承接依据，先 Grep 定位章节再局部读取）
+4. **auto 模式路径**（本阶段由 `/specpowers-auto` 编排进入；判据：`.specpowers/auto_base/<feature>.json` 存在且对应当前 feature）— 八要素结论（已定方案 / 必测场景清单 / 修改范围表 / 硬性边界）**直接读 auto_base 分片的 `parsed` 字段，不全文重读设计文档**（auto 契约第 0 步已解析落盘）；设计文档仅按需回查「数据流」章节与决策摘要（数据流契约的承接依据，先 Grep 定位章节再局部读取）
 
 ### 交互决策原则（AskUserQuestion 使用指引）
 
@@ -352,9 +355,9 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 
 ## 迭代轮：三件套增量修订（多轮迭代，auto 与人工模式通用）
 
-当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别确认（人工模式，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，三件套不做盲目重写，按各自规则增量演进（方案变更时 explore 已先新落本轮简易设计文档 `design-round-<N>.md`，见 explore.md 迭代轮小节）：
+当本轮是迭代轮（轮次 ≥ 1——v3.0 起轮次即工件推导值：design-round-N.md 与 tasks「## Round N」小节的最大值，无任何计数缓存；入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别（人工模式，目录推导自动识别，见「重入识别」小节）或 `/specpowers-auto`（无人值守））时，三件套不做盲目重写，按各自规则增量演进（方案变更时 explore 已先新落本轮简易设计文档 `design-round-<N>.md`，见 explore.md 迭代轮小节）：
 
-**本轮读取清单（锁死，防整份重读）**：现有 proposal.md（全文——迭代历史 v2.11.0 起表格化封顶滚动，规模恒定不随轮次增长）+ 最新 `openspec/changes/<feature>/design-round-<N>.md`（存在时，增量小文档直接全读）；spec.md 与 tasks.md 走**骨架两级读取**——第一级 Grep 拿结构清单，仅命中项第二级局部读详情（模式串与降级路径见下方各自条目）；基线设计文档（`state.design_doc` 指向的首轮文档）**仅按需局部查阅**——方案变更轮重提炼需要核对基线结论时读对应章节，**禁止整份重读**（v2.7.0 读侧落点；v2.11.0 迭代轮 IO 从「三件套全读全写」收敛为「proposal 全读 + spec/tasks 骨架 + 命中项 Edit」）。
+**本轮读取清单（锁死，防整份重读）**：现有 proposal.md（全文——迭代历史 v2.11.0 起表格化封顶滚动，规模恒定不随轮次增长）+ 最新 `openspec/changes/<feature>/design-round-<N>.md`（存在时，增量小文档直接全读）；spec.md 与 tasks.md 走**骨架两级读取**——第一级 Grep 拿结构清单，仅命中项第二级局部读详情（模式串与降级路径见下方各自条目）；基线设计文档（meta `design_doc` 指向的首轮文档）**仅按需局部查阅**——方案变更轮重提炼需要核对基线结论时读对应章节，**禁止整份重读**（v2.7.0 读侧落点；v2.11.0 迭代轮 IO 从「三件套全读全写」收敛为「proposal 全读 + spec/tasks 骨架 + 命中项 Edit」）。
 
 **proposal.md — 覆盖 + 迭代历史（表格化 + 封顶滚动）**：
 - proposal.md **覆盖更新**（以本轮有效八要素为准），文末维护「## 迭代历史」小节——**单行表格格式**（v2.11.0，替代旧多行小节）：
@@ -371,8 +374,8 @@ tasks.md **末尾追加「## 依赖与并行说明」小节**（最后一个 Tas
 - **旧格式自动收敛**：读到旧格式（`### Round` 多行小节）时，本轮直接改写为表格、超限明细按聚合规则收纳——无需单独迁移
 - 变化点格遵守一句话级纪律（对齐 v2.10.0 精简纪律）：每轮完整明细的事实源是 `design-round-<N>.md`（方案变更轮）与 spec 末尾轮次注释行、tasks 的 Round 小节与已作废留痕——迭代历史只是速览，不承载明细
 
-- **feature 锁定**：迭代轮 feature 已由确定性层锁定，proposal.md 仍写入原 change 目录（`openspec/changes/<锁定slug>/`），不新建目录
-- **调用方式**：迭代轮更新 proposal 是**认知任务直接落盘**，不调 `facade propose`（其常规入口不含本语境）；stage 保持 propose
+- **feature 锁定**：迭代轮 feature 锁定不变（change 目录即需求身份），proposal.md 仍写入原 change 目录（`openspec/changes/<锁定slug>/`），不新建目录
+- **调用方式**：迭代轮更新 proposal 是**认知任务直接落盘**；`facade propose` 入口校验为工件形态判定（propose 续作自环幂等，仅刷新 meta last_touched），不产生任何轮次副作用——轮次由工件承载，无需命令切换
 - **注意**：方案变更轮（explore 重跑）必须从「基线设计文档 + 最新 `design-round-<N>.md`」合并视角重新提炼 proposal（基线仅按需局部查阅，见上方读取清单）；仅场景/范围调整轮 proposal 可原样保留（追加迭代历史即可）
 
 **spec.md — 增量修订（骨架两级读取 + Edit 化）**：
@@ -423,12 +426,11 @@ archive 的「任务全部完成」判定**跳过「已作废」小节**（作�
 
 ## 回退场景（fallback）
 
-当从 `apply` 回退到 `propose` 时（fast 用户"升级为完整流程"）：
-- stage 从 `apply` → `propose`
-- mode 重置为 `full`
-- fallback_count += 1
-- 原因：用户认为优化模式不适用，升级为完整流程（放弃 fast 产物，重新完整生成三件套）
+当从 `apply`/`fast` 重入 propose 触发回退时（apply 回退修订 / fast 用户"升级为完整流程"，确定性层自动执行）：
+- 确定性层校验并消耗回退额度：`.specpowers/runtime.json` 的 `fallback_count` += 1（整个生命周期最多 1 次，归档/reset 均不清）
+- 目录推导阶段回到 `propose`，mode 归 `full`
+- 原因：用户认为优化模式/当前进度不适用，回到 propose 重新修订三件套（放弃 fast 产物）
 
 ## 后续步骤
 
-完成后 stage 跃迁到 `propose`，下一步：`/specpowers-apply`。
+完成后三件套落盘于 change 目录（目录推导阶段随三件套齐全与执行进度推进），下一步：`/specpowers-apply`。

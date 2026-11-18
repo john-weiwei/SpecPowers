@@ -7,7 +7,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.11.0-blue)]()
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)]()
 
 SpecPowers 是一个通用 AI 编码 agent 插件。它不重写任何框架引擎，只编排 OpenSpec、superpowers 两套框架的原生能力，补上它们都没有的两条硬约束：
 
@@ -48,12 +48,12 @@ codex plugin marketplace add john-weiwei/SpecPowers
 
 ```bash
 # 安装
-pip install git+https://github.com/john-weiwei/SpecPowers.git@v2.11.0
+pip install git+https://github.com/john-weiwei/SpecPowers.git@v3.0.0
 # 或本地开发：cd 进仓库目录后 pip install -e .
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.11.0
+# → SpecPowers CLI v3.0.0
 
 # 在目标项目里初始化（自动检测 agent 类型）
 cd my-project
@@ -66,6 +66,39 @@ specpowers init --integration cursor   # 或指定：cursor/copilot/windsurf/cod
 ## 升级
 
 已安装旧版本的用户，按安装方式选择升级命令：
+
+### v3.0.0 破坏性变更须知（v2.x 用户必读）
+
+v3.0.0 完成**状态机推导化收口**：`state.json` 删除退役，活跃/阶段/轮次/前台全部由工件（`openspec/changes/` 目录扫描 + change 目录 meta）推导。**升级零手动步骤**——旧项目首次执行任意命令（任意技能调用）自动完成迁移：
+
+| 迁移步骤 | 自动行为 | 说明 |
+|---------|---------|------|
+| ① meta 齐全化 | features 中有 change 目录的条目 → 目录内补齐 `.specpowers-meta.json`（design_doc/mode/execution_mode/last_touched/created_at） | 需求级登记随工件走（✅ 提交，团队共享推导依据） |
+| ② runtime 迁移 | 全局 `fallback_count` / `last_archive_ref` → `.specpowers/runtime.json` | 仅本机过程量（🚫 gitignore） |
+| ③ 旧文件留底 | `state.json` 改名 `state.json.bak`；损坏时留底 `state.json.corrupted-<时间戳>` | 确认运行正常后 `.bak` 可人工删除；无 change 目录的孤儿条目丢弃并警告 |
+
+迁移幂等（重复执行不重复写）。
+
+**`facade iterate` 已删除**——人工迭代轮无需命令确认开轮，重入即由目录推导自动识别：
+
+| v2.x 行为 | v3.0.0 行为 |
+|-----------|------------|
+| 重入 propose/explore 后跑 `facade iterate` 确认开启迭代轮 | 直接重入 `/specpowers-propose`（场景/范围调整）或 `/specpowers-explore`（方案变更），目录形态自动识别为迭代轮；spec 增量修订 / tasks 分轮演进 / design-round-N 简易设计文档语义不变 |
+| `facade iterate` 子命令 | 已删除（调用报 unknown subcommand）；auto 模式 new-round 保留（仅落 auto_base.rounds） |
+
+**`facade reset` 重定义为破坏性删除**（不再是「清状态回 ready、工件保留」）：
+
+| v2.x 行为 | v3.0.0 行为 |
+|-----------|------------|
+| 清除 state 条目 + 锁，回到 ready，`openspec/changes/` 工件保留 | 删除 `openspec/changes/<slug>/` 整目录 + auto_base 分片——工件不保留，需留存走 `/specpowers-archive` |
+| 非 CI 可直接执行 | 非 CI 模式必须 `--force` 确认；多活跃未指名拒绝；`fallback_count`/`last_archive_ref` 保留。`init --force` 同理删除全部活跃 change 目录 |
+
+**fast / explore 入口即建 change 目录（v3.0.0 起）**：
+
+- `/specpowers-fast` 自包含——入口即建 `openspec/changes/<slug>/` + meta(mode=fast) + `checklist.md` 骨架（agent 填充 3-5 条验收清单），apply fast 门禁按 `meta.mode=fast` 判定
+- `/specpowers-explore` 收口 `record-design-doc` 即建 change 目录 + meta 登记——v2.0.0「explore 不建 changes/ 目录」定位解除；三件套仍由 propose 一站式生成
+
+**回退额度**：apply/fast 态重入 propose 消耗项目生命周期唯一 1 次额度，计次在 `.specpowers/runtime.json`。
 
 ### v2.0.0 破坏性变更须知（v1.x 用户必读）
 
@@ -103,13 +136,13 @@ codex plugin marketplace upgrade specpowers-marketplace
 ### pip 方式（Cursor / Copilot / Windsurf 等）
 
 ```bash
-pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v2.11.0
+pip install --upgrade git+https://github.com/john-weiwei/SpecPowers.git@v3.0.0
 
 # 验证
 specpowers --version
-# → SpecPowers CLI v2.11.0
+# → SpecPowers CLI v3.0.0
 
-# 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（技能清单已更新——reset/baseline 合并为 maintain）
+# 已用 pip 初始化过的项目建议重装刷新技能与 AGENTS.md 引导段（技能清单已更新——v3.0.0 状态机推导化，reset 语义重定义）
 cd my-project
 specpowers init --force
 ```
@@ -123,7 +156,7 @@ SpecPowers 是**桥接层**，编排以下外部能力。安装本插件前请�
 | **OpenSpec CLI** | 命令行工具 | archive（归档） | 必需 | `npm install -g @funneler/openspec` |
 | **superpowers 插件** | agent skill 包 | propose / apply（explore 引擎内置于 explore 契约、review 用内置 specpowers-review 技能，均随插件分发无需预装） | 推荐 | `/plugin install superpowers` |
 
-**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（state 独立而工件共享）时同样提示。
+**自动检测**：插件内置 SessionStart hook，会话启动时自动检测上述依赖，缺失会在首条回复中提示安装方法——无需手动检查（ZCode / Claude Code / Codex 均生效；Codex 侧 hook 需通过信任审核后运行，未信任时自动跳过，可按下方命令手动确认；WorkBuddy 首版暂不注册 hooks，需手动确认）。同一 hook 还会**只读探测活跃需求**（v2.3.0）：检测到未完成的特性流水线 / auto 断点 / 未归档 change 时，在首条回复中提示续跑入口；零活跃零噪音，跨机接管（runtime/meta 本机私有而工件共享）时同样提示。
 
 **WorkBuddy 技能行为异常时先验 CLI 可达**（v2.5.1）：确定性层命令（状态跃迁/设计文档登记）经 `python -m specpowers_cli.bridge.facade <子命令>` 调用，包不可达时改用包装脚本（pip 安装形态位于 `.workbuddy/skills/specpowers/bin/specpowers.bat`，插件市场形态位于插件目录 `scripts/specpowers_cli/bin/`，详见主技能 SKILL.md「执行方式」节）；CLI 不可达时未初始化拦截、propose 登记校验等确定性兜底全部缺位，症状即技能"不守约"——先执行 `specpowers.bat status --root .` 确认 CLI 正常，再检查技能正文是否为 v2.5.1+（跨端契约定位与 explore 硬性产出契约自该版本起生效）。
 
@@ -174,7 +207,7 @@ agent 自动读取 `templates/constitution-template.md` 内联生成 `.specpower
 - **人工模式**：直接重入 `/specpowers-propose "调整描述"`（场景/范围调整）或 `/specpowers-explore`（方案变更）——识别到未归档的活跃需求时会与你确认开启新迭代轮，feature 锁定不变，spec 增量修订、tasks 分轮演进（已完成任务保留、被调整作废的任务留痕）；方案变更轮 v2.7.0 起**不再改写基线设计文档**，改为在 change 目录新落 `design-round-<N>.md` 简易设计文档（只写本轮增量：输入/方案对比/详细设计变更点/修改范围增量，归档时随 change 整体归档）——省 token 关键：基线冻结不再逐轮重读重写整份文档，且设计文档的唯一下游消费者 propose 的迭代轮读取清单同步锁死（现有 proposal + 最新 design-round，基线仅按需局部查阅）
 - **auto 模式**：重入 `/specpowers-auto`（新文档 / 原文档 / `--instruction "口头调整"`），自动三分判定全新（fresh）/ 续跑（resume）/ 迭代轮（iterate）
 
-> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-maintain reset` 重置——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
+> 注意：想开**全新需求**但当前需求未归档时，请先 `/specpowers-archive` 归档或 `/specpowers-maintain reset` 重置（v3.0.0 起为破坏性删除——清除该需求 change 目录与 auto_base 分片，非 CI 须 `--force` 确认）——未归档的活跃需求会接管 auto 的新文档输入，将其判定为旧需求的迭代轮（需求身份由归档状态唯一决定）。
 
 > **会话粘滞（v2.7.0）**：对话中用过 specpowers 技能且需求未归档时，后续消息默认先做相关性判定——相关消息走流程、无关消息照常回答+末尾一行活跃需求提醒、拿不准一律按相关；解除条件 = 归档或 reset。ZCode/Claude/Codex 由 UserPromptSubmit hook 逐轮注入锚点行（feature/stage/Round + capability + 修改范围，零活跃零注入），WorkBuddy/pip 形态靠技能正文条款。与「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
 
@@ -188,24 +221,26 @@ init ─▶ ready ─┬─ explore → propose → apply → archive → ready
                ├─ auto ─── 无人值守驱动上述阶段（含 specpowers-review 审查，默认不归档）──▶ ready
                ├─ fast → 用户编码 → apply → archive → ready
                └─ 迭代重入 ─→ 归档前任意阶段重入 propose/explore（或 auto 重入），
-                              确认后受控回 propose：feature 锁定不变，
+                              目录推导自动识别迭代轮：feature 锁定不变，
                               spec 增量修订 + tasks 分轮演进（归档即新需求）
 ```
 
 > **v2.0.0**：阶段重命名 constitution→init、brainstorm→explore、build→apply；specify+plan 合并为 **propose**（一次生成 proposal.md + spec.md + tasks.md 三件套，存储路径不变）。旧项目 `state.json` 自动惰性迁移，无需 reset。
+>
+> **v3.0.0**：`state.json` 退役——活跃/阶段/轮次/前台全部由 `openspec/changes/` 工件推导（目录扫描 + change 目录 meta + `.specpowers/runtime.json`），旧项目首次任意命令自动迁移，无需任何手动操作。
 
 ### 阶段技能详解（v2.4.0 起 9 条命令转为技能，slash 名不变）
 
 | 技能（slash 名不变） | 依赖 | 做什么 | 产物 |
 |------|------|--------|------|
 | `/specpowers-init` | — | 内联生成项目原则（质量/测试/UX/性能，插件自包含），同时扫描顶层目录、依赖清单、源码目录规律 → 结构基线 | `.specpowers/constitution.md` + `.specpowers/baseline.json` |
-| `/specpowers-explore "需求"` | init | 按 explore 契约内联的探索引擎细则静默探索项目 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（含数据流结论）→ `record-design-doc` 登记；未归档重入=同需求方案变更迭代轮（经确认开轮，设计文档覆盖更新 + 迭代历史） | `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`（探索设计文档） |
+| `/specpowers-explore "需求"` | init | 按 explore 契约内联的探索引擎细则静默探索项目 → 2-3 方案统一维度对比 → 唯一推荐 → 设计文档落盘（含数据流结论）→ `record-design-doc` 收口即建 change 目录 + meta 登记（v3.0.0 起）；未归档重入=同需求方案变更迭代轮（目录推导自动识别，基线设计文档冻结，方案变更轮落 design-round-N 简易设计文档） | `docs/specpowers/design/YYYY-MM-DD-{name}-design.md`（探索设计文档）+ `openspec/changes/<feature>/`（change 目录 + meta 登记，三件套仍归 propose） |
 | `/specpowers-propose "需求"` | explore（或 ready） | 一站式生成 OpenSpec change 三件套：从设计文档提炼 proposal.md（含「## 数据流契约」）→ OpenSpec 场景格式 spec.md → superpowers `writing-plans` 瘦身 tasks.md（声明执行方式推荐 + 修改范围声明：conductor / worktree / subagent / TDD）；未归档重入=同需求迭代轮（经确认开轮，spec 增量修订、tasks 分轮演进） | `openspec/changes/<feature>/proposal.md` + `specs/<capability>/spec.md` + `tasks.md` |
 | `/specpowers-apply` | propose（或 ready+fast） | ① 提示用户选择执行方式（conductor/worktree/subagent/TDD）；② 结构门禁：结构基线比对（git diff vs baseline.json，三态判定）+ 修改范围比对（实际改动 vs tasks.md 声明，越界转人工）；③ 调用 superpowers 能力池执行编码 | 代码变更 |
 | `/specpowers-archive` | apply | 三职责收尾：原则核查（constitution 合规）→ 产物标记 → 合体后校验（多分支合并时检查结构一致性）。full 与 fast 统一走 `openspec archive`（强依赖 openspec CLI），合并 delta 到主规格 + change 快照归档 | `openspec/specs/<capability>/spec.md`（主规格，fast 模式下 capability = feature）+ `openspec/changes/archive/`（快照） |
-| `/specpowers-fast "需求"` | init | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 explore/propose，直接编码 → apply → archive | 验收清单 3-5 条 |
+| `/specpowers-fast "需求"` | init | 优化模式入口：agent 判定需求是否为“小改动”（bugfix/单文件/纯配置/纯文案/纯重构），确认后跳过 explore/propose，直接编码 → apply → archive；v3.0.0 起自包含——入口即建 change 目录 + meta(mode=fast) | `openspec/changes/<feature>/checklist.md`（验收清单骨架 3-5 条，agent 填充）+ meta(mode=fast) |
 | `/specpowers-auto "设计文档路径"` | ready（fresh 首轮；任意活跃状态可重入，三分判定 fresh/resume/iterate） | 无人值守模式入口：以设计文档为唯一权威输入，解析八要素（功能名/方案/调用链/必测场景/修改范围/编码约束/降级策略/硬性边界）后先做**需求澄清**（五维检查 → 推进深度上限：方案未定等缺陷不停摆，停靠 explore 产出未收敛草案待补结论），再依次驱动 init → explore → propose → apply → specpowers-review（内置审查技能），**任何轮次默认都不归档**（`--archive` 或手动 `/specpowers-archive` 显式收口，`--archive` 先过收口前置检查）；所有确认/门禁节点自动裁决并留痕，review 修复最多 2 轮，仅硬阻断才停；中断后重入即续跑；**归档前重入（新文档/原文档/口头指令）都是同一需求的新迭代轮**（feature 锁定、spec 增量修订、tasks 分轮演进），归档即新需求 | 汇总报告（澄清结论/产物清单/审查结论/编译测试/遗留风险） |
-| `/specpowers-maintain` | — | 维护入口（按用户意图分流，自然语言调用无需参数）：重置流水线状态（清除 `state.json` 和 `.lock` 回到 `ready`，多活跃须 `--feature`，不丢 baseline）或刷新结构基线（重扫项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json`） | 状态重置无产物；基线刷新更新 `baseline.json` |
+| `/specpowers-maintain` | — | 维护入口（按用户意图分流，自然语言调用无需参数）：重置流水线（v3.0.0 起为破坏性删除——清除目标需求 `openspec/changes/<slug>/` 目录 + auto_base 分片与 `.lock`，需留存走 archive，多活跃须 `--feature`，非 CI 必须 `--force` 确认，不丢 baseline）或刷新结构基线（重扫项目顶层目录/依赖/源码规律 → 覆盖 `baseline.json`） | reset 删除该需求 change 目录；基线刷新更新 `baseline.json` |
 
 ### 四条路径对比
 
@@ -280,14 +315,14 @@ SpecPowers 支持两类安装方式，按你的 agent 选择：
 ├──────────────────────────────────────┤
 │  确定性层 (Python, 仅 stdlib)        │  ← skill 通过 Bash 调用
 │  facade → dispatcher                 │
-│  ├─ modules/ (扫描/门禁/审计)        │
+│  ├─ modules/ (扫描/门禁/审计/推导)   │
 │  ├─ adapters/ (OpenSpec)             │
-│  └─ core/ (git/lock/state/platform)  │
+│  └─ core/ (git/lock/fs_state)        │
 └──────────────────────────────────────┘
 ```
 
 - **认知层**：纯 Markdown 指令集——主技能（路由层 + prompts/ + templates/）、8 个阶段技能（薄入口：slash 名即技能名，加载主技能上下文后跟随 `prompts/<stage>.md` 契约）、review 审查技能（探索引擎细则内联于 explore 契约，不以技能形态暴露），作为 skill 插件被 agent 加载
-- **确定性层**：Python 内部 helper，执行基线扫描、状态机、文件锁、git 操作等确定逻辑
+- **确定性层**：Python 内部 helper，执行基线扫描、**工件推导**（v3.0.0 起活跃 = `openspec/changes/` 目录扫描、阶段 = `derive_stage` 工件形态判定、轮次 = design-round-N 与 tasks「## Round N」推导、前台 = meta `last_touched` 最大者——无状态机文件）、文件锁、git 操作等确定逻辑；本机过程量（fallback_count/last_archive_ref）落 `.specpowers/runtime.json`
 
 ---
 
@@ -332,7 +367,7 @@ specpowers/
 │           │   ├── modules/     ← baseline_scanner / structure_gate / …
 │           │   └── adapters/    ← openspec
 │           └── bin/             ← shell 包装脚本（自动定位包）
-├── tests/                       ← 测试套件（361 用例，含 skills/specpowers-review 内置回归 24 用例）
+├── tests/                       ← 测试套件（414 用例，含 skills/specpowers-review 内置回归 24 用例）
 ```
 
 ---
@@ -347,7 +382,8 @@ specpowers/
 | `openspec/changes/<feature>/tasks.md` | ✅ 提交 | tasks（可执行任务列表），团队可见 |
 | `.specpowers/constitution.md` | ✅ 提交 | 项目原则全员一致 |
 | `.specpowers/baseline.json` | ✅ 提交 | 团队共享结构基线 |
-| `.specpowers/state.json` | 🚫 gitignore | 每人流水线独立 |
+| `openspec/changes/<feature>/.specpowers-meta.json` | ✅ 提交 | 需求级登记（design_doc/mode/execution_mode/last_touched/created_at），随 change 目录提交——活跃/阶段/前台推导依据团队共享（v3.0.0 起） |
+| `.specpowers/runtime.json` | 🚫 gitignore | 仅本机过程量（fallback_count/last_archive_ref），每人流水线独立；v3.0.0 起 `state.json` 退役后的唯一状态文件 |
 | `.specpowers/.lock` | 🚫 gitignore | 仅本机有效 |
 
 ---

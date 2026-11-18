@@ -16,11 +16,11 @@ Load the specpowers skill context (`SKILL.md`), then follow the contract `prompt
 
 You will:
 0. **Init check first**: 检查 `.specpowers/constitution.md` 与 `.specpowers/baseline.json` 是否存在——任一缺失 = 项目未初始化：告知用户「检测到项目未初始化，先自动执行 specpowers-init」，加载 `prompts/init.md` 完整执行初始化（含提示用户提交两产物），完成后带着原 args 回到本技能第 1 步继续；两文件均存在则直接往下执行
-1. Analyze the requirement against the small-change signal set (bugfix / single-file / no-new-scenario / config-only / text-only / refactor-only)
-2. Output structured judgment: `[理由：<signals>，置信度：<高/中/低>]`
-3. If small: present confirmation prompt. User confirms → skip to coding.
-4. If not small: suggest upgrading to full pipeline (`/specpowers-explore` or `/specpowers-propose`)
-5. Generate 3-5 item acceptance checklist
+1. Run the deterministic entry first: `facade fast "<requirement>" --root .` — artifact-based entry check (new requirement without a change dir, or fast-stage re-entry) creates the change dir with `.specpowers-meta.json` (mode=fast) and a `checklist.md` skeleton (fast is self-contained, v3.0)
+2. Analyze the requirement against the small-change signal set (bugfix / single-file / no-new-scenario / config-only / text-only / refactor-only)
+3. Output structured judgment: `[理由：<signals>，置信度：<高/中/低>]`
+4. If small: present confirmation prompt. User confirms → fill the 3-5 item acceptance checklist into `checklist.md` → skip to coding.
+5. If not small: suggest upgrading to full pipeline (`/specpowers-explore` or `/specpowers-propose`)
 6. User completes their own coding, then runs `/specpowers-apply`
 
 完成后：用户自行编码，然后建议调用技能 specpowers-apply（用户直接 `/specpowers-apply` 调用，auto 模式下模型直接经 Skill 工具调用）。

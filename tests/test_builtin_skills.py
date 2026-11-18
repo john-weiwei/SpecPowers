@@ -244,13 +244,14 @@ EXPLORE_HARD_DELIVERABLES_ANCHORS = [
 ]
 
 # v2.8.0 多活跃需求：主技能多需求契约锚点（前台推导/--feature 硬条款/per-feature 解除/归档语义）
+# （v3.0 起「features 映射」表述被工件推导取代——目录即需求身份，锚点同步换代）
 MULTI_FEATURE_MAIN_ANCHORS = [
     "多活跃硬条款",
     "必须显式 `--feature",
     "命中哪个需求就按哪个需求的阶段契约处理",
     "解除条件（per-feature）",
     "归档即**该需求**完结",
-    "features 映射",
+    "目录即需求身份",
 ]
 # v2.8.0 多活跃需求：四份阶段契约的 feature 来源句锚点（防回潮成单需求 state.feature 表述）
 MULTI_FEATURE_PROMPT_ANCHORS = [
@@ -480,13 +481,13 @@ def test_design_doc_slim_template_anchors():
 def test_propose_design_doc_partial_read():
     """v2.10.0 propose 读侧纪律：人工模式局部读取设计文档，禁止默认整份重读。
 
-    与 auto 模式路径（auto_base.json 八要素 + Grep 局部回查）对齐——
+    与 auto 模式路径（auto_base 分片八要素 + Grep 局部回查）对齐——
     人工模式若整份重读，写侧瘦身的读侧收益全部落空。
     """
     content = (SKILLS_ROOT / "specpowers" / "prompts" / "propose.md").read_text(
         encoding="utf-8"
     )
-    for anchor in ("局部读取 state.json `design_doc` 登记的设计文档", "禁止默认整份重读"):
+    for anchor in ("局部读取 meta `design_doc` 登记的设计文档", "禁止默认整份重读"):
         assert anchor in content, (
             f"prompts/propose.md 缺少读侧纪律锚点「{anchor}」——"
             "人工模式退回整份重读设计文档，读侧 token 收益落空（v2.10.0 修复回潮）"
@@ -693,3 +694,58 @@ def test_on_demand_refs_are_linked_from_contracts():
     assert referenced_review, "review-guidelines.md 未引用任何细则（按需加载指引缺失）"
     for name in referenced_review:
         assert (review_refs_dir / name).is_file(), f"review-guidelines.md 引用的 references/{name} 不存在"
+
+
+def test_state_derivation_contract_anchors():
+    """v3.0 状态机推导化契约锚点（防回潮）：meta 自包含登记 + 工件推导 + reconcile 入口。
+
+    - explore.md：登记即建目录语义含 .specpowers-meta.json 自包含登记，
+      旧「不创建 changes/ 目录」定位表述不得回潮（v3.0 起 change 目录
+      自探索收口即建立，仅三件套仍归 propose）
+    - SKILL.md：工件推导小节（derive_stage / runtime.json / state.json.bak 迁移留底）
+      + reconcile 入口
+    - propose.md：迭代轮轮次即工件推导值（design-round-N / tasks Round 小节），
+      重入识别为目录推导（无 state 可读），回退额度计次在 runtime.json
+    - fast_mode.md：fast 自包含（入口建 change 目录 + meta(mode=fast) + checklist.md 骨架）
+    """
+    explore_md = (PLUGIN_ROOT / "skills/specpowers/prompts/explore.md").read_text(encoding="utf-8")
+    assert ".specpowers-meta.json" in explore_md, "explore.md 缺自包含登记锚点"
+    assert "自包含" in explore_md, "explore.md 缺自包含登记语义说明"
+    assert "不创建" not in explore_md, "explore.md 残留旧定位表述「不创建 changes/ 目录」（v2.12 已解除）"
+    assert "登记即建目录" in explore_md, "explore.md 缺 v3.0 收口建目录锚点"
+    assert "自动识别为迭代轮" in explore_md, (
+        "explore.md 重入识别缺目录推导自动识别锚点（v3.0 无 facade iterate，重入即迭代轮）"
+    )
+
+    skill_md = (PLUGIN_ROOT / "skills/specpowers/SKILL.md").read_text(encoding="utf-8")
+    assert "工件推导" in skill_md, "SKILL.md 缺工件推导小节"
+    assert "derive_stage" in skill_md, "SKILL.md 缺 derive_stage 工件判定锚点"
+    assert "runtime.json" in skill_md, "SKILL.md 缺项目级 runtime.json 锚点"
+    assert "state.json.bak" in skill_md, "SKILL.md 缺旧 state 迁移留底锚点"
+    assert "facade reconcile" in skill_md, "SKILL.md 缺 reconcile 入口"
+
+    propose_md = (PLUGIN_ROOT / "skills/specpowers/prompts/propose.md").read_text(encoding="utf-8")
+    assert "轮次即工件推导值" in propose_md, "propose.md 迭代轮缺推导值语义锚点"
+    assert "自动识别为迭代轮" in propose_md, (
+        "propose.md 重入识别缺目录推导自动识别锚点（v3.0 重入即迭代轮，无需确认命令开轮）"
+    )
+    assert "runtime.json" in propose_md, "propose.md 回退场景缺 runtime.json 计次锚点"
+
+    fast_md = (PLUGIN_ROOT / "skills/specpowers/prompts/fast_mode.md").read_text(encoding="utf-8")
+    assert "checklist.md" in fast_md, "fast_mode.md 缺 checklist.md 验收清单锚点"
+    assert "mode=fast" in fast_md, "fast_mode.md 缺 meta(mode=fast) 自包含登记锚点"
+
+    auto_md = (PLUGIN_ROOT / "skills/specpowers/prompts/auto.md").read_text(encoding="utf-8")
+    assert "facade reconcile" in auto_md, "auto.md 断点定位缺 reconcile 恢复入口"
+    assert "工件推导" in auto_md, "auto.md 缺工件推导口径锚点（v3.0 阶段由工件推导）"
+
+
+def test_reconcile_command_registered():
+    """facade reconcile 子命令已注册且与 record-design-doc 的 meta 落盘联动（防子命令遗漏）。"""
+    from specpowers_cli.bridge.facade import main
+
+    facade_py = (PLUGIN_ROOT / "scripts/specpowers_cli/bridge/facade.py").read_text(encoding="utf-8")
+    assert '"reconcile": _cmd_reconcile' in facade_py, "facade 分发表未注册 reconcile"
+    dispatcher_py = (PLUGIN_ROOT / "scripts/specpowers_cli/bridge/dispatcher.py").read_text(
+        encoding="utf-8")
+    assert "update_meta" in dispatcher_py, "record-design-doc 未落自包含登记（update_meta，v3.0 起唯一写点为 change 目录 meta）"

@@ -6,7 +6,7 @@
 
 specpowers-review 是内置审查技能（`skills/specpowers-review/`，复刻 Codex 审查逻辑），本契约只做三件事：**传基点、滤范围、控迭代**。审查机制（上下文收集脚本、完整方法体提取、多 Pass、P1/P2 分级）全部由技能自带，本契约不重建。
 
-**基点策略（多轮迭代核心）**：`base_commit` 取自 `auto_base.json`，为**首轮记录的 HEAD，跨轮不变** → 审查范围天然覆盖多轮累计改动，不漏审任何一轮的提交。注意区分两种「轮次」：需求迭代轮次（`iteration_count`，不设上限）与 review 复审轮次（单轮内，上限 2），汇总报告分别呈现。
+**基点策略（多轮迭代核心）**：`base_commit` 取自 `auto_base.json`，为**首轮记录的 HEAD，跨轮不变** → 审查范围天然覆盖多轮累计改动，不漏审任何一轮的提交。注意区分两种「轮次」：需求迭代轮次（工件推导值，不设上限）与 review 复审轮次（单轮内，上限 2），汇总报告分别呈现。
 
 ### 6a. 范围准备
 
@@ -59,4 +59,4 @@ specpowers-review 是内置审查技能（`skills/specpowers-review/`，复刻 C
 
 **收口前置检查（auto 内归档必经）**：specpowers-review 存在未收敛的 blocking P1/P2 → **停下报告、不执行归档**（归档意味着需求终结，带病归档不合理；人工裁决后可手动 `/specpowers-archive`）。
 
-归档成功后确定性层自动：`iteration_count` 清零 + 清理 `.specpowers/auto_base.json`（`auto_decisions/<feature>.md` 保留作审计历史）→ 下一轮 `/specpowers-auto` 必然判定 fresh，即**新需求**。
+归档成功后确定性层自动：清理 `.specpowers/auto_base/<feature>.json` 分片 + change 目录移入 archive 快照（轮次等需求级事实随目录终结，无需任何状态清零；`auto_decisions/<feature>.md` 保留作审计历史）→ 下一轮 `/specpowers-auto` 必然判定 fresh，即**新需求**。

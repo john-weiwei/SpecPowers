@@ -4,7 +4,7 @@
 
 当用户调用 `/specpowers-apply` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = 各 change 目录 `.specpowers-meta.json` 中 last_touched 最大者，目录推导；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
 ## 前置校验
 
@@ -13,13 +13,13 @@ python -m specpowers_cli.bridge.facade apply --root .
 ```
 
 Dispatcher 自动校验：
-- 合法 from_stage：`propose`（full 模式）/ `ready`（fast 模式）
+- 入口校验 = 工件形态判定（目录推导）：可入自 `propose`（三件套齐）/ `apply`（续跑）/ `fast`（meta.mode=fast）；`explore`（三件套未齐）拒绝
 - - Full 模式：`openspec/changes/<feature>/proposal.md` 必须存在**且含「## 数据流契约」小节**（确定性层校验段头，倒逼 propose 必须承接 explore 探索结论）
 - Full 模式：`openspec/changes/<feature>/tasks.md` 必须存在
 - Fast 模式：代码变更必须存在（`git diff --stat HEAD` 有输出）
 - constitution.md + baseline.json 必须存在
 
-> 认知层自查（Dispatcher 不校验）：Fast 模式 delta spec 应含 3-5 条 Scenario（场景边界见 fast_mode.md）。
+> 认知层自查（Dispatcher 不校验）：Fast 模式 `checklist.md` 应含 3-5 条验收项（场景边界见 fast_mode.md）。
 
 ## 执行步骤
 
@@ -28,7 +28,7 @@ Dispatcher 自动校验：
 1. 读取 `.specpowers/constitution.md` — 项目原则
 2. 读取 `.specpowers/baseline.json` — 结构基线
 3. Full 模式：读取 `openspec/changes/<feature>/tasks.md` — 执行方式推荐（顶部注释块） + 任务列表
-4. Full/Fast 模式：读取 `openspec/changes/<feature>/specs/<capability>/spec.md` — delta spec 的 Scenario（验证用）
+4. Full 模式：读取 `openspec/changes/<feature>/specs/<capability>/spec.md` — delta spec 的 Scenario（验证用）；Fast 模式：读取 `openspec/changes/<feature>/checklist.md` — 验收清单（验证用）
 
 ### 第二步：选择执行方式
 
@@ -50,7 +50,7 @@ tasks.md 推荐：conductor（顺序执行）
 ```
 
 - fast 模式：仅可选 conductor / TDD，禁止 worktree / subagent
-- 用户选择后**必须调用确定性层记录**到 state.json（`execution_mode` 字段）：
+- 用户选择后**必须调用确定性层记录**到目标需求 change 目录 `.specpowers-meta.json`（`execution_mode` 字段）：
   ```bash
   python -m specpowers_cli.bridge.facade record-execution-mode <conductor|worktree|subagent|tdd> --root .
   ```
@@ -127,7 +127,7 @@ python -m specpowers_cli.bridge.facade gate --base HEAD~1 --root .
 ### 第六步：验证
 
 - Full 模式：逐条验证 delta spec（`specs/<capability>/spec.md`）中的 `#### Scenario` 的 **THEN** 条目
-- Fast 模式：逐条验证 delta spec 的 Scenario（3-5 条）
+- Fast 模式：逐条验证 `checklist.md` 的验收项（3-5 条，触发条件 + 预期结果）
 - **跨链路字段核对**：涉及跨链路字段的 THEN，对照 `openspec/changes/<feature>/proposal.md` 的「数据流契约」核对字段来源/值域是否与实现一致；不一致（如实现取了错误的注入点、值域不符）记为未通过
 - 未全通过 → 转人工
 
@@ -140,13 +140,13 @@ Build 完成。下一步：/specpowers-archive
 ## Fast 模式特殊规则
 
 - 用户已**预先完成编码**（`/specpowers-fast` 声明后）
-- 不执行 tasks.md 中的任务（fast 无 tasks.md，只有 delta spec）
-- 直接运行结构门禁 + delta spec Scenario 验证
-- 中途可通过自然语言"升级为完整流程"回退到 propose（仅一次）
+- 不执行 tasks.md 中的任务（fast 无 tasks.md，验收清单在 `checklist.md`）
+- 直接运行结构门禁 + checklist.md 验收项逐条验证
+- 中途可通过自然语言"升级为完整流程"回退到 propose（仅一次，计次在 `.specpowers/runtime.json`）
 
 ## 迭代轮：只执行未完成且未作废的任务（多轮迭代，auto 与人工模式通用）
 
-当本轮是迭代轮（`state.json` 的 `iteration_count` ≥ 1——入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别确认（人工模式）或 `/specpowers-auto`（无人值守））时，tasks.md 已按 propose 契约完成分轮差异同步，apply 执行范围收敛为：
+当本轮是迭代轮（轮次 ≥ 1——v3.0 起轮次即工件推导值：design-round-N.md 与 tasks「## Round N」小节的最大值；入口可以是 `/specpowers-propose`、`/specpowers-explore` 重入识别（人工模式，目录推导自动识别）或 `/specpowers-auto`（无人值守））时，tasks.md 已按 propose 契约完成分轮差异同步，apply 执行范围收敛为：
 
 - **只执行未勾选（`[ ]`）且不在「## 已作废」小节的任务**；跨轮保留的 `[x]` 任务视为已交付，跳过
 - 执行前先核对：任务引用的 spec 场景在当前 delta spec 中仍存在（propose 同步与 spec 修订之间若出现漂移，以 spec 为准并记录裁决）
@@ -157,4 +157,4 @@ Build 完成。下一步：/specpowers-archive
 
 ## 后续步骤
 
-完成后 stage 跃迁到 `apply`，下一步：`/specpowers-archive [--force-merge-check]`
+完成后目录推导阶段为 `apply`（tasks 已有执行进度），下一步：`/specpowers-archive [--force-merge-check]`

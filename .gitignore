@@ -3,9 +3,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# SpecPowers 个人运行时（本地状态，不提交）
+# SpecPowers 个人运行时（本地状态，不提交；constitution.md/baseline.json 与 openspec/ 工件仍提交）
 .specpowers/state.json
+.specpowers/state.json.bak
+.specpowers/state.json.corrupted-*
+.specpowers/runtime.json
 .specpowers/.lock
+.specpowers/reports/
+.specpowers/auto_base/
+
+# 宿主本地配置
+.zcode/
 
 # Python 打包产物
 build/

@@ -1,19 +1,23 @@
-"""执行方式（execution_mode）确定性层测试。
+"""执行方式（execution_mode）确定性层测试 — v3.0 状态机推导化版。
 
-覆盖 build 阶段执行方式记录的完整链路：
-- validate_execution_mode：合法值/非法值/fast 模式约束兜底
-- set_execution_mode：写入 state.json execution_mode 字段
-- facade record-execution-mode 子命令：通过 main() 端到端
-- DEFAULT_STATE 含 execution_mode 字段；reset/archive 清空
+覆盖 build 阶段执行方式记录的完整链路（v3.0 落点从 state.json 换为
+change 目录 meta 的 execution_mode 字段）：
+- validate_execution_mode：合法值/非法值/fast 模式约束兜底（签名不变）
+- set_execution_mode(root, slug, mode)：写 meta execution_mode；
+  fast 判定从 meta.mode 读（缺省 full）
+- execution_mode 生命周期：随 change 目录生灭（无全局 state 写点）
+- facade record-execution-mode 子命令：单活跃缺省前台 / 多活跃未指名拒绝 /
+  --feature 指名 / fast 拒绝，通过 main() 端到端
 
-背景：build.md 第二步声明「记录到 state.json（execution_mode 字段）」，
-原实现仅在 prompt 声明、无确定性层落地，且 fast 模式禁 worktree/subagent
-的约束纯靠 agent 自律。本测试覆盖把两者升级为确定性层硬校验后的行为。
+背景：build.md 第二步声明「记录执行方式」，fast 模式禁 worktree/subagent
+的约束从纯 prompt 自律升级为确定性层硬校验。v3.0 起 execution_mode 天然
+随目录生灭——meta 不含该键即「无执行方式」，等价旧版 reset 后清空语义。
 
-作者：005819 | 协作：GLM-5.2
+作者：005819 | 协作：GLM-5.3 | 日期：2026-11-17
 """
 
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -21,7 +25,7 @@ from specpowers_cli.bridge.modules.mode_controller import (
     validate_execution_mode, set_execution_mode,
     VALID_EXECUTION_MODES, FAST_FORBIDDEN_MODES,
 )
-from specpowers_cli.bridge.core.fs_state import init_state, load_state, save_state
+from tests.helpers_v3 import make_change, make_triple, read_meta_of
 
 
 # ---------- validate_execution_mode 单元测试 ----------
@@ -76,139 +80,166 @@ def test_fast_constraint_hint_mentions_upgrade():
     assert "升级" in hint or "完整流程" in hint
 
 
+# ---------- set_execution_mode 单元测试（v3.0：写 meta，第二参数是 slug） ----------
 
-def _seed_active_feature(root: Path, mode: str = "full") -> dict:
-    """构造一个活跃需求(feat-demo, stage=apply)并返回前台视图。"""
-    state = dict(load_state(root))
-    state.update({"feature": "feat-demo", "stage": "apply", "mode": mode})
-    save_state(root, state)
-    return load_state(root)
-
-
-# ---------- set_execution_mode 单元测试 ----------
-
-def test_set_execution_mode_writes_state(tmp_path: Path):
-    """set_execution_mode 应把执行方式写入 state.json。"""
+def test_set_execution_mode_writes_meta(tmp_path: Path):
+    """set_execution_mode 应把执行方式写入目标需求的 meta。"""
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    state = _seed_active_feature(root)
+    make_triple(root, "feat-demo")
+    assert "execution_mode" not in read_meta_of(root, "feat-demo")  # 前置：尚未记录
 
-    set_execution_mode(root, state, "tdd")
+    result = set_execution_mode(root, "feat-demo", "tdd")
 
-    loaded = load_state(root)
-    assert loaded["execution_mode"] == "tdd"
+    assert result == "tdd"  # 返回规范化后的值
+    assert read_meta_of(root, "feat-demo")["execution_mode"] == "tdd"
 
 
 def test_set_execution_mode_normalizes_case(tmp_path: Path):
     """set_execution_mode 应把大写执行方式规范化为小写存盘。"""
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    state = _seed_active_feature(root)
+    make_triple(root, "feat-demo")
 
-    set_execution_mode(root, state, "Subagent")
+    result = set_execution_mode(root, "feat-demo", "Subagent")
 
-    assert load_state(root)["execution_mode"] == "subagent"
+    assert result == "subagent"
+    assert read_meta_of(root, "feat-demo")["execution_mode"] == "subagent"
 
 
 def test_set_execution_mode_rejects_fast_subagent(tmp_path: Path):
-    """fast 模式下 set_execution_mode 选 subagent 应抛 ValueError。"""
+    """fast 模式（meta.mode=fast）下选 subagent 应抛 ValueError 且不落盘。"""
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    state = _seed_active_feature(root, mode="fast")
+    make_triple(root, "feat-demo", meta={"mode": "fast"})
 
-    with pytest.raises(ValueError):
-        set_execution_mode(root, state, "subagent")
+    with pytest.raises(ValueError) as exc_info:
+        set_execution_mode(root, "feat-demo", "subagent")
+    assert "fast" in str(exc_info.value)
+    # 拒绝时 meta 不得留下 execution_mode（部分写入即漂移）
+    assert "execution_mode" not in read_meta_of(root, "feat-demo")
 
 
 def test_set_execution_mode_rejects_unknown(tmp_path: Path):
-    """未知执行方式应抛 ValueError。"""
+    """未知执行方式应抛 ValueError（提示含合法值清单）。"""
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    state = _seed_active_feature(root)
+    make_triple(root, "feat-demo")
 
-    with pytest.raises(ValueError):
-        set_execution_mode(root, state, "random")
-
-
-# ---------- DEFAULT_STATE 结构与生命周期清理 ----------
-
-def test_default_state_has_execution_mode():
-    """DEFAULT_STATE 必须含 execution_mode 字段（兑现 build.md 承诺）。"""
-    from specpowers_cli.bridge.core.fs_state import DEFAULT_STATE
-    assert "execution_mode" in DEFAULT_STATE
-    assert DEFAULT_STATE["execution_mode"] == ""
+    with pytest.raises(ValueError) as exc_info:
+        set_execution_mode(root, "feat-demo", "random")
+    assert "合法值" in str(exc_info.value)
+    assert "execution_mode" not in read_meta_of(root, "feat-demo")
 
 
-def test_init_state_has_empty_execution_mode(tmp_path: Path):
-    """init_state 后 execution_mode 应为空串。"""
+def test_set_execution_mode_reads_mode_from_meta_default_full(tmp_path: Path):
+    """fast 判定从 meta.mode 读：无 mode 键时按 full（fast 禁用项也放行）。"""
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    # v2.8.0：execution_mode 是需求级字段（无活跃需求时视图展开默认空串）
-    assert load_state(root)["execution_mode"] == ""
+    # meta 不含 mode 键（三件套齐全的常规需求）
+    make_triple(root, "feat-demo")
+    # worktree 属 fast 禁用集合——能落盘即证明 current_mode 取的默认 full
+    set_execution_mode(root, "feat-demo", "worktree")
+    assert read_meta_of(root, "feat-demo")["execution_mode"] == "worktree"
 
 
-def test_reset_state_clears_execution_mode(tmp_path: Path):
-    """reset_state 应清空 execution_mode（新 feature 不继承旧执行方式）。"""
-    from specpowers_cli.bridge.core.fs_state import reset_state
+# ---------- execution_mode 生命周期（v3.0：随 change 目录生灭） ----------
+
+def test_meta_without_execution_mode_reads_empty(tmp_path: Path):
+    """meta 无 execution_mode 键时读出为空（新需求天然无执行方式）。
+
+    v3.0 无「新需求清空 execution_mode」的独立写点——字段天然随目录
+    生灭，未记录过的需求 meta 中就没有该键。
+    """
     root = tmp_path
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    state = _seed_active_feature(root)
-    state = set_execution_mode(root, state, "subagent")
+    make_triple(root, "feat-demo", meta={"mode": "fast"})  # meta 存在但无 execution_mode
+    meta = read_meta_of(root, "feat-demo")
+    assert meta.get("execution_mode", "") == ""
 
-    new_state = reset_state(root)
-    assert new_state["execution_mode"] == ""
+
+def test_execution_mode_dies_with_change_dir(tmp_path: Path):
+    """change 目录删除后执行方式随之消失（无全局 state 残留）。
+
+    等价旧版「reset/archive 清空 execution_mode」语义：v3.0 归档/删除
+    目录即需求终结，execution_mode 无法从已消失的目录泄漏到新需求。
+    """
+    root = tmp_path
+    change = make_triple(root, "feat-demo")
+    set_execution_mode(root, "feat-demo", "conductor")
+    assert read_meta_of(root, "feat-demo")["execution_mode"] == "conductor"
+
+    shutil.rmtree(change)
+    assert read_meta_of(root, "feat-demo") == {}
 
 
 # ---------- facade record-execution-mode 子命令端到端 ----------
 
-def _create_temp_git_repo(tmp_path: Path) -> Path:
-    """在 pytest tmp_path 下创建带提交的临时 git 仓库（会话级模板复制，约 10ms）。"""
-    from tests._gitrepo import create_git_repo
-
-    return create_git_repo(tmp_path / "exec-mode-repo")
-
-
-def test_facade_record_execution_mode_success(tmp_path: Path):
-    """facade record-execution-mode conductor 应成功并写入 state。"""
+def test_facade_record_execution_mode_single_active_defaults_foreground(tmp_path: Path):
+    """单活跃需求时 record-execution-mode 缺省写入前台需求 meta。"""
     from specpowers_cli.bridge.facade import main
-    root = _create_temp_git_repo(tmp_path)
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    _seed_active_feature(root)
+    root = tmp_path
+    make_triple(root, "feat-demo")
 
     rc = main(["record-execution-mode", "conductor", "--root", str(root)])
+
     assert rc == 0
-    assert load_state(root)["execution_mode"] == "conductor"
+    assert read_meta_of(root, "feat-demo")["execution_mode"] == "conductor"
+
+
+def test_facade_record_execution_mode_multi_active_requires_feature(tmp_path: Path):
+    """多活跃需求未指名 --feature 应拒绝退出（防记错需求）。"""
+    from specpowers_cli.bridge.facade import main
+    root = tmp_path
+    make_triple(root, "feat-a")
+    make_triple(root, "feat-b")
+
+    rc = main(["record-execution-mode", "tdd", "--root", str(root)])
+
+    assert rc != 0
+    # 两需求的 meta 均不得被写入
+    assert "execution_mode" not in read_meta_of(root, "feat-a")
+    assert "execution_mode" not in read_meta_of(root, "feat-b")
+
+
+def test_facade_record_execution_mode_feature_option_targets_slug(tmp_path: Path):
+    """多活跃时 --feature 指名目标 slug，只写入指定需求的 meta。"""
+    from specpowers_cli.bridge.facade import main
+    root = tmp_path
+    make_triple(root, "feat-a")
+    make_triple(root, "feat-b")
+
+    rc = main(["record-execution-mode", "tdd", "--feature", "feat-b", "--root", str(root)])
+
+    assert rc == 0
+    assert read_meta_of(root, "feat-b")["execution_mode"] == "tdd"
+    assert "execution_mode" not in read_meta_of(root, "feat-a")
+
+
+def test_facade_record_execution_mode_no_active_rejected(tmp_path: Path):
+    """无活跃需求时 record-execution-mode 应拒绝退出。"""
+    from specpowers_cli.bridge.facade import main
+    root = tmp_path
+    (root / ".specpowers").mkdir(exist_ok=True)  # 无任何 change 目录
+
+    rc = main(["record-execution-mode", "tdd", "--root", str(root)])
+
+    assert rc != 0
 
 
 def test_facade_record_execution_mode_missing_arg(tmp_path: Path):
-    """record-execution-mode 无参数应返回退出码 2。"""
+    """record-execution-mode 无执行方式参数应返回退出码 2。"""
     from specpowers_cli.bridge.facade import main
-    root = _create_temp_git_repo(tmp_path)
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
+    root = tmp_path
+    make_triple(root, "feat-demo")
 
     rc = main(["record-execution-mode", "--root", str(root)])
+
     assert rc == 2
 
 
 def test_facade_record_execution_mode_fast_rejects_subagent(tmp_path: Path):
-    """fast 模式下 record-execution-mode subagent 应非 0 退出。"""
+    """fast 模式（meta.mode=fast）下 record-execution-mode subagent 应非 0 退出。"""
     from specpowers_cli.bridge.facade import main
-    root = _create_temp_git_repo(tmp_path)
-    (root / ".specpowers").mkdir(exist_ok=True)
-    init_state(root)
-    _seed_active_feature(root, mode="fast")
+    root = tmp_path
+    make_triple(root, "feat-demo", meta={"mode": "fast"})
 
     rc = main(["record-execution-mode", "subagent", "--root", str(root)])
+
     assert rc != 0
-    # 执行方式不应被写入
-    assert load_state(root)["execution_mode"] == ""
-
-
+    # 执行方式不应被写入 meta
+    assert "execution_mode" not in read_meta_of(root, "feat-demo")

@@ -1,14 +1,16 @@
 ---
 name: specpowers
 description: 桥接编排插件 — 在 OpenSpec + superpowers 之上叠加结构一致性门禁与实时卡转人工，五阶段流水线（init→explore→propose→apply→archive）+ 无人值守模式 + 优化模式
-version: 2.11.0
+version: 3.0.0
 ---
 
 # SpecPowers 桥接插件
 
 > **定位**：薄桥接层（Facade + Adapter + Dispatcher），不重写任何框架引擎。只复用 OpenSpec + superpowers 原生能力，补上两条它们都没有的硬约束：**结构一致性门禁**、**实时卡转人工**。
-> **v2.0.0 阶段重命名**：constitution→init、brainstorm→explore、build→apply；specify+plan 合并为 **propose**（一站式三件套，存储路径不变）。旧项目 state.json 自动惰性迁移。
-> **v2.8.0 多活跃需求**：state.json 升级 schema 2（features 映射，多需求并存互不覆盖，前台 = last_touched 推导）；命令支持 `--feature` 指定目标（多活跃未指名的推进类命令会被拒绝并列出活跃清单）；auto_base 按需求隔离（`.specpowers/auto_base/<slug>.json`）；旧 schema 1 读出即迁移。
+> **v3.0.0 状态机推导化**：`state.json` 退役——活跃权威 = `openspec/changes/` 目录扫描，阶段 = `derive_stage` 工件形态判定（explore/propose/apply/fast），轮次由 design-round-N.md 与 tasks.md「## Round N」小节推导，前台 = meta `last_touched` 最大者；需求级登记（design_doc/mode/execution_mode/last_touched/created_at）落 change 目录 `.specpowers-meta.json`，项目级 fallback_count/last_archive_ref 落 `.specpowers/runtime.json`；旧项目首次执行任一命令自动迁移（meta 齐全化 + runtime.json + 原文件改名 `state.json.bak` 留底）。`facade iterate` 删除——人工模式重入 `/specpowers-propose` 或 `/specpowers-explore` 即由目录推导自动识别为迭代轮，无需命令确认开轮；入口校验改为工件形态判定（详见下方「工件推导」小节）；`facade reset` 重定义为删除目标需求 change 目录与 auto 基线（非 CI 必须 `--force` 确认）；fast 与 explore 收口即建 change 目录（meta 自包含登记）。
+> **v2.0.0 阶段重命名**：constitution→init、brainstorm→explore、build→apply；specify+plan 合并为 **propose**（一站式三件套，存储路径不变）。旧项目自动惰性迁移。
+> **v2.12 工件对账与状态重建**：需求级事实状态以 `openspec/changes/` 工件为权威信源（v3.0 起成为唯一权威，见上方 v3.0.0 说明与下方「工件推导」小节）。
+> **v2.8.0 多活跃需求**：多需求并存互不覆盖（v2.8.0 起状态按需求隔离，v3.0 起以 change 目录为界）；命令支持 `--feature` 指定目标（多活跃未指名的推进类命令会被拒绝并列出活跃清单）；auto_base 按需求隔离（`.specpowers/auto_base/<slug>.json`）。
 > **v2.9.0 维护技能合并**：specpowers-reset 与 specpowers-baseline 合并为 **specpowers-maintain**（原两个 slash 名移除）——按用户意图分流（自然语言即可，无需记忆参数），`facade reset` / `facade baseline` 子命令不变。
 > **v2.10.0 设计文档瘦身**：explore 设计文档模板 6 章 → 5 章（删复述章节「项目上下文」「需求分析」，「组件划分」并入架构；方案对比保留）+ 精简纪律（禁复述 baseline/constitution 事实源、禁贴大段代码）；propose 人工模式读侧对齐 auto 模式——Grep 局部读「决策摘要 + 数据流」，禁止默认整份重读。
 > **v2.11.0 迭代轮 token 收敛**：proposal 迭代历史表格化 + 封顶滚动（单行表格 ≤7 行，消随轮次线性增长；明细事实源 = design-round-N.md 与 spec/tasks 轮次痕迹）；spec/tasks 迭代轮改**骨架两级读取**（第一级 Grep 结构清单，仅命中项局部读详情）+ **Edit 化修订**（替换/删段/插入，不整份重写，格式锚点受 validator/task-brief 硬约束）；骨架与文件规模不符时回退全文；apply 侧读取不局部化（全量回归是质量边界）。
@@ -35,19 +37,21 @@ init ─▶ ready ─┬─(explore)───▶ explore ─▶ propose ─▶ a
                               简易设计文档（基线冻结不动），spec 增量修订 + tasks 分轮演进
 ```
 
-多活跃需求（v2.8.0）：每需求独立走一条上述流水线，状态存 `state.json` 的 features 映射（互不覆盖）；前台 = `last_touched` 最大者（最近操作的需求，推导式不落盘）。开新需求不必先归档旧需求——直接 `/specpowers-explore`，旧需求自动转后台；各需求归档时机独立（`/specpowers-archive --feature <slug>`）。多个需求改动同一 capability 的规格时，归档是短临界区、按序执行（后归档方负责对齐主规格）。
+多活跃需求（v2.8.0）：每需求独立走一条上述流水线，各自拥有 `openspec/changes/<slug>/` 一个 change 目录（互不覆盖，目录即需求身份）；前台 = 各需求 meta `last_touched` 最大者（最近操作的需求，推导式无全局指针）。开新需求不必先归档旧需求——直接 `/specpowers-explore`，旧需求自动转后台；各需求归档时机独立（`/specpowers-archive --feature <slug>`）。多个需求改动同一 capability 的规格时，归档是短临界区、按序执行（后归档方负责对齐主规格）。
 
 propose 一站式生成三件套到 `openspec/changes/<feature>/`：proposal.md（含「## 数据流契约」，apply 硬依赖）+ `specs/<capability>/spec.md`（OpenSpec delta 格式）+ tasks.md（writing-plans 瘦身，顶部含执行方式推荐与「修改范围：」声明）。
 
-> **省 token 建议**：各阶段产物全部落盘（state.json + openspec/changes/），阶段间不依赖对话记忆。人工模式推荐**每阶段完成即开新会话**再触发下一条命令——长会话上下文逐轮累积是 token 消耗主因，新会话只加载当阶段契约；会话启动探测（v2.3.0）会自动提示续跑命令，跨机接管同样支持。`/specpowers-auto` 例外（单会话直通是其设计）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，避免频繁切换模型。
+> **工件推导（v3.0 状态机推导化完成）**：需求级事实状态全面从 `openspec/changes/` 工件推导，`state.json` 已退役——活跃性 = change 目录扫描（含三件套或 `.specpowers-meta.json` 任一即活跃）；阶段 = `derive_stage` 工件形态判定（explore/propose/apply/fast）；迭代轮次 = `design-round-<N>.md` 与 tasks.md「## Round <N>」小节推导；前台 = meta `last_touched` 最大者。需求级登记（design_doc / mode / execution_mode / last_touched / created_at）落 change 目录 `.specpowers-meta.json` 自包含（随工件提交，跨机自洽）；项目级 `fallback_count` / `last_archive_ref` 落 `.specpowers/runtime.json`（归档/reset 均不清）。旧项目首次执行任一命令自动迁移（meta 齐全化 + runtime.json + 原文件改名 `state.json.bak` 留底）。推导核对：`facade reconcile --root .` 输出全量推导核对报告（活跃清单/阶段/轮次/前台/meta 审计警告）并顺手兜底旧 state 迁移；跨机接管零迁移成本（目录推导自洽）。
+
+> **省 token 建议**：各阶段产物全部落盘（openspec/changes/ 工件 + change 目录 meta），阶段间不依赖对话记忆。人工模式推荐**每阶段完成即开新会话**再触发下一条命令——长会话上下文逐轮累积是 token 消耗主因，新会话只加载当阶段契约；会话启动探测（v2.3.0）会自动提示续跑命令，跨机接管同样支持。`/specpowers-auto` 例外（单会话直通是其设计）。宿主支持 prompt 缓存时，固定的指令前缀可按缓存价计费，避免频繁切换模型。
 
 ## 会话粘滞（v2.7.0；v2.8.0 多活跃需求化）
 
-本对话加载过任一 specpowers 技能且项目有活跃需求（`state.json` features 映射非空：任一需求 stage ∈ explore/propose/apply/archive，或 fast 模式进行中）时，**后续每条用户消息默认先做相关性判定**，把对话保持在流程语境内（软粘滞，不阻塞正常使用）。多活跃需求并存是 v2.8.0 起的默认形态：锚点行**每需求一行**（前台 = `last_touched` 最大者，标注「（前台）」，≤3 个全列、更多则前台 + 一行汇总），「当前在做什么」活在对话上下文里，锚点的作用是把全部活跃需求摆在眼前供消息归属判定：
+本对话加载过任一 specpowers 技能且项目有活跃需求（`openspec/changes/` 目录扫描非空：任一需求 `derive_stage` 工件判定 ∈ explore/propose/apply/fast）时，**后续每条用户消息默认先做相关性判定**，把对话保持在流程语境内（软粘滞，不阻塞正常使用）。多活跃需求并存是 v2.8.0 起的默认形态：锚点行**每需求一行**（前台 = meta `last_touched` 最大者，标注「（前台）」，≤3 个全列、更多则前台 + 一行汇总），「当前在做什么」活在对话上下文里，锚点的作用是把全部活跃需求摆在眼前供消息归属判定：
 
 | 消息判定 | 处理 |
 |---------|------|
-| ① 相关 | 按**锚点命中的那个需求**的当前阶段技能/契约处理（未归档调整 = 同需求迭代轮，走重入识别） |
+| ① 相关 | 按**锚点命中的那个需求**的当前阶段技能/契约处理（未归档调整 = 同需求迭代轮，重入即由目录推导自动识别，无需确认命令开轮） |
 | ② 无关（闲聊/其他任务） | 照常回答，回复**末尾加一行提醒**：当前活跃需求清单（前台 \<feature\>（\<stage\>），后台…），脱离流程前建议按需求 `/specpowers-archive --feature <slug>` 或 `/specpowers-maintain reset --feature <slug>` |
 | ③ 要开新需求 | 与用户确认 slug 后**直接开工**（`/specpowers-explore`，旧活跃需求自动转后台不受影响）；slug 命中已有活跃需求则按①走续作（slug 即身份） |
 
@@ -62,9 +66,9 @@ propose 一站式生成三件套到 `openspec/changes/<feature>/`：proposal.md�
 5. 都不中 → 无关，按②
 6. **拿不准 → 一律按相关①**（代价不对称：多一句确认 ≪ 绕过流程）
 
-配套约束：**判定零额外读取**——用上下文已加载的锚点（或 hook 注入的锚点行）匹配即可，禁止为判定重读三件套；**每条消息独立判定**——话题漂移后重新走规则表，不整段对话二分。误判不伤流程：确定性层状态机仍是最终防线（per-feature 阶段跃迁/产物门禁/修改范围比对照常拦截），粘滞只是路由引导。
+配套约束：**判定零额外读取**——用上下文已加载的锚点（或 hook 注入的锚点行）匹配即可，禁止为判定重读三件套；**每条消息独立判定**——话题漂移后重新走规则表，不整段对话二分。误判不伤流程：确定性层仍是最终防线（per-feature 工件形态判定入口校验/产物门禁/修改范围比对照常拦截），粘滞只是路由引导。
 
-**解除条件（per-feature）**：某需求归档或 reset（features 映射移除该键）只解除**该需求**的粘滞，其余活跃需求的锚点保留——「对话结束」宿主侧不可观测，以磁盘状态为界；对话结束后新会话由 SessionStart resume-probe 提示续跑（多需求各自一行），跨会话衔接不丢。逐轮锚点行由 UserPromptSubmit hook 注入（ZCode/Claude/Codex，单需求约 80 token/轮、多需求每需求一行，`facade sticky-note` 供模型直接调用；WorkBuddy/pip 形态无 hook 机制，仅靠本小节条款）。粘滞与下方「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
+**解除条件（per-feature）**：某需求归档（change 目录移入 archive 快照）或 reset（change 目录删除）只解除**该需求**的粘滞，其余活跃需求的锚点保留——「对话结束」宿主侧不可观测，以磁盘工件为界；对话结束后新会话由 SessionStart resume-probe 提示续跑（多需求各自一行），跨会话衔接不丢。逐轮锚点行由 UserPromptSubmit hook 注入（ZCode/Claude/Codex，单需求约 80 token/轮、多需求每需求一行，`facade sticky-note` 供模型直接调用；WorkBuddy/pip 形态无 hook 机制，仅靠本小节条款）。粘滞与下方「每阶段开新会话省 token」不冲突：粘滞是**对话内不跑偏**，跨阶段换会话建议不变。
 
 ## 技能参考
 
@@ -73,15 +77,15 @@ v2.4.0 起 9 条阶段命令全部转为**阶段技能**（`skills/specpowers-<s
 | 技能（slash 名不变） | 参数 | 说明 |
 |------|------|------|
 | `/specpowers-init` | `[--force]` | 生成 constitution（质量/测试/UX/性能原则 + 可选实现倾向段，从 AGENTS.md 提取编码约束）+ 扫结构基线 |
-| `/specpowers-explore` | `"<需求>" [--feature <slug>]` | 探索 + 设计文档落盘（`docs/specpowers/design/`）+ `record-design-doc` 登记；未归档重入=迭代轮确认（方案变更路径，v2.7.0 起新落 `design-round-<N>.md` 简易设计文档，基线不动不重登记）；slug 命中活跃需求=续作请求（确定性层拒绝并指引走 propose/iterate） |
-| `/specpowers-propose` | `"<需求>" [--feature <slug>]` | 一站式生成三件套；未归档重入=迭代轮确认（场景调整路径）；normalize 命中活跃 slug = 锁定该需求续作（slug 即身份） |
+| `/specpowers-explore` | `"<需求>" [--feature <slug>]` | 探索 + 设计文档落盘（`docs/specpowers/design/`）+ `record-design-doc` 登记（登记即建 change 目录与 meta 自包含登记）；未归档重入=目录推导自动识别为迭代轮（方案变更路径，v2.7.0 起新落 `design-round-<N>.md` 简易设计文档，基线不动不重登记），仅意图歧义（描述像新需求）时向用户确认 |
+| `/specpowers-propose` | `"<需求>" [--feature <slug>]` | 一站式生成三件套；未归档重入=目录推导自动识别为迭代轮（场景调整路径，无需确认命令开轮）；slug 命中活跃需求=锁定该需求续作（slug 即身份）；apply/fast 态重入=回退（消耗生命周期唯一 1 次额度） |
 | `/specpowers-auto` | `"<设计文档路径>" [--instruction "<描述>"] [--archive] [--new-round] [--feature <slug>]` | 无人值守全流程至 review，**默认不归档**（`--archive` 显式收口）；重入三分判定 fresh/resume/iterate（按目标需求的分片 auto_base）；所有确认/门禁节点自动裁决，仅硬阻断才停；归档前重入=同需求迭代轮 |
-| `/specpowers-fast` | `"<需求>" [--feature <slug>]` | 判小跳 explore/propose，用户编码后直进 apply（fast→full 回退消耗生命周期唯一 1 次额度） |
+| `/specpowers-fast` | `"<需求>" [--feature <slug>]` | 判小跳 explore/propose，入口即建 change 目录（meta mode=fast + `checklist.md` 骨架，验收清单由契约填充），用户编码后直进 apply（fast→full 回退消耗生命周期唯一 1 次额度） |
 | `/specpowers-apply` | `[--feature <slug>]` | 执行构建 + 实时门禁三态（结构基线 + 修改范围比对）+ 能力池调度 + Scenario 验证 |
-| `/specpowers-archive` | `[--force-merge-check] [--feature <slug>]` | 收尾归档（openspec delta 合并 + 场景覆盖核查）；归档即**该需求**完结（映射移除 + auto_base 清理 + 迭代计数随之终结），其余活跃需求不受影响，前台自动切换 |
-| `/specpowers-maintain` | `[reset|baseline] [--feature <slug>]` | 维护入口（按用户意图分流，自然语言调用无需参数）：重置流水线状态 + lock（多活跃未指名拒绝，fallback_count 保留，baseline 不受影响）或刷新结构基线（重扫覆盖，提示提交 git） |
+| `/specpowers-archive` | `[--force-merge-check] [--feature <slug>]` | 收尾归档（openspec delta 合并 + 场景覆盖核查）；归档即**该需求**完结（change 目录移入 archive 快照 + auto_base 分片清理，迭代计数随之终结），其余活跃需求不受影响，前台自动切换 |
+| `/specpowers-maintain` | `[reset|baseline] [--feature <slug>]` | 维护入口（按用户意图分流，自然语言调用无需参数）：重置 = 删除目标需求 change 目录与 auto 基线（多活跃未指名拒绝，非 CI 需 `--force` 确认；fallback_count/last_archive_ref 保留，baseline 不受影响）或刷新结构基线（重扫覆盖，提示提交 git） |
 
-多活跃时的目标路由规则（确定性层统一执行）：`--feature` 显式指定 > 前台；推进/破坏性命令（apply/archive/reset/iterate/auto 系列/record-*）多活跃未指名 → 拒绝并列出活跃清单（模型带名重试）；只读命令（status/auto-status/sticky）多需求全输出。`facade switch <slug>` 纯切前台。合法 from_stage 由 facade 按目标需求分片校验（如 apply 仅 propose / ready(fast) 可入），详见各阶段契约。
+多活跃时的目标路由规则（确定性层统一执行）：`--feature` 显式指定 > 前台；推进/破坏性命令（apply/archive/reset/auto 系列/record-*）多活跃未指名 → 拒绝并列出活跃清单（模型带名重试）；只读命令（status/auto-status/sticky）多需求全输出。`facade switch <slug>` 纯切前台。入口校验 = `derive_stage` 工件形态判定（如 propose 可入自 explore/propose 续作/apply 回退/fast，apply 可入自 propose 三件套齐/fast，archive 可入自 apply/fast），详见各阶段契约。
 
 ## 执行方式
 
@@ -119,7 +123,7 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
 | `prompts/propose.md` | 提案契约：从设计文档提炼三件套（数据流契约 / 修改范围声明 / 执行方式推荐 / 迭代轮增量修订） |
 | `prompts/apply.md` | 结构门禁三态 + 能力池调度 + 验收清单消费 + 迭代轮只跑未完成任务 |
 | `prompts/archive.md` | 三职责收尾 + 合体后校验 |
-| `prompts/fast_mode.md` | 判小 / 确认交互 / 回退 / 清单 |
+| `prompts/fast_mode.md` | 判小 / 确认交互 / checklist 骨架填充 / 回退 |
 | `prompts/auto.md` | 无人值守主契约（八要素解析落盘 + 需求澄清五维 + 阶段编排表 + 硬阻断）；**四类低频细则按需读 `prompts/refs/`**：迭代轮 `auto-iteration.md`、review 编排与归档收口 `auto-review.md`、完整裁决规则表 `auto-adjudication.md`、explore 停靠 `auto-explore-halt.md` |
 | `templates/` | constitution / auto-summary / clarification 三份生成模板 |
 
@@ -129,8 +133,8 @@ ${PLUGIN_ROOT}/scripts/specpowers_cli/bin/specpowers <subcommand> [options]
 
 - 所有用户输入参数化传递，禁止拼入 shell 命令字符串
 - git 操作使用参数列表调用 subprocess（bridge/core/git_util.py）
-- `.specpowers/state.json` 原子写（临时文件 + rename）；`.specpowers/.lock` 防重入，含死锁检测
+- change 目录 `.specpowers-meta.json` 与 `.specpowers/runtime.json` 原子写（临时文件 + rename）；`.specpowers/.lock` 防重入，含死锁检测
 
 ## 团队协作
 
-- `baseline.json` → 提交 git（团队共享基线）；`state.json` / `.lock` → `.gitignore`（个人本地，v2.8.0 起含多需求 features 映射，各机各自维护前台偏好）
+- `baseline.json` → 提交 git（团队共享基线）；`.specpowers/runtime.json` / `.lock` → `.gitignore`（个人本地，fallback_count/last_archive_ref 各机各自维护，归档/reset 均不清）；change 目录 `.specpowers-meta.json` 随工件提交（自包含登记，跨机目录推导自洽）——工件异常/接管疑虑用 `facade reconcile` 输出推导核对报告

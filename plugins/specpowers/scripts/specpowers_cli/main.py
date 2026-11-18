@@ -220,14 +220,19 @@ def _copy_runtime_files(project_dir: Path, integration: dict):
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
     # 3. Copy .gitignore template
-    #    state.json/.lock 个人本地（gitignore）；
-    #    openspec change 产物团队可见（提交，归档时移入 openspec/changes/archive/）
+    #    个人运行时（state 留底/runtime/reports/auto_base/.lock）不提交；
+    #    constitution/baseline 与 openspec change 产物团队可见（提交，归档时移入 archive/）
+    #    v3.0.0 与仓库根 .gitignore 清单对齐（runtime.json 为本地回退额度/归档基准）
     gitignore_path = project_dir / ".gitignore"
     gitignore_entry = """
 # SpecPowers personal runtime (do not commit)
 .specpowers/state.json
+.specpowers/state.json.bak
+.specpowers/state.json.corrupted-*
+.specpowers/runtime.json
 .specpowers/.lock
 .specpowers/reports/
+.specpowers/auto_base/
 """
     if gitignore_path.exists():
         # 显式 UTF-8：Windows 默认用 locale 编码（中文系统为 GBK），

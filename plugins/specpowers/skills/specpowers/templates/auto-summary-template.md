@@ -13,7 +13,7 @@
 - **本轮调整范围**：<相对上一轮的变化点，逐条列出；首轮写「首次执行」>
 - **执行结果**：本轮完成（未归档，可继续迭代、`--archive` 或手动归档）/ 本轮完成并归档（显式 `--archive` 收口）/ explore 停靠（方案待定，等待输入：带 `--instruction "<方案结论>"` 或补充文档重入）/ 硬阻断停下（第 <M> 步）
 - **设计文档**：<当前有效设计文档路径>
-- **审查基点**：<base_commit SHA>（首轮记录，跨轮不变，记录于 `.specpowers/auto_base.json`）
+- **审查基点**：<base_commit SHA>（首轮记录，跨轮不变，记录于 `.specpowers/auto_base/<feature>.json`）
 - **审查方式**：specpowers-review 技能（内置）/ 降级自审 checklist（二选一，降级时注明原因）
 
 ## 一、各阶段产物路径

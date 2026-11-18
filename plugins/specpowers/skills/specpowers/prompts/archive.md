@@ -4,7 +4,7 @@
 
 当用户调用 `/specpowers-archive [--force-merge-check]` 时加载本契约。
 
-> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = state.json features 映射中 last_touched 最大者；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
+> **feature 说明**：以下路径中的 <feature> 由阶段命令的 `--feature` 参数或前台推导确定（v2.8.0 多活跃需求：前台 = 各 change 目录 `.specpowers-meta.json` 中 last_touched 最大者，目录推导；多活跃时命令必须显式 `--feature <slug>`）。同一需求的流程内锁定不变（slug 即身份）。
 
 ## 前置校验
 
@@ -13,7 +13,7 @@ python -m specpowers_cli.bridge.facade archive [--force-merge-check] --root .
 ```
 
 Dispatcher 自动校验：
-- 合法 from_stage：`apply`
+- 入口校验 = 工件形态判定（目录推导）：可入自 `apply`（tasks 已有执行进度）/ `fast`
 - 重复归档检查：该 feature 已有 archive commit → 拒绝 + 提示 `git pull && /specpowers-maintain reset`
 
 > 认知层自查（Dispatcher 不复查）：代码变更确实存在（`git diff --stat HEAD` 有输出或已有 commit）、实时门禁三态已通过。
@@ -47,9 +47,9 @@ Dispatcher 自动校验：
 - `--force-merge-check` → **强制开**（rebase/squash 流兜底）
 
 **优化模式**（`mode=fast`）：
-- 与 full 一致：调 `openspec archive <feature> --yes --json`
-- delta spec（fast 阶段落盘的验收清单）合并到主规格
-- 区别仅在于 fast 无 proposal.md（OpenSpec archive 对 proposal 是 informative only，不阻塞）
+- 与 full 一致：调 `openspec archive <feature> --yes --json`，change 快照移入 archive/
+- fast 自包含（v3.0）：验收清单是 change 目录 `checklist.md`（OpenSpec 对其无感知），主规格合并为「无 delta 需合并」
+- 区别仅在于 fast 无 proposal.md 与 specs/ delta（OpenSpec archive 对 proposal 是 informative only，不阻塞）
 
 ## 常规模式执行
 
@@ -59,11 +59,11 @@ Dispatcher 自动校验：
 ### 第一步：前置校验（dispatcher 自动完成）
 
 dispatcher 自动校验：
-- 合法 from_stage：`apply`
+- 入口校验 = 工件形态判定（目录推导）：可入自 `apply` / `fast`
 - 重复归档检查：该 feature 已有 archive commit → 拒绝
 - openspec CLI 可用性（Duty 5）：不可用 → **拒绝归档**（强依赖，不降级）
 - delta spec 必须存在（`openspec/changes/<feature>/specs/` 下有 spec.md）
-- **场景覆盖核查**（v2.3.0，确定性，提示不阻断）：delta spec 的每个 `#### Scenario:` 应至少被 tasks.md 一个任务的「场景引用」字段覆盖（规范即验收标尺——OpenSpec 第三原则的归档前兜底）。存在未覆盖场景时输出 `⚠` 与未覆盖清单，agent 应提示用户：回 `/specpowers-propose` 补任务，或确认场景已作废；用户坚持归档则放行（archive 只转人工不打回）。fast 模式 delta 为验收清单（无 `#### Scenario:`），核查自动跳过
+- **场景覆盖核查**（v2.3.0，确定性，提示不阻断）：delta spec 的每个 `#### Scenario:` 应至少被 tasks.md 一个任务的「场景引用」字段覆盖（规范即验收标尺——OpenSpec 第三原则的归档前兜底）。存在未覆盖场景时输出 `⚠` 与未覆盖清单，agent 应提示用户：回 `/specpowers-propose` 补任务，或确认场景已作废；用户坚持归档则放行（archive 只转人工不打回）。fast 自包含无 delta spec（验收清单在 checklist.md），核查自动跳过
 
 ### 第二步：确定性归档（dispatcher 自动完成）
 
@@ -73,7 +73,7 @@ dispatcher 执行：
    - openspec 内置 delta 合并：把 change 的 delta 合并进主规格
      `openspec/specs/<capability>/spec.md`
    - openspec 把 change 移到 `openspec/changes/archive/YYYY-MM-DD-<feature>/`
-3. **刷新 state**：`last_archive_ref` = 当前 HEAD；该需求从 features 映射移除（v2.8.0 per-feature 终结：iteration_count/design_doc/execution_mode 随之终结，无需逐字段清空）；若仍有其他活跃需求，前台自动切到剩余 last_touched 最大者
+3. **刷新项目级凭据**：`.specpowers/runtime.json` 的 `last_archive_ref` = 当前 HEAD（merge check 基准，归档/reset 均不清的项目级字段）；change 目录已被移入 archive 快照，该需求即从活跃清单消失（工件推导，无需任何状态删除——迭代计数等需求级事实随目录终结）；若仍有其他活跃需求，前台自动切到剩余 meta last_touched 最大者
 
 > 产物（proposal.md/specs/**/spec.md/tasks.md）由 propose 阶段一次性写入 change 目录
 > （承接 explore 设计文档结论），archive 只负责归档，无转换。
@@ -95,16 +95,16 @@ dispatcher 已提示是否触发 merge check，agent 如需额外校验：
 ### 失败处理
 
 - openspec archive 失败时，change 目录（`openspec/changes/<feature>/`）保留供排查
-- state 不跃迁，用户可修后重试 `/specpowers-archive`
+- 工件形态不变（目录推导阶段仍为 apply/fast），用户可修后重试 `/specpowers-archive`
 - 常见失败：delta 验证不通过（缺 SHALL/Scenario）
 
 ## 归档原则
 
 - **只转人工、不打回**（archive 是收尾，不打回重做）
-- **不提交代码**：archive 只做归档动作（openspec archive + state 跃迁），不执行 `git add` / `git commit`，代码与产物的提交由用户自行完成
+- **不提交代码**：archive 只做归档动作（openspec archive + change 目录移入 archive 快照 + runtime.json 刷新），不执行 `git add` / `git commit`，代码与产物的提交由用户自行完成
 - 重复归档检测：防止同一 feature 被多人重复归档。**注意**：检测依据是 git log 中含 `specpowers.*<feature>` 的 commit——归档完成后请用户提交时在 commit message 中包含 feature 名（推荐格式 `specpowers: <feature>`），否则重复归档检测对该 feature 不生效
-- **归档即该需求终结**（auto 多轮迭代语义，per-feature）：归档成功后确定性层自动清理该需求的 `.specpowers/auto_base/<feature>.json`（v2.8.0 起按 slug 隔离），iteration_count 随映射移除一并终结——该需求的下一轮 `/specpowers-auto` 必然判定为 fresh，不被残留基线误判为续跑；其余活跃需求各自的 auto_base 不受影响；裁决历史 `.specpowers/auto_decisions/<feature>.md` 保留作审计
-- 完成后该需求从活跃映射移除（无剩余活跃需求时项目回到 ready 空转态）
+- **归档即该需求终结**（auto 多轮迭代语义，per-feature）：归档成功后确定性层自动清理该需求的 `.specpowers/auto_base/<feature>.json`（v2.8.0 起按 slug 隔离），change 目录移入 archive 快照后轮次推导事实源随之归档终结——该需求的下一轮 `/specpowers-auto` 必然判定为 fresh，不被残留基线误判为续跑；其余活跃需求各自的 auto_base 不受影响；裁决历史 `.specpowers/auto_decisions/<feature>.md` 保留作审计
+- 完成后该需求不再出现在活跃清单（无剩余活跃需求时项目回到无活跃空转态）
 
 ## 通知用户
 

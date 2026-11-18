@@ -172,7 +172,7 @@ def load_baseline(root: Path) -> dict:
     """Load baseline.json. Returns empty dict if not found.
 
     文件损坏（手工编辑出错/写盘中断残留）时显式报错并指引重建，
-    与 fs_state.load_state 对 state.json 的处理对齐；
+    与 fs_state 对 runtime.json 的损坏处理同型（FatalError 带重建指引）；
     裸 json.load 会让 gate 命令直接以 traceback 崩溃。
     """
     baseline_path = _get_baseline_path(root)

@@ -45,31 +45,35 @@ def validate_execution_mode(mode: str, current_mode: str = "full") -> tuple[bool
     return True, ""
 
 
-def set_execution_mode(root: Path, state: dict, mode: str) -> dict:
-    """把用户选择的执行方式记录到 state.json（execution_mode 字段）。
+def set_execution_mode(root: Path, slug: str, mode: str) -> str:
+    """把用户选择的执行方式记录到 change 目录 meta（execution_mode 字段）。
 
-    落地 build.md 第二步的承诺：执行方式不仅停留在 agent 实时交互，
-    也持久化到 state，供后续阶段（archive 审计等）追溯。
+    落地 apply.md 第二步的承诺：执行方式不仅停留在 agent 实时交互，
+    也持久化到需求 meta，供后续阶段（archive 审计等）追溯。
+    v3.0 起写 meta（state.execution_mode 已随 state 退役删除）。
 
     Args:
-        root: 项目根目录（save_state 内部拼 .specpowers/state.json）。
-        state: 当前状态字典。
+        root: 项目根目录。
+        slug: 目标需求 slug（meta 写入目标）。
         mode: 用户选择的执行方式（conductor/worktree/subagent/tdd）。
 
     Returns:
-        更新后的 state 字典。
+        规范化后的执行方式字符串。
 
     Raises:
         ValueError: 执行方式非法，或 fast 模式选了禁止的方式。
     """
+    from specpowers_cli.bridge.modules.state_derivation import (
+        change_dir_of, derive_stage, read_meta, update_meta,
+    )
+    current_mode = str((read_meta(change_dir_of(root, slug)) or {}).get("mode") or "full")
     # 先按当前 mode 校验合法性（含 fast 约束兜底）
-    ok, hint = validate_execution_mode(mode, state.get("mode", "full"))
+    ok, hint = validate_execution_mode(mode, current_mode)
     if not ok:
         raise ValueError(hint)
-    state["execution_mode"] = mode.strip().lower()
-    from specpowers_cli.bridge.core.fs_state import save_state
-    save_state(root, state)
-    return state
+    normalized = mode.strip().lower()
+    update_meta(root, slug, {"execution_mode": normalized})
+    return normalized
 
 
 # 说明：fast 模式的判小确认 / checklist 边界 / 回退标记等交互逻辑，
