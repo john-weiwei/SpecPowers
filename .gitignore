@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 # SpecPowers 个人运行时（本地状态，不提交；constitution.md/baseline.json 与 openspec/ 工件仍提交）
+# 过程中间件：活跃 change 三件套与归档是开发过程产物，不提交
+openspec/changes/
 .specpowers/state.json
 .specpowers/state.json.bak
 .specpowers/state.json.corrupted-*
