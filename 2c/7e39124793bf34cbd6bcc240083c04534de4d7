@@ -1,0 +1,107 @@
+plugins/specpowers/scripts/specpowers_cli/bridge/modules/resume_probe.py
+  s_8768511b97120b::t_042cabf06447a5 52-55
+  s_8768511b97120b::t_718a906a86d394 74-76
+  s_8768511b97120b::t_0bb62ea9a52365 105-110
+README.md
+  s_8768511b97120b::t_4699a16ebda3b9 359
+  s_8768511b97120b::t_09926f6319e52a 69,74
+  s_8768511b97120b::t_6e547ad8e356c5 7
+  s_8768511b97120b::t_03619853d9e705 344,348,350
+  s_8768511b97120b::t_b3231eaed380df 14
+tests/test_resume_probe.py
+  s_8768511b97120b::t_ac239aed0c067c 131-150
+plugins/specpowers/.codebuddy-plugin/plugin.json
+  s_8768511b97120b::t_eda41eadf92147 3
+pyproject.toml
+  s_8768511b97120b::t_eda41eadf92147 3
+tests/test_task_brief.py
+  s_8768511b97120b::t_fe03abc531c37f 1-241
+plugins/specpowers/scripts/specpowers_cli/bridge/facade.py
+  s_8768511b97120b::t_e18c523e128070 582-599
+  s_8768511b97120b::t_0dac194378b5f1 391-396
+  s_8768511b97120b::t_37f5be8a461d05 282-283
+  s_8768511b97120b::t_e33bb12848c2b7 637,642-658
+  s_8768511b97120b::t_f8b08e86fd3ec4 486-487
+plugins/specpowers/skills/specpowers/prompts/apply.md
+  s_8768511b97120b::t_75cad66eeb51ac 126-132,136
+  s_8768511b97120b::t_feae7ef0ae5249 93
+  s_8768511b97120b::t_ce597b8119f562 171
+  s_8768511b97120b::t_a7295d6474c408 29-39
+plugins/specpowers/scripts/specpowers_cli/bridge/dispatcher.py
+  s_8768511b97120b::t_3bcb0d7c1a68f1 904-905,910,912-913
+plugins/specpowers/.codex-plugin/plugin.json
+  s_8768511b97120b::t_eda41eadf92147 3
+tests/test_builtin_skills.py
+  s_8768511b97120b::t_d4b85d0cf40eb8 192-193,206,213-222,224-250
+  s_8768511b97120b::t_ef9bb805d0c047 223
+  s_8768511b97120b::t_42445022083461 573-574,586-630
+  s_8768511b97120b::t_02a0415d1786aa 251
+  s_8768511b97120b::t_840a002383e308 631-632
+plugins/specpowers/skills/specpowers/SKILL.md
+  s_8768511b97120b::t_7077a77d119e3e 16-17
+  s_8768511b97120b::t_ec18572dc31e91 4
+  s_8768511b97120b::t_649442d61cb499 131
+tests/test_facade.py
+  s_8768511b97120b::t_c0a439f59cb633 190-218
+plugins/specpowers/plugin.json
+  s_8768511b97120b::t_eda41eadf92147 4
+plugins/specpowers/skills/specpowers/prompts/propose.md
+  s_8768511b97120b::t_4f8d8a25ca4434 360
+  s_8768511b97120b::t_3afeb269118b00 385-386
+  s_8768511b97120b::t_64cacd8a71b629 275
+  s_8768511b97120b::t_4509f0b3fae83b 362-372
+  s_8768511b97120b::t_861439faa602e0 252
+  s_8768511b97120b::t_172871a8bc5148 230,239
+  s_8768511b97120b::t_a75252a5f56537 267
+docs/GETTING-STARTED.md
+  s_8768511b97120b::t_096b9e0325a16e 152,156
+  s_8768511b97120b::t_e4bace6e9f6957 70-82
+  s_8768511b97120b::t_b3231eaed380df 383
+  s_8768511b97120b::t_fd976198ea4d9c 10
+  s_8768511b97120b::t_8105401974d9ad 51,56
+plugins/specpowers/.claude-plugin/plugin.json
+  s_8768511b97120b::t_eda41eadf92147 3
+plugins/specpowers/scripts/specpowers_cli/__init__.py
+  s_8768511b97120b::t_eda41eadf92147 3
+plugins/specpowers/skills/specpowers/prompts/explore.md
+  s_8768511b97120b::t_4102a8948bd68a 214
+  s_8768511b97120b::t_e6c1e36d1b6bd5 84
+  s_8768511b97120b::t_bc1f584cc2471b 226
+  s_8768511b97120b::t_4f27f898daa084 52-55
+  s_8768511b97120b::t_4a7df588aed229 104-105
+  s_8768511b97120b::t_996c81af993110 284,286-287,289,298
+  s_8768511b97120b::t_e571f800cc7246 93,101,106-109,120,122
+plugins/specpowers/skills/specpowers/templates/auto-summary-template.md
+  s_8768511b97120b::t_9af6a7fd419426 4-7
+plugins/specpowers/skills/specpowers/prompts/auto.md
+  s_8768511b97120b::t_6e730071d3072f 168-169
+.claude-plugin/marketplace.json
+  s_8768511b97120b::t_dcf89f9aaa2eb2 13
+plugins/specpowers/skills/specpowers/scripts/task_brief.py
+  s_8768511b97120b::t_eeb7fdee4f2458 1-218
+plugins/specpowers/skills/specpowers/prompts/archive.md
+  s_8768511b97120b::t_ee6af5169436c4 84
+  s_8768511b97120b::t_391e764d0cf392 25-26
+marketplace.json
+  s_8768511b97120b::t_dcf89f9aaa2eb2 13
+plugins/specpowers/.zcode-plugin/plugin.json
+  s_8768511b97120b::t_eda41eadf92147 3
+.codebuddy-plugin/marketplace.json
+  s_8768511b97120b::t_dcf89f9aaa2eb2 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2c7e39124793bf34cbd6bcc240083c04534de4d7",
+  "prompts": {},
+  "sessions": {
+    "s_8768511b97120b": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_7d269510-6579-46dd-adff-c6d78b4b51a2",
+        "model": "account:bigmodel-individual-coding-plan/GLM-5.3-Flash"
+      },
+      "human_author": "张威威(005819) <zhangweiwei@fcbox.com>"
+    }
+  }
+}
